@@ -34,9 +34,9 @@ try {
  * Inject context when calls start (inbound calls)
  */
 router.post('/elevenlabs/conversation-initiation',
-  // Verify ElevenLabs signature
+  // Verify ElevenLabs signature with proper header
   (req, res, next) => {
-    const signature = req.headers['xi-signature'];
+    const signature = req.headers['elevenlabs-signature'] || req.headers['xi-signature'];
     const secret = process.env.ELEVENLABS_CONVERSATION_INITIATION_WEBHOOK_SECRET;
     
     if (secret && signature) {
@@ -162,8 +162,8 @@ router.post('/elevenlabs/conversation-initiation',
         organizationId
       });
       
-      // Return dynamic variables to ElevenLabs
-      res.json({ 
+      // Return dynamic variables to ElevenLabs with 200 status (required)
+      res.status(200).json({ 
         success: true,
         dynamic_variables: dynamicVariables 
       });
@@ -183,7 +183,7 @@ router.post('/elevenlabs/conversation-initiation',
         total_messages: "0"
       };
       
-      res.json({
+      res.status(200).json({
         success: true,
         dynamic_variables: fallbackVariables
       });
@@ -196,12 +196,28 @@ router.post('/elevenlabs/conversation-initiation',
  * Process call results and update lead data
  */
 router.post('/elevenlabs/post-call',
-  // Verify ElevenLabs signature with enhanced validation
+  // Verify ElevenLabs signature with proper header and timestamp validation
   (req, res, next) => {
-    const signature = req.headers['xi-signature'];
+    const signature = req.headers['elevenlabs-signature'] || req.headers['xi-signature'];
+    const timestamp = req.headers['elevenlabs-timestamp'];
     const secret = process.env.ELEVENLABS_POST_CALL_WEBHOOK_SECRET;
     
     if (secret && signature) {
+      // Validate timestamp (must be within 30 minutes)
+      if (timestamp) {
+        const webhookTime = parseInt(timestamp);
+        const currentTime = Math.floor(Date.now() / 1000);
+        const timeDiff = Math.abs(currentTime - webhookTime);
+        
+        if (timeDiff > 1800) { // 30 minutes
+          console.error('❌ ElevenLabs webhook timestamp too old');
+          return res.status(401).json({
+            success: false,
+            error: 'Webhook timestamp too old'
+          });
+        }
+      }
+      
       const expectedSignature = crypto
         .createHmac('sha256', secret)
         .update(req.rawBody || JSON.stringify(req.body))
@@ -1032,7 +1048,7 @@ router.post('/elevenlabs/conversation',
         console.warn(`Unknown ElevenLabs webhook type: ${type}`);
     }
     
-    res.json({ success: true, processed: true });
+    res.status(200).json({ success: true, processed: true });
   })
 );
 

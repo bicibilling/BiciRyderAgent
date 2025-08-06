@@ -1389,8 +1389,10 @@ router.post('/outbound-call',
           priority: priority || 'medium',
           scheduled_time: scheduledTime,
           service_details: serviceDetails,
-          dynamic_variables: dynamicVariables,
-          initiated_by: userId
+          call_type: 'outbound',
+          initiated_by: userId || 'api',
+          timestamp: new Date().toISOString(),
+          dynamic_variables: dynamicVariables
         }
       };
       
