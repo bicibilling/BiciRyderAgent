@@ -170,11 +170,15 @@ class WebSocketManager extends EventEmitter {
         break;
         
       case 'subscribe_conversation':
-        this.subscribeToConversation(connectionId, data.conversationId);
+        this.subscribeToConversation(connectionId, data.conversationId, data);
         break;
         
       case 'unsubscribe_conversation':
         this.unsubscribeFromConversation(connectionId, data.conversationId);
+        break;
+        
+      case 'get_conversation_history':
+        this.handleGetConversationHistory(connectionId, data);
         break;
         
       case 'subscribe_dashboard':
@@ -206,7 +210,7 @@ class WebSocketManager extends EventEmitter {
   /**
    * Handle conversation subscription
    */
-  subscribeToConversation(connectionId, conversationId) {
+  subscribeToConversation(connectionId, conversationId, data) {
     const connection = this.connections.get(connectionId);
     if (!connection) return;
     
@@ -223,10 +227,12 @@ class WebSocketManager extends EventEmitter {
       type: 'subscription_confirmed',
       subscription: 'conversation',
       conversationId,
+      phoneNumber: data.phoneNumber,
+      organizationId: data.organizationId,
       timestamp: new Date().toISOString()
     });
     
-    console.log(`📡 ${connectionId} subscribed to conversation ${conversationId}`);
+    console.log(`📡 ${connectionId} subscribed to conversation ${conversationId} for ${data.phoneNumber}`);
   }
   
   /**
@@ -278,17 +284,79 @@ class WebSocketManager extends EventEmitter {
   }
   
   /**
+   * Handle conversation history request
+   */
+  async handleGetConversationHistory(connectionId, data) {
+    const connection = this.connections.get(connectionId);
+    if (!connection) return;
+    
+    const { conversationId, phoneNumber, organizationId } = data;
+    
+    try {
+      // In production, this would fetch from database
+      // For now, emit event to external system and return mock data
+      this.emit('conversation_history_requested', {
+        connectionId,
+        conversationId,
+        phoneNumber,
+        organizationId,
+        requestedBy: connection.user
+      });
+      
+      // Mock conversation history - in production, this would come from database
+      const mockMessages = [
+        {
+          id: 'msg_1',
+          content: 'Hello! I\'m interested in your bike services.',
+          sentBy: 'user',
+          timestamp: new Date(Date.now() - 300000).toISOString(),
+          type: 'text',
+          phoneNumber: phoneNumber,
+          status: 'delivered'
+        },
+        {
+          id: 'msg_2', 
+          content: 'Hi! Thanks for your interest. I\'d be happy to help you find the perfect bike. What type of cycling are you most interested in?',
+          sentBy: 'agent',
+          timestamp: new Date(Date.now() - 240000).toISOString(),
+          type: 'text',
+          phoneNumber: phoneNumber,
+          status: 'delivered'
+        }
+      ];
+      
+      // Send conversation history to client
+      this.sendToConnection(connectionId, {
+        type: 'conversation_history',
+        conversationId,
+        phoneNumber,
+        organizationId,
+        messages: mockMessages,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log(`📜 Sent conversation history for ${phoneNumber} to ${connectionId}`);
+      
+    } catch (error) {
+      console.error(`❌ Failed to get conversation history:`, error);
+      this.sendError(connectionId, 'HISTORY_FETCH_ERROR', 'Failed to retrieve conversation history');
+    }
+  }
+  
+  /**
    * Handle chat message from agent
    */
   handleChatMessage(connectionId, data) {
     const connection = this.connections.get(connectionId);
     if (!connection) return;
     
-    const { conversationId, message, messageType = 'text' } = data;
+    const { conversationId, message, messageType = 'text', phoneNumber, organizationId } = data;
     
     // Emit event for external processing (ElevenLabs integration)
     this.emit('chat_message', {
       conversationId,
+      phoneNumber,
+      organizationId,
       message,
       messageType,
       agentId: connection.user.id,
@@ -298,10 +366,19 @@ class WebSocketManager extends EventEmitter {
     
     // Broadcast to conversation subscribers
     this.broadcastToConversation(conversationId, {
-      type: 'agent_message_sent',
+      type: 'human_message_sent',
       conversationId,
-      message,
-      messageType,
+      phoneNumber,
+      organizationId,
+      message: {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        content: message,
+        sentBy: 'human_agent',
+        timestamp: new Date().toISOString(),
+        type: messageType,
+        phoneNumber: phoneNumber,
+        status: 'sent'
+      },
       agentId: connection.user.id,
       agentName: connection.user.email,
       timestamp: new Date().toISOString()

@@ -28,6 +28,7 @@ const integrationRoutes = require('./api/routes/integrations');
 const adminRoutes = require('./api/routes/admin');
 const humanControlRoutes = require('./api/routes/human-control');
 const smsRoutes = require('./api/routes/sms');
+const callRoutes = require('./api/routes/calls');
 
 // Import middleware
 const authMiddleware = require('./api/middleware/auth');
@@ -37,6 +38,7 @@ const rateLimitConfig = require('./api/middleware/rateLimit');
 
 // Import services
 const WebSocketManager = require('./api/services/websocketManager');
+const ConversationBridge = require('./api/services/conversationBridge');
 const DatabaseService = require('./api/services/databaseService');
 const ElevenLabsService = require('./api/services/elevenLabsService');
 const TwilioService = require('./api/services/twilioService');
@@ -55,6 +57,7 @@ class BiciAPIServer {
     this.elevenLabs = new ElevenLabsService();
     this.twilio = new TwilioService();
     this.wsManager = new WebSocketManager(this.server);
+    this.conversationBridge = null; // Initialize after WebSocket manager
     
     // Service states
     this.isReady = false;
@@ -280,6 +283,14 @@ class BiciAPIServer {
       smsRoutes
     );
     
+    // Call routes (protected)
+    this.app.use('/api/calls',
+      authMiddleware.verifyToken,
+      authMiddleware.addOrganizationContext,
+      authMiddleware.requirePermission('calls:manage'),
+      callRoutes
+    );
+    
     // Analytics routes (protected)
     this.app.use('/api/analytics',
       authMiddleware.verifyToken,
@@ -328,7 +339,14 @@ class BiciAPIServer {
    */
   setupWebSocket() {
     this.wsManager.initialize();
-    this.logger.info('WebSocket server initialized');
+    
+    // Initialize ConversationBridge after WebSocket manager
+    this.conversationBridge = new ConversationBridge(this.wsManager);
+    
+    // Set ConversationBridge instance in call routes
+    callRoutes.setConversationBridge(this.conversationBridge);
+    
+    this.logger.info('WebSocket server and ConversationBridge initialized');
   }
   
   /**
@@ -457,6 +475,11 @@ class BiciAPIServer {
       });
       
       try {
+        // Close ConversationBridge connections
+        if (this.conversationBridge) {
+          await this.conversationBridge.close();
+        }
+        
         // Close WebSocket connections
         this.wsManager.closeAll();
         

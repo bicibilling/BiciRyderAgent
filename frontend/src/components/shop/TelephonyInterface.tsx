@@ -22,7 +22,6 @@ import toast from 'react-hot-toast'
 // Types
 import {
   ConversationMessage,
-  SSEEvent,
   SSEConnectionStatus,
   MainTabType,
   CurrentMode,
@@ -52,8 +51,8 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
   const [activeMainTab, setActiveMainTab] = useState<MainTabType>('conversation')
   const [humanControlAgent, setHumanControlAgent] = useState<string | null>(null)
   
-  // SSE connection state
-  const [sseStatus, setSseStatus] = useState<SSEConnectionStatus>({
+  // WebSocket connection state
+  const [wsStatus, setWsStatus] = useState<SSEConnectionStatus>({
     connected: false,
     reconnectAttempts: 0
   })
@@ -64,7 +63,8 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
   const [queuedMessagesCount, setQueuedMessagesCount] = useState(0)
   
   // Refs
-  const eventSourceRef = useRef<EventSource | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const conversationEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   
@@ -87,32 +87,62 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
     return headers
   }, [organizationId])
 
-  // SSE Connection Management
-  const setupEventSource = useCallback(() => {
-    if (!selectedLead || eventSourceRef.current) return
+  // WebSocket Connection Management
+  const setupWebSocketConnection = useCallback(() => {
+    if (!selectedLead || wsRef.current) return
 
-    // Get token for SSE authentication (EventSource doesn't support custom headers)
+    // Get token for WebSocket authentication
     const token = localStorage.getItem('bici_token')
-    const eventSourceURL = `${API_BASE_URL}/api/stream/conversation/${selectedLead.id}?phoneNumber=${encodeURIComponent(selectedLead.phoneNumber)}&load=true&organizationId=${encodeURIComponent(organizationId)}${token ? `&token=${encodeURIComponent(token)}` : ''}`
+    if (!token) {
+      console.error('❌ No authentication token available')
+      setWsStatus(prev => ({ ...prev, error: 'Authentication required' }))
+      return
+    }
     
-    setSseStatus(prev => ({ ...prev, connected: false }))
+    setWsStatus(prev => ({ ...prev, connected: false, error: undefined }))
     
     try {
-      const eventSource = new EventSource(eventSourceURL)
-      eventSourceRef.current = eventSource
+      // Use WebSocket instead of EventSource for better real-time communication
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const wsHost = import.meta.env.VITE_WS_URL || API_BASE_URL.replace(/^https?:/, wsProtocol)
+      const wsUrl = `${wsHost}/ws?token=${encodeURIComponent(token)}`
       
-      eventSource.onopen = () => {
-        console.log('✅ SSE Connected successfully')
-        setSseStatus({
+      console.log('🔌 Connecting to WebSocket:', wsUrl)
+      const ws = new WebSocket(wsUrl)
+      wsRef.current = ws
+      
+      ws.onopen = () => {
+        console.log('✅ WebSocket Connected successfully')
+        setWsStatus({
           connected: true,
           reconnectAttempts: 0,
           lastHeartbeat: new Date().toISOString()
         })
+        
+        // Subscribe to conversation updates for this lead
+        ws.send(JSON.stringify({
+          type: 'subscribe_conversation',
+          data: {
+            conversationId: selectedLead.id,
+            phoneNumber: selectedLead.phoneNumber,
+            organizationId: organizationId
+          }
+        }))
+        
+        // Request conversation history
+        ws.send(JSON.stringify({
+          type: 'get_conversation_history',
+          data: {
+            conversationId: selectedLead.id,
+            phoneNumber: selectedLead.phoneNumber,
+            organizationId: organizationId
+          }
+        }))
       }
       
-      eventSource.onmessage = (event) => {
+      ws.onmessage = (event) => {
         try {
-          const data: SSEEvent = JSON.parse(event.data)
+          const data = JSON.parse(event.data)
           
           // Security: Validate organization
           if (data.organizationId && data.organizationId !== organizationId) {
@@ -120,51 +150,67 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
             return
           }
           
-          handleSSEEvent(data)
+          handleWebSocketEvent(data)
         } catch (error) {
-          console.error('Error parsing SSE message:', error)
+          console.error('Error parsing WebSocket message:', error)
         }
       }
       
-      eventSource.onerror = (error) => {
-        console.error('SSE error:', error)
-        setSseStatus(prev => ({
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error)
+        setWsStatus(prev => ({
           ...prev,
           connected: false,
           error: 'Connection error',
           reconnectAttempts: prev.reconnectAttempts + 1
         }))
-        
-        if (eventSourceRef.current) {
-          eventSourceRef.current.close()
-          eventSourceRef.current = null
-        }
+      }
+      
+      ws.onclose = (event) => {
+        console.log('🔌 WebSocket closed:', event.code, event.reason)
+        wsRef.current = null
+        setWsStatus(prev => ({
+          ...prev,
+          connected: false,
+          error: event.reason || 'Connection closed'
+        }))
         
         // Auto-reconnect with exponential backoff
-        const reconnectDelay = Math.min(1000 * Math.pow(2, sseStatus.reconnectAttempts), 30000)
-        setTimeout(() => {
-          if (selectedLead && sseStatus.reconnectAttempts < 5) {
-            setupEventSource()
-          }
-        }, reconnectDelay)
+        if (selectedLead && wsStatus.reconnectAttempts < 10) {
+          const reconnectDelay = Math.min(1000 * Math.pow(1.5, wsStatus.reconnectAttempts), 30000)
+          console.log(`🔄 Reconnecting in ${reconnectDelay / 1000}s... (attempt ${wsStatus.reconnectAttempts + 1})`)
+          
+          reconnectTimeoutRef.current = setTimeout(() => {
+            setupWebSocketConnection()
+          }, reconnectDelay)
+        }
       }
     } catch (error) {
-      console.error('Failed to create EventSource:', error)
-      setSseStatus(prev => ({
+      console.error('Failed to create WebSocket:', error)
+      setWsStatus(prev => ({
         ...prev,
         connected: false,
         error: 'Failed to connect'
       }))
     }
-  }, [selectedLead, organizationId, sseStatus.reconnectAttempts])
+  }, [selectedLead, organizationId, wsStatus.reconnectAttempts])
 
-  // Handle SSE Events
-  const handleSSEEvent = useCallback((data: SSEEvent) => {
-    console.log('📡 SSE Event:', data.type, data)
+  // Handle WebSocket Events
+  const handleWebSocketEvent = useCallback((data: any) => {
+    console.log('📡 WebSocket Event:', data.type, data)
+    
+    // Update heartbeat for connection health
+    if (data.type !== 'heartbeat') {
+      setWsStatus(prev => ({
+        ...prev,
+        lastHeartbeat: new Date().toISOString()
+      }))
+    }
     
     switch (data.type) {
       case 'connected':
-        setSseStatus(prev => ({
+      case 'connection_established':
+        setWsStatus(prev => ({
           ...prev,
           connected: true,
           connectionId: data.connectionId,
@@ -173,7 +219,8 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
         break
         
       case 'heartbeat':
-        setSseStatus(prev => ({
+      case 'pong':
+        setWsStatus(prev => ({
           ...prev,
           lastHeartbeat: data.timestamp
         }))
@@ -246,12 +293,12 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
         break
         
       case 'error':
-        console.error('SSE Error event:', data.error)
+        console.error('WebSocket Error event:', data.error)
         toast.error(`Connection error: ${data.error}`)
         break
         
       default:
-        console.log('Unhandled SSE event type:', data.type)
+        console.log('Unhandled WebSocket event type:', data.type)
     }
   }, [organizationId])
 
@@ -377,39 +424,7 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
   }
 
   // Communication functions
-  const handleStartVoiceCall = async () => {
-    if (!selectedLead) return
-    
-    try {
-      setIsLoading(true)
-      const response = await fetch(`${API_BASE_URL}/api/conversations/outbound-call`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getOrganizationHeaders()
-        },
-        body: JSON.stringify({
-          phoneNumber: selectedLead.phoneNumber,
-          leadId: selectedLead.id,
-          organizationId: organizationId
-        })
-      })
-      
-      const result = await response.json()
-      
-      if (result.success) {
-        // Status will be updated via SSE
-        toast.success(`Call initiated to ${selectedLead.phoneNumber}`)
-      } else {
-        throw new Error(result.error || 'Failed to initiate call')
-      }
-    } catch (error: any) {
-      console.error('Failed to start voice call:', error)
-      toast.error(error.message || 'Failed to start call')
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  // Note: handleStartVoiceCall removed - using handleCallAction instead
 
   const handleSendMessage = async (message: string) => {
     if (!selectedLead || !message.trim()) return
@@ -417,31 +432,150 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
     try {
       setIsLoading(true)
       
-      const response = await fetch(`${API_BASE_URL}/api/human-control/send-message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getOrganizationHeaders()
-        },
-        body: JSON.stringify({
+      // Send via WebSocket if connected, otherwise fall back to HTTP API
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'send_chat_message',
+          data: {
+            conversationId: selectedLead.id,
+            phoneNumber: selectedLead.phoneNumber,
+            organizationId: organizationId,
+            message: message.trim(),
+            messageType: currentMode === 'sms' ? 'sms' : 'text'
+          }
+        }))
+        
+        // Optimistically add message to conversation
+        const optimisticMessage: ConversationMessage = {
+          id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          content: message.trim(),
+          sentBy: 'human_agent',
+          timestamp: new Date().toISOString(),
+          type: 'text',
           phoneNumber: selectedLead.phoneNumber,
-          message: message.trim(),
-          leadId: selectedLead.id,
-          messageType: 'text'
-        })
-      })
-      
-      const result = await response.json()
-      
-      if (result.success) {
-        // Message will be added via SSE
+          status: 'sending'
+        }
+        addConversationMessage(optimisticMessage)
+        
         toast.success('Message sent successfully')
       } else {
-        throw new Error(result.error || 'Failed to send message')
+        // Fall back to HTTP API if WebSocket is not available
+        const response = await fetch(`${API_BASE_URL}/api/human-control/send-message`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getOrganizationHeaders()
+          },
+          body: JSON.stringify({
+            phoneNumber: selectedLead.phoneNumber,
+            message: message.trim(),
+            leadId: selectedLead.id,
+            messageType: currentMode === 'sms' ? 'sms' : 'text'
+          })
+        })
+        
+        const result = await response.json()
+        
+        if (result.success) {
+          toast.success('Message sent successfully')
+        } else {
+          throw new Error(result.error || 'Failed to send message')
+        }
       }
     } catch (error: any) {
       console.error('Failed to send message:', error)
       toast.error(error.message || 'Failed to send message')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Handle call actions (start/end call)
+  const handleCallAction = async () => {
+    if (!selectedLead) return
+    
+    try {
+      setIsLoading(true)
+      
+      if (isCallActive) {
+        // End call
+        const response = await fetch(`${API_BASE_URL}/api/calls/end/current`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getOrganizationHeaders()
+          },
+          body: JSON.stringify({
+            phoneNumber: selectedLead.phoneNumber,
+            leadId: selectedLead.id,
+            reason: 'manual_end'
+          })
+        })
+        
+        const result = await response.json()
+        
+        if (result.success) {
+          setIsCallActive(false)
+          setCurrentMode('idle')
+          toast.success('Call ended successfully')
+        } else {
+          throw new Error(result.error || 'Failed to end call')
+        }
+      } else {
+        // Start call
+        const response = await fetch(`${API_BASE_URL}/api/calls/outbound/start`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getOrganizationHeaders()
+          },
+          body: JSON.stringify({
+            phoneNumber: selectedLead.phoneNumber,
+            leadId: selectedLead.id,
+            dynamicVariables: {
+              customer_name: selectedLead.customerName || 'Customer',
+              lead_status: selectedLead.fundingReadiness || 'new',
+              conversation_context: conversationHistory
+                .slice(-5)
+                .map(msg => `${msg.sentBy}: ${msg.content}`)
+                .join('\\n') || 'No previous conversation'
+            },
+            priority: 'normal'
+          })
+        })
+        
+        const result = await response.json()
+        
+        if (result.success) {
+          setIsCallActive(true)
+          setCurrentMode('voice')
+          toast.success('Call initiated successfully')
+          
+          // Store call information for tracking
+          if (result.data) {
+            console.log('✅ Call started:', result.data)
+          }
+        } else {
+          throw new Error(result.error || 'Failed to start call')
+        }
+      }
+    } catch (error: any) {
+      console.error('Call action failed:', error)
+      
+      // Handle specific error cases
+      let errorMessage = 'Call action failed'
+      
+      if (error.message?.includes('not configured')) {
+        errorMessage = 'Call service not properly configured'
+      } else if (error.message?.includes('rate limit')) {
+        errorMessage = 'Too many calls initiated. Please try again later.'
+      } else if (error.message?.includes('invalid phone')) {
+        errorMessage = 'Invalid phone number format'
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -458,26 +592,34 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
     }
   }, [isAutoMode, isUnderHumanControl, isLoading])
 
-  // Setup SSE connection when lead changes
+  // Setup WebSocket connection when lead changes
   useEffect(() => {
     if (selectedLead && organizationId) {
-      setupEventSource()
+      setupWebSocketConnection()
     }
     
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
-        eventSourceRef.current = null
+      if (wsRef.current) {
+        wsRef.current.close(1000, 'Component unmounting')
+        wsRef.current = null
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
       }
     }
-  }, [selectedLead?.id, organizationId])
+  }, [selectedLead?.id, organizationId, setupWebSocketConnection])
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
-        eventSourceRef.current = null
+      if (wsRef.current) {
+        wsRef.current.close(1000, 'Component unmounting')
+        wsRef.current = null
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
       }
     }
   }, [])
@@ -522,7 +664,7 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
                   {selectedLead.phoneNumber}
                 </span>
                 <StatusIndicator 
-                  status={sseStatus.connected ? 'connected' : 'disconnected'}
+                  status={wsStatus.connected ? 'connected' : 'disconnected'}
                   mode={currentMode}
                   isCallActive={isCallActive}
                   isUnderHumanControl={isUnderHumanControl}
@@ -619,9 +761,9 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
                       variant={isCallActive ? 'danger' : 'primary'}
                       size="sm"
                       icon={isCallActive ? <StopIcon /> : <PhoneIcon />}
-                      onClick={isCallActive ? () => {} : handleStartVoiceCall}
-                      loading={isLoading && currentMode === 'voice'}
-                      disabled={isUnderHumanControl && !isCallActive}
+                      onClick={handleCallAction}
+                      loading={isLoading && (currentMode === 'voice' || currentMode === 'idle')}
+                      disabled={!wsStatus.connected}
                     >
                       {isCallActive ? 'End Call' : 'Start Call'}
                     </Button>
@@ -657,7 +799,7 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
                 >
                   <ConversationDisplay
                     messages={conversationHistory}
-                    isLoading={!sseStatus.connected}
+                    isLoading={!wsStatus.connected}
                     selectedLead={selectedLead}
                   />
                   <div ref={conversationEndRef} />
@@ -677,13 +819,16 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
                 )}
               </div>
 
-              {/* Message Input */}
-              {isUnderHumanControl && (
+              {/* Message Input - Always show for SMS mode or when under human control */}
+              {(currentMode === 'sms' || isUnderHumanControl) && (
                 <div className="border-t border-neutral-200 p-4">
                   <MessageInput
                     onSendMessage={handleSendMessage}
-                    disabled={isLoading || !sseStatus.connected}
-                    placeholder="Type your message..."
+                    disabled={isLoading || !wsStatus.connected}
+                    placeholder={isUnderHumanControl ? 
+                      "Type your message..." : 
+                      "Send SMS message..."
+                    }
                   />
                 </div>
               )}
@@ -717,7 +862,7 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
       </div>
 
       {/* Connection Status Warning */}
-      {!sseStatus.connected && (
+      {!wsStatus.connected && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -730,14 +875,14 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
                 Connection Issue
               </p>
               <p className="text-sm text-yellow-700">
-                {sseStatus.error || 'Attempting to reconnect...'}
-                {sseStatus.reconnectAttempts > 0 && ` (Attempt ${sseStatus.reconnectAttempts})`}
+                {wsStatus.error || 'Attempting to reconnect...'}
+                {wsStatus.reconnectAttempts > 0 && ` (Attempt ${wsStatus.reconnectAttempts})`}
               </p>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              onClick={setupEventSource}
+              onClick={setupWebSocketConnection}
               loading={isLoading}
             >
               Retry
