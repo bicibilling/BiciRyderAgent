@@ -572,7 +572,8 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
         body: JSON.stringify({
           phoneNumber: selectedLead.phoneNumber,
           leadId: selectedLead.id,
-          organizationId: organizationId,
+          callReason: 'follow_up',
+          priority: 'medium',
           customMessage: autoResponse ? undefined : 'Custom outbound call message'
         })
       })
