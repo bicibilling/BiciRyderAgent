@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       })
       
       if (response.data.success) {
-        setUser(response.data.user)
+        setUser(response.data.data.user)
         setToken(tokenToValidate)
         axios.defaults.headers.common['Authorization'] = `Bearer ${tokenToValidate}`
       } else {
@@ -108,7 +108,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       })
 
       if (response.data.success) {
-        const { token: newToken, user: userData } = response.data
+        const { accessToken: newToken, user: userData } = response.data.data
         
         setToken(newToken)
         setUser(userData)
@@ -155,7 +155,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       })
 
       if (response.data.success) {
-        const { token: newToken } = response.data
+        const { accessToken: newToken } = response.data.data
         setToken(newToken)
         localStorage.setItem('bici_token', newToken)
         axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
