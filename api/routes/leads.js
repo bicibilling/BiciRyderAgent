@@ -8,16 +8,14 @@ const authMiddleware = require('../middleware/auth');
 const { validateQuery, validateParams, validateBody } = require('../middleware/validation');
 const rateLimitConfig = require('../middleware/rateLimit');
 const { asyncHandler } = require('../middleware/errorHandler');
+const { normalizePhoneNumber, validatePhoneNumber, phoneNumbersEqual } = require('../../utils/phone');
 
 const router = express.Router();
 
 // Mock database - replace with actual Supabase integration
 let leadsDatabase = new Map();
 
-// Helper function to normalize phone numbers
-function normalizePhoneNumber(phoneNumber) {
-  return phoneNumber.replace(/[^\d+]/g, '');
-}
+// Phone number helper functions are now imported from utils/phone.js
 
 // Helper function to generate lead ID
 function generateLeadId() {
@@ -173,13 +171,24 @@ router.post('/',
     const leadData = req.body;
 
     try {
-      // Normalize phone number
+      // Validate phone number format first
+      if (!validatePhoneNumber(leadData.phoneNumber)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid phone number format. Please provide a valid phone number.',
+          code: 'INVALID_PHONE_FORMAT'
+        });
+      }
+
+      // Normalize phone number to E.164 format
       const normalizedPhone = normalizePhoneNumber(leadData.phoneNumber);
+      
+      console.log(`📞 Normalizing phone: ${leadData.phoneNumber} → ${normalizedPhone}`);
 
       // Check if lead with this phone number already exists
       const existingLead = Array.from(leadsDatabase.values()).find(
         lead => lead.organizationId === organizationId && 
-                normalizePhoneNumber(lead.phoneNumber) === normalizedPhone
+                phoneNumbersEqual(lead.phoneNumber, normalizedPhone)
       );
 
       if (existingLead) {
@@ -195,7 +204,7 @@ router.post('/',
       const newLead = {
         id: generateLeadId(),
         customerName: leadData.customerName,
-        phoneNumber: leadData.phoneNumber,
+        phoneNumber: normalizedPhone, // Store normalized phone number
         email: leadData.email,
         leadStatus: leadData.leadStatus || 'new',
         leadSource: leadData.leadSource || 'manual_entry',
@@ -221,7 +230,7 @@ router.post('/',
       // Store in database
       leadsDatabase.set(newLead.id, newLead);
 
-      console.log(`👤 Created new lead: ${newLead.customerName} (${newLead.phoneNumber}) for organization ${organizationId}`);
+      console.log(`👤 Created new lead: ${newLead.customerName} (${leadData.phoneNumber} → ${newLead.phoneNumber}) for organization ${organizationId}`);
 
       res.status(201).json({
         success: true,
@@ -275,10 +284,43 @@ router.put('/:id',
         });
       }
 
+      // Validate and normalize phone number if it's being updated
+      let processedUpdateData = { ...updateData };
+      if (updateData.phoneNumber) {
+        if (!validatePhoneNumber(updateData.phoneNumber)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid phone number format. Please provide a valid phone number.',
+            code: 'INVALID_PHONE_FORMAT'
+          });
+        }
+        
+        const normalizedPhone = normalizePhoneNumber(updateData.phoneNumber);
+        console.log(`📞 Normalizing updated phone: ${updateData.phoneNumber} → ${normalizedPhone}`);
+        
+        // Check for duplicates (excluding current lead)
+        const duplicateLead = Array.from(leadsDatabase.values()).find(
+          lead => lead.id !== id && 
+                  lead.organizationId === organizationId && 
+                  phoneNumbersEqual(lead.phoneNumber, normalizedPhone)
+        );
+        
+        if (duplicateLead) {
+          return res.status(409).json({
+            success: false,
+            error: 'Another lead with this phone number already exists',
+            code: 'LEAD_PHONE_DUPLICATE',
+            data: duplicateLead
+          });
+        }
+        
+        processedUpdateData.phoneNumber = normalizedPhone;
+      }
+
       // Update lead
       const updatedLead = {
         ...existingLead,
-        ...updateData,
+        ...processedUpdateData,
         id, // Preserve ID
         organizationId, // Preserve organization
         createdAt: existingLead.createdAt, // Preserve creation date

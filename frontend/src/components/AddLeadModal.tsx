@@ -6,6 +6,12 @@ import Input from '@/components/ui/Input'
 import { useAuth } from '@/contexts/AuthContext'
 import axios from 'axios'
 import toast from 'react-hot-toast'
+import { 
+  normalizePhoneNumber, 
+  validatePhoneNumber, 
+  formatAsUserTypes,
+  cleanPhoneNumber 
+} from '@/utils/phone'
 
 interface AddLeadModalProps {
   isOpen: boolean
@@ -26,17 +32,31 @@ const AddLeadModal: React.FC<AddLeadModalProps> = ({
     phoneNumber: '',
     email: ''
   })
+  
+  const [phoneDisplayValue, setPhoneDisplayValue] = useState('')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }))
+    if (field === 'phoneNumber') {
+      // Handle phone number with real-time formatting
+      const cleanValue = cleanPhoneNumber(value)
+      const displayValue = formatAsUserTypes(value)
+      
+      setPhoneDisplayValue(displayValue)
+      setFormData(prev => ({
+        ...prev,
+        [field]: cleanValue
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value
+      }))
+    }
     
     // Clear error for this field
     if (errors[field]) {
@@ -56,8 +76,8 @@ const AddLeadModal: React.FC<AddLeadModalProps> = ({
 
     if (!formData.phoneNumber.trim()) {
       newErrors.phoneNumber = 'Phone number is required'
-    } else if (!/^\+?[\d\s\-\(\)]{10,}$/.test(formData.phoneNumber.trim())) {
-      newErrors.phoneNumber = 'Please enter a valid phone number'
+    } else if (!validatePhoneNumber(formData.phoneNumber.trim())) {
+      newErrors.phoneNumber = 'Please enter a valid phone number (10+ digits)'
     }
 
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
@@ -76,11 +96,12 @@ const AddLeadModal: React.FC<AddLeadModalProps> = ({
     setIsSubmitting(true)
     
     try {
-      // Normalize phone number
-      let formattedPhone = formData.phoneNumber.trim()
-      if (!formattedPhone.startsWith('+')) {
-        // Add +1 for US numbers if no country code
-        formattedPhone = '+1' + formattedPhone.replace(/\D/g, '')
+      // Normalize phone number using utility function
+      const formattedPhone = normalizePhoneNumber(formData.phoneNumber.trim())
+      
+      // Double-check that normalization worked
+      if (!formattedPhone || !validatePhoneNumber(formattedPhone)) {
+        throw new Error('Unable to normalize phone number format')
       }
 
       const leadData = {
@@ -125,6 +146,7 @@ const AddLeadModal: React.FC<AddLeadModalProps> = ({
       phoneNumber: '',
       email: ''
     })
+    setPhoneDisplayValue('')
     setErrors({})
     onClose()
   }
@@ -166,13 +188,18 @@ const AddLeadModal: React.FC<AddLeadModalProps> = ({
             </label>
             <Input
               type="tel"
-              value={formData.phoneNumber}
+              value={phoneDisplayValue || formData.phoneNumber}
               onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-              placeholder="+1 (555) 123-4567"
+              placeholder="(555) 123-4567"
               error={errors.phoneNumber}
               icon={<PhoneIcon className="w-4 h-4" />}
               disabled={isSubmitting}
             />
+            {formData.phoneNumber && validatePhoneNumber(formData.phoneNumber) && (
+              <p className="text-xs text-neutral-500 mt-1">
+                Will be saved as: {normalizePhoneNumber(formData.phoneNumber)}
+              </p>
+            )}
           </div>
 
           {/* Email (Optional) */}

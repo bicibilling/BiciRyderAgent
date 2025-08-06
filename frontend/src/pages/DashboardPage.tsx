@@ -12,6 +12,7 @@ import {
   CheckCircleIcon
 } from '@heroicons/react/24/outline'
 import { useWebSocket } from '@/contexts/WebSocketContext'
+import { useAuth } from '@/contexts/AuthContext'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
@@ -43,6 +44,8 @@ interface RecentConversation {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 
 const DashboardPage: React.FC = () => {
+  const { user } = useAuth()
+  const organizationId = user?.organizationId
   const { 
     isConnected, 
     activeConversations, 
@@ -71,9 +74,21 @@ const DashboardPage: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true)
+      if (!organizationId) {
+        toast.error('Organization context required')
+        return
+      }
+
+      const headers = {
+        'x-organization-id': organizationId,
+        ...(axios.defaults.headers.common['Authorization'] && {
+          'Authorization': axios.defaults.headers.common['Authorization']
+        })
+      }
+
       const [statsResponse, conversationsResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/api/dashboard/stats`),
-        axios.get(`${API_BASE_URL}/api/dashboard/recent-conversations`)
+        axios.get(`${API_BASE_URL}/api/dashboard/stats`, { headers }),
+        axios.get(`${API_BASE_URL}/api/dashboard/recent-conversations`, { headers })
       ])
       
       setStats(statsResponse.data.data)
@@ -106,16 +121,22 @@ const DashboardPage: React.FC = () => {
     addEventListener('*', handleConversationUpdate)
     
     // Initial data fetch
-    fetchDashboardData()
+    if (organizationId) {
+      fetchDashboardData()
+    }
     
     // Refresh every 30 seconds
-    const interval = setInterval(fetchDashboardData, 30000)
+    const interval = setInterval(() => {
+      if (organizationId) {
+        fetchDashboardData()
+      }
+    }, 30000)
 
     return () => {
       removeEventListener('*', handleConversationUpdate)
       clearInterval(interval)
     }
-  }, [])
+  }, [organizationId])
 
   const handleTakeoverConversation = (conversationId: string) => {
     takeoverConversation(conversationId)

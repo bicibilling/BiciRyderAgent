@@ -102,7 +102,19 @@ const SettingsPage: React.FC = () => {
   const fetchSettings = async () => {
     try {
       setIsLoading(true)
-      const response = await axios.get(`${API_BASE_URL}/api/settings`)
+      if (!user?.organizationId) {
+        toast.error('Organization context required')
+        return
+      }
+
+      const headers = {
+        'x-organization-id': user.organizationId,
+        ...(axios.defaults.headers.common['Authorization'] && {
+          'Authorization': axios.defaults.headers.common['Authorization']
+        })
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/api/settings`, { headers })
       const data = response.data.data
       setSettings(data)
       
@@ -140,12 +152,26 @@ const SettingsPage: React.FC = () => {
   }
 
   useEffect(() => {
-    fetchSettings()
-  }, [])
+    if (user?.organizationId) {
+      fetchSettings()
+    }
+  }, [user?.organizationId])
 
   const onSaveProfile = async (data: ProfileFormData) => {
     try {
-      await axios.put(`${API_BASE_URL}/api/settings/profile`, data)
+      if (!user?.organizationId) {
+        toast.error('Organization context required')
+        return
+      }
+
+      const headers = {
+        'x-organization-id': user.organizationId,
+        ...(axios.defaults.headers.common['Authorization'] && {
+          'Authorization': axios.defaults.headers.common['Authorization']
+        })
+      }
+
+      await axios.put(`${API_BASE_URL}/api/settings/profile`, data, { headers })
       toast.success('Profile updated successfully')
     } catch (error) {
       toast.error('Failed to update profile')
@@ -154,7 +180,19 @@ const SettingsPage: React.FC = () => {
 
   const onSaveNotifications = async (data: NotificationFormData) => {
     try {
-      await axios.put(`${API_BASE_URL}/api/settings/notifications`, data)
+      if (!user?.organizationId) {
+        toast.error('Organization context required')
+        return
+      }
+
+      const headers = {
+        'x-organization-id': user.organizationId,
+        ...(axios.defaults.headers.common['Authorization'] && {
+          'Authorization': axios.defaults.headers.common['Authorization']
+        })
+      }
+
+      await axios.put(`${API_BASE_URL}/api/settings/notifications`, data, { headers })
       toast.success('Notification settings updated')
     } catch (error) {
       toast.error('Failed to update notification settings')
@@ -163,7 +201,19 @@ const SettingsPage: React.FC = () => {
 
   const onSaveAISettings = async (data: AISettingsFormData) => {
     try {
-      await axios.put(`${API_BASE_URL}/api/settings/ai`, data)
+      if (!user?.organizationId) {
+        toast.error('Organization context required')
+        return
+      }
+
+      const headers = {
+        'x-organization-id': user.organizationId,
+        ...(axios.defaults.headers.common['Authorization'] && {
+          'Authorization': axios.defaults.headers.common['Authorization']
+        })
+      }
+
+      await axios.put(`${API_BASE_URL}/api/settings/ai`, data, { headers })
       toast.success('AI settings updated successfully')
     } catch (error) {
       toast.error('Failed to update AI settings')

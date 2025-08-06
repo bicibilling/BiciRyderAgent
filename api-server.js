@@ -261,9 +261,8 @@ class BiciAPIServer {
       leadsRoutes
     );
     
-    // SSE Streaming routes (special authentication for real-time features)
+    // SSE Streaming routes (special authentication handled within routes)
     this.app.use('/api/stream',
-      authMiddleware.verifyToken,
       conversationRoutes
     );
     

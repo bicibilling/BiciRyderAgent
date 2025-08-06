@@ -40,7 +40,7 @@ class ValidationMiddleware {
       // Organization schemas
       organization: Joi.object({
         name: Joi.string().min(2).max(255).required(),
-        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+        phoneNumber: Joi.string().pattern(/^[\d\s\-\(\)\+\.]+$/).required(),
         domain: Joi.string().domain().optional(),
         address: Joi.string().max(500).optional(),
         city: Joi.string().max(100).optional(),
@@ -61,7 +61,7 @@ class ValidationMiddleware {
       }),
       
       conversationSearch: Joi.object({
-        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).optional(),
+        phoneNumber: Joi.string().pattern(/^[\d\s\-\(\)\+\.]+$/).optional(),
         startDate: Joi.string().isoDate().optional(),
         endDate: Joi.string().isoDate().optional(),
         status: Joi.string().valid('active', 'completed', 'failed', 'abandoned').optional(),
@@ -73,7 +73,11 @@ class ValidationMiddleware {
       // Lead schemas
       lead: Joi.object({
         customerName: Joi.string().min(2).max(255).optional(),
-        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+        phoneNumber: Joi.string().min(10).max(20).pattern(/^[\d\s\-\(\)\+\.]+$/).required().messages({
+          'string.pattern.base': 'Phone number can only contain digits, spaces, parentheses, hyphens, plus signs, and dots',
+          'string.min': 'Phone number must be at least 10 characters long',
+          'string.max': 'Phone number cannot exceed 20 characters'
+        }),
         email: Joi.string().email().optional(),
         leadStatus: Joi.string().valid('new', 'contacted', 'qualified', 'converted', 'lost', 'follow_up').default('new'),
         leadSource: Joi.string().max(100).default('inbound_call'),
@@ -97,7 +101,7 @@ class ValidationMiddleware {
       
       // SMS schemas
       smsMessage: Joi.object({
-        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+        phoneNumber: Joi.string().pattern(/^[\d\s\-\(\)\+\.]+$/).required(),
         templateId: Joi.string().min(1).max(100).optional(),
         message: Joi.string().min(1).max(1600).when('templateId', {
           is: Joi.exist(),
@@ -115,7 +119,7 @@ class ValidationMiddleware {
       smsBulkSend: Joi.object({
         recipients: Joi.array().items(
           Joi.object({
-            phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+            phoneNumber: Joi.string().pattern(/^[\d\s\-\(\)\+\.]+$/).required(),
             variables: Joi.object().optional(),
             language: Joi.string().valid('en', 'fr').default('en'),
             leadId: Joi.string().optional()
@@ -138,7 +142,7 @@ class ValidationMiddleware {
       }),
 
       smsSchedule: Joi.object({
-        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+        phoneNumber: Joi.string().pattern(/^[\d\s\-\(\)\+\.]+$/).required(),
         templateId: Joi.string().min(1).max(100).optional(),
         message: Joi.string().min(1).max(1600).when('templateId', {
           is: Joi.exist(),
@@ -163,7 +167,7 @@ class ValidationMiddleware {
       }),
 
       smsSearch: Joi.object({
-        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).optional(),
+        phoneNumber: Joi.string().pattern(/^[\d\s\-\(\)\+\.]+$/).optional(),
         leadId: Joi.string().optional(),
         messageType: Joi.string().valid('manual', 'automated', 'reminder', 'follow_up', 'appointment', 'human_control').optional(),
         status: Joi.string().valid('queued', 'sent', 'delivered', 'undelivered', 'failed').optional(),
@@ -193,13 +197,13 @@ class ValidationMiddleware {
           Joi.string().valid('sent', 'delivered', 'failed', 'response_rate', 'delivery_rate', 'cost')
         ).default(['sent', 'delivered', 'failed']),
         groupBy: Joi.string().valid('hour', 'day', 'week', 'month').default('day'),
-        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).optional(),
+        phoneNumber: Joi.string().pattern(/^[\d\s\-\(\)\+\.]+$/).optional(),
         messageType: Joi.string().valid('manual', 'automated', 'reminder', 'follow_up', 'appointment', 'human_control').optional()
       }),
       
       // Outbound call schemas
       outboundCall: Joi.object({
-        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+        phoneNumber: Joi.string().pattern(/^[\d\s\-\(\)\+\.]+$/).required(),
         leadId: Joi.string().optional(),
         callReason: Joi.string().valid('follow_up', 'service_reminder', 'sales_call', 'support_callback').required(),
         priority: Joi.string().valid('low', 'medium', 'high', 'urgent').default('medium'),
@@ -209,7 +213,7 @@ class ValidationMiddleware {
 
       // Human Control schemas
       humanControlJoin: Joi.object({
-        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+        phoneNumber: Joi.string().pattern(/^[\d\s\-\(\)\+\.]+$/).required(),
         agentName: Joi.string().min(2).max(100).optional(),
         leadId: Joi.string().optional(),
         handoffReason: Joi.string().valid(
@@ -220,7 +224,7 @@ class ValidationMiddleware {
       }),
 
       humanControlMessage: Joi.object({
-        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+        phoneNumber: Joi.string().pattern(/^[\d\s\-\(\)\+\.]+$/).required(),
         message: Joi.string().min(1).max(1600).required(),
         leadId: Joi.string().optional(),
         messageType: Joi.string().valid('text', 'voice', 'system').default('text'),
@@ -228,7 +232,7 @@ class ValidationMiddleware {
       }),
 
       humanControlLeave: Joi.object({
-        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+        phoneNumber: Joi.string().pattern(/^[\d\s\-\(\)\+\.]+$/).required(),
         leadId: Joi.string().optional(),
         summary: Joi.string().max(5000).optional(),
         nextSteps: Joi.array().items(Joi.string().max(500)).max(10).optional(),
@@ -236,7 +240,7 @@ class ValidationMiddleware {
       }),
 
       humanControlStatus: Joi.object({
-        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).optional(),
+        phoneNumber: Joi.string().pattern(/^[\d\s\-\(\)\+\.]+$/).optional(),
         includeAgentSessions: Joi.boolean().default(false)
       }),
       
@@ -290,7 +294,7 @@ class ValidationMiddleware {
       }),
       
       uuid: Joi.string().uuid(),
-      phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/),
+      phoneNumber: Joi.string().pattern(/^[\d\s\-\(\)\+\.]+$/),
       email: Joi.string().email(),
       isoDate: Joi.string().isoDate()
     };

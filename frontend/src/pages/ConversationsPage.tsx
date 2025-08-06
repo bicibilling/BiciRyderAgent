@@ -12,6 +12,7 @@ import {
   MapPinIcon
 } from '@heroicons/react/24/outline'
 import { useWebSocket } from '@/contexts/WebSocketContext'
+import { useAuth } from '@/contexts/AuthContext'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
@@ -49,6 +50,9 @@ interface Conversation {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 
 const ConversationsPage: React.FC = () => {
+  const { user } = useAuth()
+  const organizationId = user?.organizationId
+  
   const { 
     // @ts-ignore - used in future WebSocket implementation
     activeConversations,
@@ -77,7 +81,20 @@ const ConversationsPage: React.FC = () => {
   const fetchConversations = async () => {
     try {
       setIsLoading(true)
+      if (!organizationId) {
+        toast.error('Organization context required')
+        return
+      }
+
+      const headers = {
+        'x-organization-id': organizationId,
+        ...(axios.defaults.headers.common['Authorization'] && {
+          'Authorization': axios.defaults.headers.common['Authorization']
+        })
+      }
+
       const response = await axios.get(`${API_BASE_URL}/api/conversations`, {
+        headers,
         params: {
           search: searchQuery,
           status: statusFilter !== 'all' ? statusFilter : undefined,
@@ -96,7 +113,19 @@ const ConversationsPage: React.FC = () => {
   // Fetch conversation details
   const fetchConversationDetails = async (conversationId: string) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/conversations/${conversationId}`)
+      if (!organizationId) {
+        toast.error('Organization context required')
+        return
+      }
+
+      const headers = {
+        'x-organization-id': organizationId,
+        ...(axios.defaults.headers.common['Authorization'] && {
+          'Authorization': axios.defaults.headers.common['Authorization']
+        })
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/api/conversations/${conversationId}`, { headers })
       const conversation = response.data.data
       setSelectedConversation(conversation)
       subscribeToConversation(conversationId)
@@ -138,8 +167,10 @@ const ConversationsPage: React.FC = () => {
 
   // Initial load
   useEffect(() => {
-    fetchConversations()
-  }, [searchQuery, statusFilter])
+    if (organizationId) {
+      fetchConversations()
+    }
+  }, [organizationId, searchQuery, statusFilter])
 
   const handleTakeoverConversation = (conversationId: string) => {
     takeoverConversation(conversationId)

@@ -119,19 +119,32 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
   const sessionTimerRef = useRef<number | null>(null)
   const dragRef = useRef<HTMLDivElement>(null)
   
-  // Organization security headers
+  // Organization security headers with authentication
   const getOrganizationHeaders = useCallback(() => {
     if (!organizationId) {
       throw new Error('Organization context required - please refresh the page')
     }
-    return { 'organizationId': organizationId }
+    
+    const headers: Record<string, string> = {
+      'x-organization-id': organizationId
+    }
+    
+    // Add authorization header if available
+    const token = localStorage.getItem('bici_token')
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+    
+    return headers
   }, [organizationId])
 
   // Enhanced SSE Connection Management with retry logic
   const setupEventSource = useCallback(() => {
     if (!selectedLead || eventSourceRef.current) return
 
-    const eventSourceURL = `${API_BASE_URL}/api/stream/conversation/${selectedLead.id}?phoneNumber=${encodeURIComponent(selectedLead.phoneNumber)}&load=true&organizationId=${encodeURIComponent(organizationId)}`
+    // Get token for SSE authentication (EventSource doesn't support custom headers)
+    const token = localStorage.getItem('bici_token')
+    const eventSourceURL = `${API_BASE_URL}/api/stream/conversation/${selectedLead.id}?phoneNumber=${encodeURIComponent(selectedLead.phoneNumber)}&load=true&organizationId=${encodeURIComponent(organizationId)}${token ? `&token=${encodeURIComponent(token)}` : ''}`
     
     setSseStatus(prev => ({ ...prev, connected: false }))
     

@@ -33,11 +33,47 @@ function normalizePhoneNumber(phoneNumber) {
 }
 
 /**
+ * Special authentication middleware for SSE (Server-Sent Events)
+ * EventSource doesn't support custom headers, so we accept token via query parameter
+ */
+const sseAuthMiddleware = async (req, res, next) => {
+  try {
+    // First try standard Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return authMiddleware.verifyToken(req, res, next);
+    }
+    
+    // If no header, try token from query parameter
+    const token = req.query.token;
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication token required',
+        code: 'MISSING_TOKEN'
+      });
+    }
+    
+    // Set the authorization header from query param and verify
+    req.headers.authorization = `Bearer ${token}`;
+    return authMiddleware.verifyToken(req, res, next);
+    
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      error: 'Authentication failed',
+      code: 'AUTH_FAILED'
+    });
+  }
+};
+
+/**
  * @route GET /api/stream/conversation/:leadId
  * @desc Server-Sent Events endpoint for real-time conversation streaming
  * @access Private (conversations:read)
  */
 router.get('/stream/conversation/:leadId',
+  sseAuthMiddleware,
   authMiddleware.requirePermission('conversations:read'),
   asyncHandler(async (req, res) => {
     const { leadId } = req.params;

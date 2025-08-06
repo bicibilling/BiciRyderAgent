@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone Normalization Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+        .test-case {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .pass { border-color: #4CAF50; background-color: #f0fff0; }
+        .fail { border-color: #f44336; background-color: #fff0f0; }
+        .input { font-family: monospace; font-weight: bold; }
+        .output { font-family: monospace; color: #666; }
+        .expected { font-family: monospace; color: #4CAF50; }
+    </style>
+</head>
+<body>
+    <h1>Phone Number Normalization Tests</h1>
+    <div id="test-results"></div>
+
+    <script>
+        // Simulate the phone utility functions (simplified for testing)
+        function normalizePhoneNumber(phoneNumber, defaultCountry = 'US') {
+            if (!phoneNumber) return '';
+
+            try {
+                // Remove all non-digit characters except +
+                let cleaned = phoneNumber.replace(/[^\d+]/g, '');
+                
+                // Handle North American numbers (US/CA)
+                if (cleaned.match(/^\d{10}$/)) {
+                    // 10-digit number, assume North American
+                    cleaned = '+1' + cleaned;
+                } else if (cleaned.match(/^1\d{10}$/)) {
+                    // 11-digit number starting with 1, add +
+                    cleaned = '+' + cleaned;
+                } else if (!cleaned.startsWith('+') && cleaned.length >= 10) {
+                    // Add + if missing and assume North American for 10+ digits
+                    if (cleaned.length === 10 || (cleaned.length === 11 && cleaned.startsWith('1'))) {
+                        cleaned = '+1' + (cleaned.startsWith('1') ? cleaned.slice(1) : cleaned);
+                    } else {
+                        cleaned = '+' + cleaned;
+                    }
+                }
+
+                // Basic E.164 format validation
+                if (cleaned.match(/^\+\d{10,15}$/)) {
+                    return cleaned;
+                }
+
+                console.warn(`⚠️  Could not normalize phone number: ${phoneNumber}`);
+                return phoneNumber; // Return original if normalization fails
+
+            } catch (error) {
+                console.error(`❌ Phone normalization error for ${phoneNumber}:`, error);
+                return phoneNumber; // Return original on error
+            }
+        }
+
+        function validatePhoneNumber(phoneNumber) {
+            if (!phoneNumber) return false;
+
+            try {
+                const normalized = normalizePhoneNumber(phoneNumber);
+                // Check if it's in valid E.164 format (+ followed by 7-15 digits)
+                return /^\+\d{7,15}$/.test(normalized);
+            } catch (error) {
+                console.error(`❌ Phone validation error for ${phoneNumber}:`, error);
+                return false;
+            }
+        }
+
+        function formatAsUserTypes(input) {
+            if (!input) return '';
+
+            // Remove all non-digit characters
+            const digits = input.replace(/\D/g, '');
+
+            // Handle different lengths for US formatting
+            if (digits.length <= 3) {
+                return digits;
+            } else if (digits.length <= 6) {
+                return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+            } else if (digits.length <= 10) {
+                return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+            } else if (digits.length === 11 && digits.startsWith('1')) {
+                // Handle 11-digit numbers starting with 1
+                return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7, 11)}`;
+            } else {
+                // For longer numbers, just add formatting up to 10 digits and show the rest
+                return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}${digits.length > 10 ? ' ext.' + digits.slice(10) : ''}`;
+            }
+        }
+
+        // Test cases
+        const testCases = [
+            // US Phone Numbers - Various Formats
+            { input: '5551234567', expected: '+15551234567', description: '10-digit US number' },
+            { input: '15551234567', expected: '+15551234567', description: '11-digit US number with 1' },
+            { input: '+15551234567', expected: '+15551234567', description: 'Already E.164 format' },
+            { input: '(555) 123-4567', expected: '+15551234567', description: 'Formatted US number with parentheses and dash' },
+            { input: '555-123-4567', expected: '+15551234567', description: 'Formatted US number with dashes' },
+            { input: '555.123.4567', expected: '+15551234567', description: 'Formatted US number with dots' },
+            { input: '555 123 4567', expected: '+15551234567', description: 'Formatted US number with spaces' },
+            { input: '1 (555) 123-4567', expected: '+15551234567', description: 'US number with country code and formatting' },
+            { input: '+1 (555) 123-4567', expected: '+15551234567', description: 'US number with + and formatting' },
+            
+            // International Numbers
+            { input: '+44 20 1234 5678', expected: '+442012345678', description: 'UK number with formatting' },
+            { input: '+33 1 42 86 83 26', expected: '+33142868326', description: 'French number with formatting' },
+            { input: '+49 30 12345678', expected: '+493012345678', description: 'German number with formatting' },
+            
+            // Edge Cases
+            { input: '', expected: '', description: 'Empty string' },
+            { input: '123', expected: '123', description: 'Too short - returns original' },
+            { input: 'abc', expected: 'abc', description: 'No digits - returns original' },
+            { input: '555-1234', expected: '555-1234', description: 'Too short US format - returns original' }
+        ];
+
+        // Run tests
+        function runTests() {
+            const resultsDiv = document.getElementById('test-results');
+            let passCount = 0;
+            let totalCount = testCases.length;
+
+            testCases.forEach((testCase, index) => {
+                const result = normalizePhoneNumber(testCase.input);
+                const isValid = validatePhoneNumber(testCase.input);
+                const formatted = formatAsUserTypes(testCase.input);
+                const passed = result === testCase.expected;
+                
+                if (passed) passCount++;
+
+                const testDiv = document.createElement('div');
+                testDiv.className = `test-case ${passed ? 'pass' : 'fail'}`;
+                
+                testDiv.innerHTML = `
+                    <h3>Test ${index + 1}: ${testCase.description} ${passed ? '✅' : '❌'}</h3>
+                    <p><strong>Input:</strong> <span class="input">${testCase.input || '(empty)'}</span></p>
+                    <p><strong>Normalized:</strong> <span class="output">${result || '(empty)'}</span></p>
+                    <p><strong>Expected:</strong> <span class="expected">${testCase.expected || '(empty)'}</span></p>
+                    <p><strong>Is Valid:</strong> ${isValid ? '✅ Yes' : '❌ No'}</p>
+                    <p><strong>As User Types:</strong> <span class="output">${formatted || '(empty)'}</span></p>
+                `;
+                
+                resultsDiv.appendChild(testDiv);
+            });
+
+            // Summary
+            const summaryDiv = document.createElement('div');
+            summaryDiv.style.cssText = 'margin-top: 20px; padding: 20px; background: #f5f5f5; border-radius: 5px; text-align: center;';
+            summaryDiv.innerHTML = `
+                <h2>Test Summary</h2>
+                <p style="font-size: 18px;">
+                    <strong>${passCount}/${totalCount}</strong> tests passed 
+                    (${Math.round(passCount/totalCount*100)}%)
+                </p>
+                ${passCount === totalCount ? '<p style="color: green; font-weight: bold;">🎉 All tests passed!</p>' : '<p style="color: red;">Some tests failed. Check the results above.</p>'}
+            `;
+            
+            resultsDiv.appendChild(summaryDiv);
+        }
+
+        // Run tests when page loads
+        window.onload = runTests;
+    </script>
+</body>
+</html>

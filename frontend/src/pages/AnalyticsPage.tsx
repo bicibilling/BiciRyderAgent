@@ -28,6 +28,7 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import { useAuth } from '@/contexts/AuthContext'
 import axios from 'axios'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -80,6 +81,8 @@ interface AnalyticsData {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 
 const AnalyticsPage: React.FC = () => {
+  const { user } = useAuth()
+  const organizationId = user?.organizationId
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [dateRange, setDateRange] = useState('7d')
@@ -89,7 +92,20 @@ const AnalyticsPage: React.FC = () => {
   const fetchAnalyticsData = async () => {
     try {
       setIsLoading(true)
+      if (!organizationId) {
+        toast.error('Organization context required')
+        return
+      }
+
+      const headers = {
+        'x-organization-id': organizationId,
+        ...(axios.defaults.headers.common['Authorization'] && {
+          'Authorization': axios.defaults.headers.common['Authorization']
+        })
+      }
+
       const response = await axios.get(`${API_BASE_URL}/api/analytics`, {
+        headers,
         params: {
           range: dateRange
         }
@@ -104,8 +120,10 @@ const AnalyticsPage: React.FC = () => {
   }
 
   useEffect(() => {
-    fetchAnalyticsData()
-  }, [dateRange])
+    if (organizationId) {
+      fetchAnalyticsData()
+    }
+  }, [organizationId, dateRange])
 
   const formatChange = (value: number) => {
     const isPositive = value >= 0
