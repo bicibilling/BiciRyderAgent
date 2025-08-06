@@ -310,10 +310,7 @@ CREATE TABLE phone_numbers (
   
   -- Metadata
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  
-  -- Ensure only one primary number per organization
-  UNIQUE(organization_id, is_primary) WHERE is_primary = true
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 -- =============================================
@@ -527,29 +524,12 @@ INSERT INTO organizations (
   }'
 ) ON CONFLICT (id) DO NOTHING;
 
--- Insert default admin user
--- Note: Password is 'BiciAI2024!' - should be changed in production
-INSERT INTO auth.users (
-  id,
-  email,
-  encrypted_password,
-  email_confirmed_at,
-  created_at,
-  updated_at,
-  raw_user_meta_data
-) VALUES (
-  gen_random_uuid(),
-  'admin@bici.com',
-  crypt('BiciAI2024!', gen_salt('bf')),
-  now(),
-  now(),
-  now(),
-  jsonb_build_object(
-    'organizationId', '00000000-0000-0000-0000-000000000001',
-    'role', 'admin',
-    'permissions', '["*"]'
-  )
-) ON CONFLICT (email) DO NOTHING;
+-- Note: Default admin user credentials are handled by mock authentication in the API
+-- Email: admin@bici.com
+-- Password: BiciAI2024!
+-- Role: admin
+-- Organization: 00000000-0000-0000-0000-000000000001
+-- This will work with the mock authentication system until Supabase Auth is fully configured
 
 -- Create indexes for optimal query performance
 
@@ -583,6 +563,10 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outbound_org ON outbound_calls(organ
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outbound_status ON outbound_calls(status);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outbound_scheduled ON outbound_calls(scheduled_for);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outbound_pending ON outbound_calls(status, scheduled_for) WHERE status = 'pending';
+
+-- Phone numbers table indexes and constraints
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_phone_numbers_org_primary 
+ON phone_numbers(organization_id, is_primary) WHERE is_primary = true;
 
 -- Analytics events table indexes
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_analytics_org_type ON analytics_events(organization_id, event_type);
