@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-bici text-bici-black bg-white;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold text-bici-black;
+  }
+  
+  button {
+    @apply transition-all duration-200;
+  }
+  
+  input, textarea {
+    @apply transition-all duration-200;
+  }
+}
+
+@layer components {
+  .bici-button-primary {
+    @apply bg-bici-black text-white px-4 py-2 rounded hover:bg-gray-800 font-medium;
+  }
+  
+  .bici-button-secondary {
+    @apply bg-white text-bici-black border border-bici-black px-4 py-2 rounded hover:bg-gray-50 font-medium;
+  }
+  
+  .bici-button-accent {
+    @apply bg-bici-blue text-bici-black px-4 py-2 rounded hover:opacity-90 font-medium;
+  }
+  
+  .bici-input {
+    @apply border border-gray-300 rounded px-3 py-2 focus:border-bici-black focus:outline-none;
+  }
+  
+  .bici-card {
+    @apply bg-white border border-gray-200 rounded-lg shadow-sm p-6;
+  }
+}

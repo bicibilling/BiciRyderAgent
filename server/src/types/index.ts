@@ -1,0 +1,101 @@
+// Type definitions for the BICI Voice Agent system
+
+export interface Organization {
+  id: string;
+  name: string;
+  phone_number: string;
+  settings: {
+    business_hours: Record<string, { open: string; close: string }>;
+    location: {
+      address: string;
+      coordinates: { lat: number; lng: number };
+    };
+    services: string[];
+  };
+}
+
+export interface Lead {
+  id: string;
+  organization_id: string;
+  phone_number: string;
+  phone_normalized: string;
+  customer_name?: string;
+  email?: string;
+  status: 'new' | 'contacted' | 'qualified' | 'hot' | 'customer' | 'closed';
+  sentiment: 'positive' | 'neutral' | 'negative';
+  bike_interest: {
+    type?: 'road' | 'mountain' | 'hybrid' | 'e-bike';
+    budget?: { min: number; max: number };
+    usage?: string;
+    size?: string;
+    brand_preference?: string;
+  };
+  qualification_data: {
+    ready_to_buy: boolean;
+    timeline?: string;
+    contact_preference: 'phone' | 'sms' | 'email';
+    purchase_intent: number;
+  };
+  created_at: Date;
+  updated_at: Date;
+  last_contact_at?: Date;
+}
+
+export interface Conversation {
+  id: string;
+  organization_id: string;
+  lead_id: string;
+  phone_number: string;
+  content: string;
+  sent_by: 'user' | 'agent' | 'human_agent' | 'system';
+  type: 'text' | 'voice' | 'sms';
+  classification?: 'sales' | 'support' | 'service' | 'general';
+  timestamp: Date;
+  metadata?: Record<string, any>;
+}
+
+export interface CallSession {
+  id: string;
+  organization_id: string;
+  lead_id: string;
+  elevenlabs_conversation_id?: string;
+  status: 'initiated' | 'active' | 'completed' | 'failed' | 'transferred';
+  started_at: Date;
+  ended_at?: Date;
+  duration_seconds?: number;
+  transcript?: string;
+  summary?: string;
+  classification?: string;
+  escalated_to_human: boolean;
+  escalation_reason?: string;
+}
+
+export interface ElevenLabsDynamicVariables {
+  conversation_context: string;
+  previous_summary: string;
+  customer_name: string;
+  customer_phone: string;
+  lead_status: string;
+  bike_interest: string;
+  organization_name: string;
+  organization_id: string;
+  location_address: string;
+  business_hours: string;
+  call_reason?: string;
+  last_interaction_date?: string;
+  last_interaction_summary?: string;
+}
+
+export interface ConversationInsights {
+  classification: 'sales' | 'support' | 'service' | 'general';
+  triggers: string[];
+  bikePreferences?: any;
+  qualification?: any;
+  leadStatus: string;
+  keyPoints: string[];
+  nextSteps: string[];
+  appointmentScheduled?: boolean;
+  appointmentDetails?: any;
+  purchaseIntent?: number;
+  sentiment?: number;
+}

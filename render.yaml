@@ -1,0 +1,86 @@
+services:
+  # Web service for the BICI Voice Agent
+  - type: web
+    name: bici-voice-agent
+    runtime: node
+    region: oregon # or your preferred region
+    plan: starter # or standard for production
+    
+    # Build configuration
+    buildCommand: |
+      cd server && npm install && cd .. &&
+      cd client && npm install && npm run build && cd .. &&
+      npm install
+    
+    # Start command
+    startCommand: cd server && npm start
+    
+    # Health check
+    healthCheckPath: /health
+    
+    # Environment variables (set these in Render dashboard)
+    envVars:
+      - key: NODE_ENV
+        value: production
+      
+      - key: PORT
+        value: 10000
+      
+      # ElevenLabs Configuration
+      - key: ELEVENLABS_API_KEY
+        sync: false # Set in dashboard for security
+      
+      - key: ELEVENLABS_AGENT_ID
+        sync: false
+      
+      - key: ELEVENLABS_PHONE_NUMBER_ID
+        sync: false
+      
+      - key: ELEVENLABS_WEBHOOK_SECRET
+        sync: false
+      
+      # Twilio Configuration
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      
+      - key: TWILIO_WEBHOOK_URL
+        value: https://bici-voice-agent.onrender.com/webhooks/twilio
+      
+      # Supabase Configuration
+      - key: SUPABASE_URL
+        sync: false
+      
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      
+      # Application Configuration
+      - key: JWT_SECRET
+        generateValue: true # Render will generate a secure value
+      
+      - key: WEBHOOK_BASE_URL
+        value: https://bici-voice-agent.onrender.com
+      
+      - key: HUMAN_AGENT_NUMBER
+        sync: false
+      
+      - key: DEFAULT_ORG_ID
+        value: bici-main
+      
+      - key: DEFAULT_ORG_NAME
+        value: BICI Bike Store
+    
+    # Auto-deploy from GitHub
+    autoDeploy: true
+    
+    # Domains
+    domains:
+      - bici-voice.onrender.com # Optional custom domain
