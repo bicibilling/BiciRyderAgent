@@ -1,0 +1,309 @@
+services:
+  # Backend API Service
+  - type: web
+    name: bici-ai-backend
+    runtime: node
+    plan: starter  # Can be upgraded to standard/pro as needed
+    buildCommand: npm install
+    startCommand: node api-server.js
+    healthCheckPath: /health
+    autoDeploy: true
+    rootDir: .
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromService:
+          type: web
+          name: bici-ai-backend
+          property: port
+      - key: CORS_ORIGIN
+        fromService:
+          type: web
+          name: bici-ai-frontend
+          property: url
+      - key: SUPABASE_URL
+        sync: false  # Set manually in Render dashboard
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: UPSTASH_REDIS_URL
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_AGENT_ID
+        sync: false
+      - key: SHOPIFY_STORE_URL
+        sync: false
+      - key: SHOPIFY_ACCESS_TOKEN
+        sync: false
+      - key: HUBSPOT_ACCESS_TOKEN
+        sync: false
+      - key: HUBSPOT_PORTAL_ID
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true  # Auto-generate secure JWT secret
+      - key: API_KEY_SECRET
+        generateValue: true  # Auto-generate API key secret
+      - key: WEBHOOK_SECRET
+        generateValue: true  # Auto-generate webhook secret
+      - key: DEFAULT_ORGANIZATION_ID
+        value: bici-bike-store
+      - key: DEFAULT_TIMEZONE
+        value: America/Toronto
+      - key: LOG_LEVEL
+        value: info
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000  # 15 minutes
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 100
+      - key: SESSION_TIMEOUT
+        value: 3600000  # 1 hour
+      - key: MAX_CONCURRENT_CONVERSATIONS
+        value: 50
+      - key: CONVERSATION_TIMEOUT_MS
+        value: 1800000  # 30 minutes
+    scaling:
+      minInstances: 1
+      maxInstances: 3
+    disk:
+      name: bici-ai-logs
+      mountPath: /app/logs
+      sizeGB: 1
+
+  # Frontend Web Application
+  - type: web
+    name: bici-ai-frontend
+    runtime: static
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: ./client/build
+    pullRequestPreviewsEnabled: true
+    autoDeploy: true
+    rootDir: .
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://bici-ai-backend.onrender.com/api/:splat
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(), microphone=(), geolocation=(), interest-cohort=()
+      - path: /static/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /service-worker.js
+        name: Cache-Control
+        value: no-cache
+    envVars:
+      - key: REACT_APP_API_URL
+        fromService:
+          type: web
+          name: bici-ai-backend
+          property: url
+      - key: REACT_APP_WS_URL
+        fromService:
+          type: web
+          name: bici-ai-backend
+          property: url
+      - key: REACT_APP_ENVIRONMENT
+        value: production
+      - key: GENERATE_SOURCEMAP
+        value: false  # Disable source maps for production
+      - key: INLINE_RUNTIME_CHUNK
+        value: false
+      - key: IMAGE_INLINE_SIZE_LIMIT
+        value: 10000
+
+  # Redis Cache (using Upstash Redis add-on)
+  # Note: This would typically be configured as an external service
+  # through Render's add-ons or external Upstash account
+
+  # Background Jobs Service (optional)
+  - type: worker
+    name: bici-ai-worker
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm run worker
+    autoDeploy: true
+    rootDir: .
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: WORKER_CONCURRENCY
+        value: 5
+      - key: QUEUE_NAME
+        value: bici-ai-jobs
+      # Inherit same environment variables as backend
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: UPSTASH_REDIS_URL
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: SHOPIFY_ACCESS_TOKEN
+        sync: false
+      - key: HUBSPOT_ACCESS_TOKEN
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: DEFAULT_ORGANIZATION_ID
+        value: bici-bike-store
+      - key: LOG_LEVEL
+        value: info
+    scaling:
+      minInstances: 1
+      maxInstances: 2
+
+databases:
+  # PostgreSQL database for application data
+  # Note: Supabase is used as external PostgreSQL provider
+  # This section documents the expected database structure
+  - name: bici-ai-db
+    databaseName: postgres
+    user: postgres
+    plan: starter  # Use external Supabase instead
+    # This is a placeholder - actual database is external Supabase
+
+# Cron Jobs for maintenance tasks
+# Note: These would be implemented as separate cron services
+cronjobs:
+  - name: cleanup-logs
+    schedule: "0 2 * * *"  # Daily at 2 AM
+    command: npm run cleanup:logs
+    
+  - name: health-check-integrations
+    schedule: "*/15 * * * *"  # Every 15 minutes
+    command: npm run health:integrations
+    
+  - name: backup-conversations
+    schedule: "0 3 * * *"  # Daily at 3 AM
+    command: npm run backup:conversations
+
+# Build and deployment configuration
+build:
+  commands:
+    - echo "Starting BICI AI deployment..."
+    - echo "Node version:" && node --version
+    - echo "NPM version:" && npm --version
+    
+  # Pre-deploy hooks
+  preDeployCommands:
+    - npm run validate:config
+    - npm run test:integrations
+    - npm run db:migrate
+    
+  # Post-deploy hooks
+  postDeployCommands:
+    - npm run health:check
+    - npm run warmup:cache
+    - echo "BICI AI deployment completed successfully!"
+
+# Monitoring and alerting configuration
+monitoring:
+  healthChecks:
+    - path: /health
+      interval: 30
+      timeout: 10
+      retries: 3
+    - path: /api/admin/config
+      interval: 60
+      timeout: 15
+      retries: 2
+      
+# Security configuration
+security:
+  # Force HTTPS redirects
+  enforceHttps: true
+  
+  # Enable security headers
+  securityHeaders:
+    enabled: true
+    
+  # IP allowlisting (if needed)
+  # ipAllowList:
+  #   - "192.168.1.0/24"
+  #   - "10.0.0.0/8"
+
+# Resource limits and scaling
+resources:
+  # CPU and memory limits per service
+  backend:
+    cpu: 0.5
+    memory: 1GB
+    
+  frontend:
+    cpu: 0.1
+    memory: 512MB
+    
+  worker:
+    cpu: 0.25
+    memory: 512MB
+
+# Network configuration
+networking:
+  # Custom domains (to be configured in Render dashboard)
+  domains:
+    frontend:
+      - bici-ai.yourdomain.com
+      - www.bici-ai.yourdomain.com
+    backend:
+      - api.bici-ai.yourdomain.com
+      
+  # SSL/TLS configuration
+  ssl:
+    enabled: true
+    autoRenew: true
+    
+# Backup and recovery
+backup:
+  # Database backups handled by Supabase
+  # File backups for logs and temporary data
+  schedule: "0 4 * * *"  # Daily at 4 AM
+  retention: 30  # Keep 30 days of backups
+  
+# Environment-specific overrides
+environments:
+  production:
+    scaling:
+      minInstances: 2
+      maxInstances: 10
+    resources:
+      cpu: 1
+      memory: 2GB
+      
+  staging:
+    scaling:
+      minInstances: 1
+      maxInstances: 2
+    resources:
+      cpu: 0.5
+      memory: 1GB

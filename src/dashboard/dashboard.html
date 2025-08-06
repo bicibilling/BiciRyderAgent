@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BICI AI Dashboard - Real-time Call Management</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .call-card { transition: all 0.3s ease; }
+        .call-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .status-indicator { width: 12px; height: 12px; border-radius: 50%; }
+        .status-active { background-color: #10b981; animation: pulse 2s infinite; }
+        .status-ringing { background-color: #f59e0b; animation: pulse 1s infinite; }
+        .status-ended { background-color: #6b7280; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .transcript-container { max-height: 300px; overflow-y: auto; }
+        .message-user { background-color: #f3f4f6; margin-left: 20px; }
+        .message-agent { background-color: #dbeafe; margin-right: 20px; }
+        .metrics-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .chart-container { height: 200px; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div id="app" class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-lg border-b-4 border-blue-500">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-bicycle text-3xl text-blue-600 mr-3"></i>
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">BICI AI Dashboard</h1>
+                            <p class="text-sm text-gray-600">Real-time Call Management & Analytics</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <div class="text-sm text-gray-600">Status</div>
+                            <div id="connection-status" class="font-semibold">
+                                <span class="status-indicator bg-yellow-500"></span>
+                                <span class="ml-1">Connecting...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <!-- Real-time Metrics -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="metrics-card rounded-lg p-6 text-white">
+                    <div class="flex items-center">
+                        <i class="fas fa-phone text-2xl opacity-80"></i>
+                        <div class="ml-4">
+                            <div class="text-sm opacity-80">Active Calls</div>
+                            <div id="active-calls-count" class="text-2xl font-bold">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <i class="fas fa-clock text-2xl text-green-500"></i>
+                        <div class="ml-4">
+                            <div class="text-sm text-gray-600">Avg Duration</div>
+                            <div id="avg-duration" class="text-2xl font-bold text-gray-900">0:00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <i class="fas fa-robot text-2xl text-blue-500"></i>
+                        <div class="ml-4">
+                            <div class="text-sm text-gray-600">AI Success Rate</div>
+                            <div id="ai-success-rate" class="text-2xl font-bold text-gray-900">0%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <i class="fas fa-calendar-check text-2xl text-purple-500"></i>
+                        <div class="ml-4">
+                            <div class="text-sm text-gray-600">Appointments</div>
+                            <div id="appointments-today" class="text-2xl font-bold text-gray-900">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Conversations -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Call List -->
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h2 class="text-xl font-semibold text-gray-900 flex items-center">
+                                <i class="fas fa-list mr-2"></i>
+                                Active Conversations
+                            </h2>
+                        </div>
+                        <div id="active-conversations" class="divide-y divide-gray-200">
+                            <!-- Conversations will be populated here -->
+                            <div class="p-6 text-center text-gray-500">
+                                <i class="fas fa-phone-slash text-4xl mb-4 opacity-50"></i>
+                                <p>No active conversations</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conversation Details -->
+                <div class="lg:col-span-1">
+                    <div id="conversation-details" class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h2 class="text-xl font-semibold text-gray-900 flex items-center">
+                                <i class="fas fa-comments mr-2"></i>
+                                Conversation Details
+                            </h2>
+                        </div>
+                        <div class="p-6 text-center text-gray-500">
+                            <i class="fas fa-mouse-pointer text-4xl mb-4 opacity-50"></i>
+                            <p>Select a conversation to view details</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Call Analytics Chart -->
+            <div class="mt-8">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-xl font-semibold text-gray-900 flex items-center">
+                            <i class="fas fa-chart-line mr-2"></i>
+                            Call Analytics
+                        </h2>
+                    </div>
+                    <div class="p-6">
+                        <div class="chart-container">
+                            <canvas id="analytics-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script>
+        class BICIDashboard {
+            constructor() {
+                this.ws = null;
+                this.sessionId = null;
+                this.activeConversations = new Map();
+                this.selectedConversationId = null;
+                this.metrics = {
+                    activeCalls: 0,
+                    avgDuration: 0,
+                    aiSuccessRate: 0,
+                    appointmentsToday: 0
+                };
+                this.chart = null;
+                
+                this.init();
+            }
+
+            init() {
+                this.setupWebSocket();
+                this.setupEventListeners();
+                this.initChart();
+                this.startMetricsUpdate();
+            }
+
+            setupWebSocket() {
+                const token = this.getAuthToken();
+                const wsUrl = `ws://localhost:8080?token=${token}`;
+                
+                this.ws = new WebSocket(wsUrl);
+                
+                this.ws.onopen = () => {
+                    console.log('🔗 Connected to dashboard WebSocket');
+                    this.updateConnectionStatus('connected', 'Connected');
+                    this.showToast('Connected to dashboard', 'success');
+                };
+                
+                this.ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    this.handleWebSocketMessage(data);
+                };
+                
+                this.ws.onclose = () => {
+                    console.log('🔌 Disconnected from dashboard WebSocket');
+                    this.updateConnectionStatus('disconnected', 'Disconnected');
+                    this.showToast('Connection lost. Attempting to reconnect...', 'warning');
+                    
+                    // Attempt reconnection
+                    setTimeout(() => this.setupWebSocket(), 5000);
+                };
+                
+                this.ws.onerror = (error) => {
+                    console.error('❌ WebSocket error:', error);
+                    this.updateConnectionStatus('error', 'Connection Error');
+                    this.showToast('Connection error', 'error');
+                };
+            }
+
+            handleWebSocketMessage(data) {
+                console.log('📨 Received message:', data.type);
+                
+                switch (data.type) {
+                    case 'dashboard_connected':
+                        this.sessionId = data.sessionId;
+                        break;
+                        
+                    case 'new_conversation':
+                        this.handleNewConversation(data);
+                        break;
+                        
+                    case 'user_transcript':
+                        this.handleUserTranscript(data);
+                        break;
+                        
+                    case 'agent_response':
+                        this.handleAgentResponse(data);
+                        break;
+                        
+                    case 'conversation_ended':
+                        this.handleConversationEnded(data);
+                        break;
+                        
+                    case 'dashboard_update':
+                        this.handleDashboardUpdate(data);
+                        break;
+                        
+                    case 'active_conversations_list':
+                        this.handleActiveConversationsList(data);
+                        break;
+                        
+                    case 'client_tool_call':
+                        this.handleClientToolCall(data);
+                        break;
+                }
+            }
+
+            handleNewConversation(data) {
+                const conversation = {
+                    leadId: data.leadId,
+                    conversationId: data.conversationId,
+                    customerPhone: data.customerPhone,
+                    customerName: data.agentConfig.customer_name,
+                    status: 'active',
+                    startTime: new Date(),
+                    transcript: [],
+                    metrics: {
+                        duration: 0,
+                        messageCount: 0
+                    }
+                };
+                
+                this.activeConversations.set(data.leadId, conversation);
+                this.updateConversationsList();
+                this.updateMetrics();
+                
+                this.showToast(`New call from ${conversation.customerName}`, 'info');
+            }
+
+            handleUserTranscript(data) {
+                const conversation = this.activeConversations.get(data.leadId);
+                if (conversation && data.is_final) {
+                    conversation.transcript.push({
+                        type: 'user',
+                        text: data.text,
+                        timestamp: new Date(data.timestamp)
+                    });
+                    
+                    conversation.metrics.messageCount++;
+                    this.updateConversationDetails(data.leadId);
+                }
+            }
+
+            handleAgentResponse(data) {
+                const conversation = this.activeConversations.get(data.leadId);
+                if (conversation) {
+                    conversation.transcript.push({
+                        type: 'agent',
+                        text: data.text,
+                        timestamp: new Date(data.timestamp)
+                    });
+                    
+                    this.updateConversationDetails(data.leadId);
+                }
+            }
+
+            handleConversationEnded(data) {
+                const conversation = this.activeConversations.get(data.leadId);
+                if (conversation) {
+                    conversation.status = 'ended';
+                    conversation.endTime = new Date();
+                    conversation.duration = data.duration;
+                    
+                    // Keep for 5 minutes then remove
+                    setTimeout(() => {
+                        this.activeConversations.delete(data.leadId);
+                        this.updateConversationsList();
+                        this.updateMetrics();
+                    }, 5 * 60 * 1000);
+                    
+                    this.updateConversationsList();
+                    this.updateMetrics();
+                    
+                    this.showToast(`Call ended: ${conversation.customerName}`, 'info');
+                }
+            }
+
+            handleDashboardUpdate(data) {
+                switch (data.type) {
+                    case 'customer_display_update':
+                        this.updateCustomerDisplay(data);
+                        break;
+                        
+                    case 'product_recommendation':
+                        this.showProductRecommendations(data);
+                        break;
+                        
+                    case 'conversation_notes_update':
+                        this.updateConversationNotes(data);
+                        break;
+                        
+                    case 'call_analytics':
+                        this.updateAnalytics(data);
+                        break;
+                }
+            }
+
+            handleActiveConversationsList(data) {
+                // Populate initial conversations
+                data.conversations.forEach(conv => {
+                    if (!this.activeConversations.has(conv.leadId)) {
+                        this.activeConversations.set(conv.leadId, {
+                            leadId: conv.leadId,
+                            conversationId: conv.conversationId,
+                            status: conv.status.connectionState,
+                            customerPhone: conv.state?.customerPhone || 'Unknown',
+                            customerName: 'Customer',
+                            startTime: new Date(conv.state?.startedAt || Date.now()),
+                            transcript: [],
+                            metrics: { duration: 0, messageCount: 0 }
+                        });
+                    }
+                });
+                
+                this.updateConversationsList();
+                this.updateMetrics();
+            }
+
+            handleClientToolCall(data) {
+                this.showToast(`Tool called: ${data.toolName}`, 'info');
+            }
+
+            updateConversationsList() {
+                const container = document.getElementById('active-conversations');
+                
+                if (this.activeConversations.size === 0) {
+                    container.innerHTML = `
+                        <div class="p-6 text-center text-gray-500">
+                            <i class="fas fa-phone-slash text-4xl mb-4 opacity-50"></i>
+                            <p>No active conversations</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const conversationsHTML = Array.from(this.activeConversations.values())
+                    .sort((a, b) => b.startTime - a.startTime)
+                    .map(conv => this.renderConversationCard(conv))
+                    .join('');
+                
+                container.innerHTML = conversationsHTML;
+            }
+
+            renderConversationCard(conversation) {
+                const duration = conversation.endTime ? 
+                    Math.floor((conversation.endTime - conversation.startTime) / 1000) :
+                    Math.floor((Date.now() - conversation.startTime) / 1000);
+                
+                const durationText = this.formatDuration(duration);
+                const statusClass = {
+                    'active': 'status-active',
+                    'ringing': 'status-ringing',
+                    'ended': 'status-ended'
+                }[conversation.status] || 'status-indicator';
+                
+                return `
+                    <div class="call-card p-6 cursor-pointer hover:bg-gray-50" 
+                         onclick="dashboard.selectConversation('${conversation.leadId}')">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <span class="status-indicator ${statusClass}"></span>
+                                <div class="ml-3">
+                                    <h3 class="text-lg font-medium text-gray-900">
+                                        ${conversation.customerName}
+                                    </h3>
+                                    <p class="text-sm text-gray-600">${conversation.customerPhone}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm font-medium text-gray-900">${durationText}</div>
+                                <div class="text-xs text-gray-500">
+                                    ${conversation.transcript.length} messages
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            selectConversation(leadId) {
+                this.selectedConversationId = leadId;
+                this.updateConversationDetails(leadId);
+                
+                // Update UI to show selection
+                document.querySelectorAll('.call-card').forEach(card => {
+                    card.classList.remove('bg-blue-50', 'border-l-4', 'border-blue-500');
+                });
+                
+                event.currentTarget.classList.add('bg-blue-50', 'border-l-4', 'border-blue-500');
+            }
+
+            updateConversationDetails(leadId) {
+                const conversation = this.activeConversations.get(leadId);
+                if (!conversation || this.selectedConversationId !== leadId) return;
+                
+                const container = document.getElementById('conversation-details');
+                
+                const transcriptHTML = conversation.transcript
+                    .slice(-10) // Last 10 messages
+                    .map(msg => `
+                        <div class="message p-3 rounded-lg mb-2 ${msg.type === 'user' ? 'message-user' : 'message-agent'}">
+                            <div class="text-xs text-gray-500 mb-1">
+                                ${msg.type === 'user' ? 'Customer' : 'AI Assistant'} • 
+                                ${msg.timestamp.toLocaleTimeString()}
+                            </div>
+                            <div class="text-sm">${msg.text}</div>
+                        </div>
+                    `)
+                    .join('');
+                
+                container.innerHTML = `
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-xl font-semibold text-gray-900 flex items-center">
+                            <i class="fas fa-comments mr-2"></i>
+                            ${conversation.customerName}
+                        </h2>
+                        <p class="text-sm text-gray-600">${conversation.customerPhone}</p>
+                    </div>
+                    <div class="p-6">
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-700 mb-2">Conversation</h3>
+                            <div class="transcript-container border rounded-lg p-3 bg-gray-50">
+                                ${transcriptHTML || '<p class="text-gray-500 text-center">No messages yet</p>'}
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-sm font-medium text-gray-700">Quick Actions</label>
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    <button onclick="dashboard.sendContextUpdate('Customer seems interested in road bikes')" 
+                                            class="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600">
+                                        Suggest Road Bikes
+                                    </button>
+                                    <button onclick="dashboard.sendContextUpdate('Customer needs bike fitting appointment')" 
+                                            class="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600">
+                                        Book Fitting
+                                    </button>
+                                    <button onclick="dashboard.requestHumanTransfer()" 
+                                            class="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600">
+                                        Transfer to Human
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Auto-scroll transcript to bottom
+                const transcriptContainer = container.querySelector('.transcript-container');
+                transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+            }
+
+            updateMetrics() {
+                const activeCount = Array.from(this.activeConversations.values())
+                    .filter(conv => conv.status === 'active').length;
+                
+                document.getElementById('active-calls-count').textContent = activeCount;
+                
+                // Update other metrics based on historical data
+                this.updateAverageMetrics();
+            }
+
+            updateAverageMetrics() {
+                const conversations = Array.from(this.activeConversations.values());
+                
+                if (conversations.length > 0) {
+                    const totalDuration = conversations.reduce((sum, conv) => {
+                        const duration = conv.endTime ? 
+                            (conv.endTime - conv.startTime) / 1000 :
+                            (Date.now() - conv.startTime) / 1000;
+                        return sum + duration;
+                    }, 0);
+                    
+                    const avgDuration = Math.floor(totalDuration / conversations.length);
+                    document.getElementById('avg-duration').textContent = this.formatDuration(avgDuration);
+                }
+                
+                // Mock AI success rate (would come from analytics)
+                document.getElementById('ai-success-rate').textContent = '85%';
+                document.getElementById('appointments-today').textContent = '12';
+            }
+
+            initChart() {
+                const ctx = document.getElementById('analytics-chart').getContext('2d');
+                
+                this.chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: this.generateTimeLabels(),
+                        datasets: [{
+                            label: 'Calls per Hour',
+                            data: this.generateMockData(),
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.1)'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            generateTimeLabels() {
+                const labels = [];
+                const now = new Date();
+                
+                for (let i = 23; i >= 0; i--) {
+                    const time = new Date(now.getTime() - (i * 60 * 60 * 1000));
+                    labels.push(time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+                }
+                
+                return labels;
+            }
+
+            generateMockData() {
+                return Array.from({ length: 24 }, () => Math.floor(Math.random() * 20));
+            }
+
+            startMetricsUpdate() {
+                setInterval(() => {
+                    this.updateMetrics();
+                    
+                    // Update chart with new data point
+                    if (this.chart) {
+                        this.chart.data.labels.shift();
+                        this.chart.data.labels.push(new Date().toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        }));
+                        
+                        this.chart.data.datasets[0].data.shift();
+                        this.chart.data.datasets[0].data.push(this.activeConversations.size);
+                        
+                        this.chart.update('none');
+                    }
+                }, 60000); // Update every minute
+            }
+
+            // Utility Methods
+            formatDuration(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            updateConnectionStatus(status, message) {
+                const statusElement = document.getElementById('connection-status');
+                const indicator = statusElement.querySelector('.status-indicator');
+                const text = statusElement.querySelector('span:last-child');
+                
+                const statusClasses = {
+                    'connected': 'bg-green-500',
+                    'disconnected': 'bg-red-500',
+                    'error': 'bg-red-500'
+                };
+                
+                indicator.className = `status-indicator ${statusClasses[status] || 'bg-yellow-500'}`;
+                text.textContent = message;
+            }
+
+            showToast(message, type = 'info') {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                
+                const typeClasses = {
+                    'success': 'bg-green-500',
+                    'error': 'bg-red-500',
+                    'warning': 'bg-yellow-500',
+                    'info': 'bg-blue-500'
+                };
+                
+                toast.className = `${typeClasses[type]} text-white px-4 py-2 rounded-lg shadow-lg transform transition-transform duration-300 translate-x-full`;
+                toast.textContent = message;
+                
+                container.appendChild(toast);
+                
+                // Animate in
+                setTimeout(() => {
+                    toast.classList.remove('translate-x-full');
+                }, 100);
+                
+                // Remove after 5 seconds
+                setTimeout(() => {
+                    toast.classList.add('translate-x-full');
+                    setTimeout(() => container.removeChild(toast), 300);
+                }, 5000);
+            }
+
+            getAuthToken() {
+                // In production, this would retrieve a proper JWT token
+                return 'demo-token-12345';
+            }
+
+            setupEventListeners() {
+                // Handle page refresh
+                window.addEventListener('beforeunload', () => {
+                    if (this.ws) {
+                        this.ws.close();
+                    }
+                });
+            }
+
+            // Action Methods
+            sendContextUpdate(context) {
+                if (this.selectedConversationId && this.ws) {
+                    this.ws.send(JSON.stringify({
+                        type: 'inject_context',
+                        conversationId: this.selectedConversationId,
+                        context: context
+                    }));
+                    
+                    this.showToast('Context injected into conversation', 'success');
+                }
+            }
+
+            requestHumanTransfer() {
+                if (this.selectedConversationId) {
+                    // This would trigger the transfer-to-human tool
+                    this.showToast('Human transfer requested', 'warning');
+                    
+                    // In real implementation, this would call the ElevenLabs transfer API
+                }
+            }
+        }
+
+        // Initialize dashboard
+        const dashboard = new BICIDashboard();
+    </script>
+</body>
+</html>

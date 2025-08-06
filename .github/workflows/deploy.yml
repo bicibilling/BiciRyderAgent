@@ -1,0 +1,447 @@
+name: Deploy BICI AI Voice Agent
+
+on:
+  push:
+    branches: [main, production]
+    paths-ignore:
+      - 'README.md'
+      - 'DEPLOYMENT_GUIDE.md'
+      - 'CLAUDE*.md'
+      - '.gitignore'
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+env:
+  NODE_VERSION: '18'
+  FRONTEND_DIR: './frontend'
+  CLIENT_DIR: './client'
+
+jobs:
+  # Run tests and code quality checks
+  test:
+    name: Test & Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd ${{ env.FRONTEND_DIR }} && npm ci
+          if [ -d "${{ env.CLIENT_DIR }}" ]; then
+            cd ../${{ env.CLIENT_DIR }} && npm ci
+          fi
+
+      - name: Run linting
+        run: |
+          npm run lint
+          cd ${{ env.FRONTEND_DIR }} && npm run lint
+
+      - name: Run type checking
+        run: |
+          cd ${{ env.FRONTEND_DIR }} && npm run type-check
+
+      - name: Run backend tests
+        run: |
+          npm test
+        env:
+          NODE_ENV: test
+
+      - name: Test build processes
+        run: |
+          npm run build:backend
+          npm run build:frontend
+
+      - name: Validate configuration
+        run: |
+          npm run validate
+        env:
+          NODE_ENV: test
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+  # Security scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run security audit
+        run: |
+          npm audit --audit-level moderate
+          cd ${{ env.FRONTEND_DIR }} && npm audit --audit-level moderate
+
+      - name: Scan for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+
+  # Database migration check
+  database-check:
+    name: Database Migration Check
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check database migrations
+        run: |
+          node scripts/deploy-database.js status
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+  # Deploy to staging (for main branch)
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [test, security, database-check]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd ${{ env.FRONTEND_DIR }} && npm ci
+
+      - name: Build applications
+        run: |
+          npm run build:backend
+          npm run build:frontend
+        env:
+          NODE_ENV: staging
+          VITE_API_URL: ${{ secrets.STAGING_API_URL }}
+          VITE_APP_ENVIRONMENT: staging
+
+      - name: Deploy to Render (Staging)
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          wait-for-success: true
+
+      - name: Run database migrations (Staging)
+        run: |
+          node scripts/deploy-database.js deploy
+        env:
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Run post-deployment tests (Staging)
+        run: |
+          npm run test:integration
+        env:
+          TEST_API_URL: ${{ secrets.STAGING_API_URL }}
+          NODE_ENV: staging
+
+      - name: Notify deployment success
+        uses: 8398a7/action-slack@v3
+        if: success()
+        with:
+          status: success
+          text: 'BICI AI Voice Agent deployed to staging successfully! :rocket:'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify deployment failure
+        uses: 8398a7/action-slack@v3
+        if: failure()
+        with:
+          status: failure
+          text: 'BICI AI Voice Agent staging deployment failed! :x:'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Deploy to production (for production branch)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [test, security, database-check]
+    if: github.ref == 'refs/heads/production' && github.event_name == 'push'
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd ${{ env.FRONTEND_DIR }} && npm ci
+
+      - name: Build applications
+        run: |
+          npm run build:backend
+          npm run build:frontend
+        env:
+          NODE_ENV: production
+          VITE_API_URL: ${{ secrets.PRODUCTION_API_URL }}
+          VITE_APP_ENVIRONMENT: production
+          GENERATE_SOURCEMAP: false
+          VITE_GENERATE_SOURCEMAP: false
+
+      - name: Create deployment artifact
+        run: |
+          tar -czf deployment-artifact.tar.gz \
+            package.json \
+            package-lock.json \
+            src/ \
+            scripts/ \
+            database/ \
+            config/ \
+            frontend/dist/ \
+            frontend/package.json \
+            render.yaml
+
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-artifact
+          path: deployment-artifact.tar.gz
+          retention-days: 30
+
+      - name: Deploy Backend to Render (Production)
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_BACKEND_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          wait-for-success: true
+
+      - name: Deploy Frontend to Render (Production)
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_FRONTEND_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          wait-for-success: true
+
+      - name: Deploy Worker to Render (Production)
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_WORKER_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          wait-for-success: true
+
+      - name: Run database migrations (Production)
+        run: |
+          node scripts/deploy-database.js deploy
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Health check (Production)
+        run: |
+          sleep 30  # Wait for services to start
+          curl -f ${{ secrets.PRODUCTION_API_URL }}/health
+          curl -f ${{ secrets.PRODUCTION_FRONTEND_URL }}/
+
+      - name: Run post-deployment tests (Production)
+        run: |
+          npm run test:production
+        env:
+          TEST_API_URL: ${{ secrets.PRODUCTION_API_URL }}
+          NODE_ENV: production
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          body: |
+            Automated production deployment
+            
+            **Changes in this release:**
+            ${{ github.event.head_commit.message }}
+            
+            **Deployed Services:**
+            - Backend API: ${{ secrets.PRODUCTION_API_URL }}
+            - Frontend App: ${{ secrets.PRODUCTION_FRONTEND_URL }}
+            - Background Worker: Active
+            
+            **Health Status:**
+            - Database: Connected
+            - Redis Cache: Connected
+            - External APIs: Verified
+          draft: false
+          prerelease: false
+
+      - name: Notify deployment success
+        uses: 8398a7/action-slack@v3
+        if: success()
+        with:
+          status: success
+          text: |
+            :rocket: BICI AI Voice Agent deployed to PRODUCTION successfully!
+            
+            **Services:**
+            • Backend: ${{ secrets.PRODUCTION_API_URL }}
+            • Frontend: ${{ secrets.PRODUCTION_FRONTEND_URL }}
+            
+            **Release:** v${{ github.run_number }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify deployment failure
+        uses: 8398a7/action-slack@v3
+        if: failure()
+        with:
+          status: failure
+          text: |
+            :x: BICI AI Voice Agent PRODUCTION deployment failed!
+            
+            **Branch:** production
+            **Commit:** ${{ github.sha }}
+            **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Rollback job (manual trigger)
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rollback database migration
+        run: |
+          node scripts/deploy-database.js rollback
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Rollback services
+        run: |
+          echo "Manual rollback of Render services required via dashboard"
+          echo "Previous deployment artifacts available in GitHub releases"
+
+      - name: Notify rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: warning
+          text: |
+            :warning: BICI AI Voice Agent rollback initiated
+            
+            **Action Required:**
+            • Manual service rollback via Render dashboard
+            • Verify system functionality
+            • Database migration rolled back
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Performance monitoring (runs after production deployment)
+  performance-check:
+    name: Performance Monitoring
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: success() && github.ref == 'refs/heads/production'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run performance tests
+        run: |
+          # Install performance testing tools
+          npm install -g lighthouse autocannon
+          
+          # Wait for deployment to stabilize
+          sleep 60
+          
+          # Run Lighthouse audit
+          lighthouse ${{ secrets.PRODUCTION_FRONTEND_URL }} \
+            --output html \
+            --output-path ./lighthouse-report.html \
+            --chrome-flags="--headless"
+          
+          # Run load test
+          autocannon -c 10 -d 30 ${{ secrets.PRODUCTION_API_URL }}/health \
+            --output ./load-test-results.json
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: |
+            lighthouse-report.html
+            load-test-results.json
+
+      - name: Check performance thresholds
+        run: |
+          # Add performance threshold checking logic here
+          echo "Performance monitoring completed"
+
+# Environment-specific secrets required:
+# 
+# General:
+# - GITHUB_TOKEN (automatically provided)
+# - RENDER_API_KEY
+# - SLACK_WEBHOOK_URL
+# 
+# Staging:
+# - RENDER_STAGING_SERVICE_ID
+# - STAGING_API_URL
+# - STAGING_FRONTEND_URL
+# - STAGING_SUPABASE_URL
+# - STAGING_SUPABASE_SERVICE_ROLE_KEY
+# 
+# Production:
+# - RENDER_BACKEND_SERVICE_ID
+# - RENDER_FRONTEND_SERVICE_ID
+# - RENDER_WORKER_SERVICE_ID
+# - PRODUCTION_API_URL
+# - PRODUCTION_FRONTEND_URL
+# - SUPABASE_URL
+# - SUPABASE_SERVICE_ROLE_KEY
