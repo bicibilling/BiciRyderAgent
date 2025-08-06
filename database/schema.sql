@@ -137,11 +137,6 @@ CREATE TABLE conversations (
   timestamp TIMESTAMP WITH TIME ZONE DEFAULT now(),
   metadata JSONB DEFAULT '{}'::jsonb,
   
-  -- Indexes for performance
-  INDEX idx_conversations_org_phone (organization_id, phone_number_normalized),
-  INDEX idx_conversations_lead (lead_id),
-  INDEX idx_conversations_timestamp (timestamp DESC),
-  INDEX idx_conversations_classification (call_classification)
 );
 
 -- =============================================
@@ -538,7 +533,7 @@ INSERT INTO organizations (
   postal_code,
   settings
 ) VALUES (
-  'bici-main'::uuid,
+  '00000000-0000-0000-0000-000000000001'::uuid,
   'BICI Bike Store',
   '+14165551234',
   '123 Main Street, Downtown',
@@ -561,9 +556,37 @@ INSERT INTO organizations (
   }'
 ) ON CONFLICT (id) DO NOTHING;
 
+-- Insert default admin user
+-- Note: Password is 'BiciAI2024!' - should be changed in production
+INSERT INTO auth.users (
+  id,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  created_at,
+  updated_at,
+  raw_user_meta_data
+) VALUES (
+  gen_random_uuid(),
+  'admin@bici.com',
+  crypt('BiciAI2024!', gen_salt('bf')),
+  now(),
+  now(),
+  now(),
+  jsonb_build_object(
+    'organizationId', '00000000-0000-0000-0000-000000000001',
+    'role', 'admin',
+    'permissions', '["*"]'
+  )
+) ON CONFLICT (email) DO NOTHING;
+
 -- Create indexes for optimal query performance
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_leads_phone_org ON leads(phone_number_normalized, organization_id);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_recent ON conversations(organization_id, timestamp DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_org_phone ON conversations(organization_id, phone_number_normalized);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_lead ON conversations(lead_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_timestamp ON conversations(timestamp DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_classification ON conversations(call_classification);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sms_pending ON sms_messages(status, scheduled_for) WHERE status = 'queued';
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outbound_pending ON outbound_calls(status, scheduled_for) WHERE status = 'pending';
 

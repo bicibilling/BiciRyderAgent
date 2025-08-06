@@ -20,7 +20,7 @@ class ValidationMiddleware {
       login: Joi.object({
         email: Joi.string().email().required(),
         password: Joi.string().min(6).required(),
-        organizationId: Joi.string().uuid().required()
+        organizationId: Joi.string().uuid().optional().default('00000000-0000-0000-0000-000000000001')
       }),
       
       register: Joi.object({
