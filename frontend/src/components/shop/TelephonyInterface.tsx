@@ -7,7 +7,6 @@ import {
   CogIcon,
   PhoneIcon,
   DevicePhoneMobileIcon,
-  PlayIcon,
   StopIcon,
   UserIcon,
   ExclamationTriangleIcon,
@@ -18,19 +17,14 @@ import { useAuth } from '@/contexts/AuthContext'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
-import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import toast from 'react-hot-toast'
-import { format } from 'date-fns'
 
 // Types
 import {
   ConversationMessage,
-  Lead,
-  HumanControlSession,
   SSEEvent,
   SSEConnectionStatus,
   MainTabType,
-  ConversationMode,
   CurrentMode,
   TelephonyInterfaceProps
 } from '@/types/conversation'
@@ -45,7 +39,6 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001
 const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({ 
   selectedLead, 
   organizationId, 
-  onLeadUpdate,
   onClose 
 }) => {
   const { user } = useAuth()

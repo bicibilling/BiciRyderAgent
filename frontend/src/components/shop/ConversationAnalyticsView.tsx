@@ -1,14 +1,13 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { 
-  ChartBarIcon,
   ClockIcon,
   ChatBubbleLeftRightIcon,
   UserIcon,
   CpuChipIcon,
   HeartIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   SparklesIcon
 } from '@heroicons/react/24/outline'
 import Card from '@/components/ui/Card'
@@ -35,9 +34,9 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, subtitle, icon: I
   const getTrendIcon = () => {
     switch (trend) {
       case 'up':
-        return <TrendingUpIcon className="w-4 h-4 text-green-500" />
+        return <ArrowTrendingUpIcon className="w-4 h-4 text-green-500" />
       case 'down':
-        return <TrendingDownIcon className="w-4 h-4 text-red-500" />
+        return <ArrowTrendingDownIcon className="w-4 h-4 text-red-500" />
       default:
         return null
     }
@@ -147,7 +146,7 @@ const ConversationAnalyticsView: React.FC<ConversationAnalyticsViewProps> = ({
           title="Lead Score"
           value={leadScore}
           subtitle="Quality rating"
-          icon={TrendingUpIcon}
+          icon={ArrowTrendingUpIcon}
           color={getScoreColor(leadScore)}
           trend={leadScore > 70 ? 'up' : leadScore < 40 ? 'down' : 'neutral'}
         />

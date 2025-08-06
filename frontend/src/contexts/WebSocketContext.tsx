@@ -47,7 +47,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   const [activeConversations, setActiveConversations] = useState<Map<string, ActiveConversation>>(new Map())
   
   const wsRef = useRef<WebSocket | null>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
+  const reconnectTimeoutRef = useRef<number>()
   const reconnectAttempts = useRef(0)
   const maxReconnectAttempts = 5
   const eventListenersRef = useRef<Map<string, Set<(event: ConversationEvent) => void>>>(new Map())

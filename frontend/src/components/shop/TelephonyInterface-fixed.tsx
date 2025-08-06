@@ -7,7 +7,6 @@ import {
   CogIcon,
   PhoneIcon,
   DevicePhoneMobileIcon,
-  PlayIcon,
   StopIcon,
   UserIcon,
   ExclamationTriangleIcon,
@@ -26,19 +25,16 @@ import { useAuth } from '@/contexts/AuthContext'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
-import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import toast from 'react-hot-toast'
-import { format, differenceInSeconds } from 'date-fns'
+import { differenceInSeconds } from 'date-fns'
 
 // Types
 import {
   ConversationMessage,
-  Lead,
   HumanControlSession,
   SSEEvent,
   SSEConnectionStatus,
   MainTabType,
-  ConversationMode,
   CurrentMode,
   TelephonyInterfaceProps,
   ConversationAnalytics,
@@ -87,7 +83,7 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
   // Enhanced session state
   const [currentSession, setCurrentSession] = useState<HumanControlSession | null>(null)
   const [callSession, setCallSession] = useState<CallSession | null>(null)
-  const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([])
+  const [, setQueuedMessages] = useState<QueuedMessage[]>([])
   const [analytics, setAnalytics] = useState<ConversationAnalytics | null>(null)
   
   // SSE connection state (enhanced)
@@ -103,12 +99,11 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
   const [notificationCount, setNotificationCount] = useState(0)
   const [isMinimized, setIsMinimized] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
-  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 })
+  const [dragPosition] = useState({ x: 0, y: 0 })
   
   // Voice controls state
   const [isMuted, setIsMuted] = useState(false)
   const [speakerVolume, setSpeakerVolume] = useState(80)
-  const [isRecording, setIsRecording] = useState(false)
   
   // Advanced features state
   const [showTranscript, setShowTranscript] = useState(false)
@@ -120,8 +115,8 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
   const eventSourceRef = useRef<EventSource | null>(null)
   const conversationEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const sessionTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const reconnectTimeoutRef = useRef<number | null>(null)
+  const sessionTimerRef = useRef<number | null>(null)
   const dragRef = useRef<HTMLDivElement>(null)
   
   // Organization security headers
@@ -342,7 +337,8 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
         }
         
         if (data.queuedMessage) {
-          setQueuedMessages(prev => [...prev, data.queuedMessage])
+          const queuedMessage = data.queuedMessage as QueuedMessage
+          setQueuedMessages(prev => [...prev, queuedMessage])
           setQueuedMessagesCount(prev => prev + 1)
           setNotificationCount(prev => prev + 1)
           onNotification?.({ type: 'info', message: 'Customer message queued' })
@@ -352,7 +348,7 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
       case 'error':
         console.error('SSE Error event:', data.error)
         toast.error(`Connection error: ${data.error}`)
-        onNotification?.({ type: 'error', message: data.error })
+        onNotification?.({ type: 'error', message: data.error || 'Unknown error' })
         break
         
       default:
@@ -773,7 +769,7 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
     settings: CogIcon
   }
 
-  const TabIcon = tabIcons[activeMainTab]
+  // const TabIcon = tabIcons[activeMainTab]
 
   return (
     <Card className="h-full flex flex-col" padding="none">
@@ -1050,7 +1046,7 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
-                    onClick={scrollToBottom}
+                    onClick={() => scrollToBottom()}
                     className="absolute bottom-4 right-4 p-3 bg-primary-500 text-white rounded-full shadow-lg hover:bg-primary-600 transition-colors z-10"
                   >
                     <ArrowDownIcon className="w-5 h-5" />

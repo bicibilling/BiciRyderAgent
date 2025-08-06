@@ -31,7 +31,6 @@ interface LeadProfileProps {
 
 const LeadProfile: React.FC<LeadProfileProps> = ({
   lead,
-  organizationId,
   onUpdate,
   leadScore,
   sentiment

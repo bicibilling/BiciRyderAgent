@@ -1634,7 +1634,8 @@ router.post('/outbound-call',
           initiatedBy: userId,
           timestamp: new Date().toISOString(),
           // In production, include conversation_id from ElevenLabs response
-          conversationId: callResult.conversation_id,\n          callSid: callResult.call_sid
+          conversationId: callResult.conversation_id,
+          callSid: callResult.call_sid
         }
       });
     } catch (error) {
