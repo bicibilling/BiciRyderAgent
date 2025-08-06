@@ -11,6 +11,108 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const router = express.Router();
 
 /**
+ * @route GET /api/dashboard/stats
+ * @desc Get dashboard statistics
+ * @access Private (dashboard:read)
+ */
+router.get('/stats',
+  authMiddleware.verifyToken,
+  asyncHandler(async (req, res) => {
+    const { organizationId } = req.user;
+    
+    // Mock statistics data
+    const statsData = {
+      activeConversations: 3,
+      totalCallsToday: 45,
+      averageCallDuration: 245, // seconds
+      humanTakeoverRate: 18.5, // percentage
+      aiSuccessRate: 94.2, // percentage
+      totalLeadsToday: 28
+    };
+    
+    res.json({
+      success: true,
+      data: statsData,
+      metadata: {
+        organizationId,
+        refreshedAt: new Date().toISOString()
+      }
+    });
+  })
+);
+
+/**
+ * @route GET /api/dashboard/recent-conversations
+ * @desc Get recent conversations
+ * @access Private (dashboard:read)
+ */
+router.get('/recent-conversations',
+  authMiddleware.verifyToken,
+  asyncHandler(async (req, res) => {
+    const { organizationId } = req.user;
+    
+    // Mock recent conversations
+    const recentConversations = [
+      {
+        id: 'conv_1',
+        customerPhone: '+1234567890',
+        status: 'completed',
+        startedAt: new Date(Date.now() - 1800000).toISOString(),
+        duration: 180,
+        aiHandled: true,
+        leadQuality: 'high'
+      },
+      {
+        id: 'conv_2',
+        customerPhone: '+1987654321', 
+        status: 'transferred',
+        startedAt: new Date(Date.now() - 3600000).toISOString(),
+        duration: 420,
+        aiHandled: false,
+        leadQuality: 'medium'
+      },
+      {
+        id: 'conv_3',
+        customerPhone: '+1555666777',
+        status: 'completed',
+        startedAt: new Date(Date.now() - 5400000).toISOString(),
+        duration: 95,
+        aiHandled: true,
+        leadQuality: 'low'
+      },
+      {
+        id: 'conv_4',
+        customerPhone: '+1444555666',
+        status: 'error',
+        startedAt: new Date(Date.now() - 7200000).toISOString(),
+        duration: 25,
+        aiHandled: true,
+        leadQuality: null
+      },
+      {
+        id: 'conv_5',
+        customerPhone: '+1333444555',
+        status: 'completed',
+        startedAt: new Date(Date.now() - 9000000).toISOString(),
+        duration: 310,
+        aiHandled: true,
+        leadQuality: 'high'
+      }
+    ];
+    
+    res.json({
+      success: true,
+      data: recentConversations,
+      metadata: {
+        organizationId,
+        refreshedAt: new Date().toISOString(),
+        total: recentConversations.length
+      }
+    });
+  })
+);
+
+/**
  * @route GET /api/dashboard/overview
  * @desc Get dashboard overview data
  * @access Private (dashboard:read)

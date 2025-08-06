@@ -145,6 +145,31 @@ router.get('/verify',
 );
 
 /**
+ * @route GET /api/auth/validate
+ * @desc Validate token validity (alias for verify)
+ * @access Private
+ */
+router.get('/validate',
+  authMiddleware.verifyToken,
+  (req, res) => {
+    res.json({
+      success: true,
+      message: 'Token is valid',
+      data: {
+        user: {
+          id: req.user.id,
+          email: req.user.email,
+          role: req.user.role,
+          organizationId: req.user.organizationId,
+          permissions: req.user.permissions
+        },
+        tokenValid: true
+      }
+    });
+  }
+);
+
+/**
  * @route POST /api/auth/logout
  * @desc User logout (client-side token removal)
  * @access Private
