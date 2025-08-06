@@ -20,7 +20,7 @@ class ValidationMiddleware {
       login: Joi.object({
         email: Joi.string().email().required(),
         password: Joi.string().min(6).required(),
-        organizationId: Joi.string().uuid().optional().default('00000000-0000-0000-0000-000000000001')
+        organizationId: Joi.string().uuid().optional()
       }),
       
       register: Joi.object({
@@ -175,26 +175,72 @@ class ValidationMiddleware {
    */
   validateBody(schemaName) {
     return (req, res, next) => {
-      const schema = this.getSchema(schemaName);
-      const { error, value } = schema.validate(req.body, {
-        abortEarly: false,
-        stripUnknown: true,
-        allowUnknown: false
-      });
-      
-      if (error) {
-        return res.status(400).json({
+      try {
+        console.log(`🔍 [VALIDATION] Schema: ${schemaName}`);
+        console.log(`📥 [VALIDATION] Request body:`, JSON.stringify(req.body));
+        
+        // Special handling for login schema - add default organizationId
+        if (schemaName === 'login') {
+          console.log(`🔧 [VALIDATION] Login schema - checking organizationId`);
+          console.log(`📋 [VALIDATION] Original organizationId:`, req.body.organizationId);
+          
+          if (!req.body.organizationId || req.body.organizationId === undefined || req.body.organizationId === null) {
+            req.body.organizationId = '00000000-0000-0000-0000-000000000001';
+            console.log(`✅ [VALIDATION] Set default organizationId:`, req.body.organizationId);
+          }
+        }
+        
+        const schema = this.getSchema(schemaName);
+        console.log(`🛡️ [VALIDATION] Schema retrieved for: ${schemaName}`);
+        
+        const { error, value } = schema.validate(req.body, {
+          abortEarly: false,
+          stripUnknown: true,
+          allowUnknown: false
+        });
+        
+        console.log(`📊 [VALIDATION] Validation result:`, {
+          hasError: !!error,
+          validatedValue: value
+        });
+        
+        if (error) {
+          console.error(`❌ [VALIDATION] Validation failed:`, {
+            schemaName,
+            errors: this.formatValidationErrors(error),
+            originalBody: req.body,
+            processedValue: value
+          });
+          
+          return res.status(400).json({
+            success: false,
+            error: 'Validation failed',
+            code: 'VALIDATION_ERROR',
+            details: this.formatValidationErrors(error),
+            requestId: req.id,
+            timestamp: new Date().toISOString(),
+            debug: {
+              schemaName,
+              originalBody: req.body
+            }
+          });
+        }
+        
+        req.body = value;
+        console.log(`✅ [VALIDATION] Validation passed, proceeding to next middleware`);
+        next();
+        
+      } catch (validationError) {
+        console.error(`💥 [VALIDATION] Validation middleware error:`, validationError);
+        return res.status(500).json({
           success: false,
-          error: 'Validation failed',
-          code: 'VALIDATION_ERROR',
-          details: this.formatValidationErrors(error),
+          error: 'Validation middleware error',
+          code: 'VALIDATION_MIDDLEWARE_ERROR',
+          details: validationError.message,
           requestId: req.id,
           timestamp: new Date().toISOString()
         });
       }
-      
-      req.body = value;
-      next();
     };
   }
   

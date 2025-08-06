@@ -20,12 +20,31 @@ router.post('/login',
   rateLimitConfig.auth,
   validateBody('login'),
   asyncHandler(async (req, res) => {
+    console.log(`🚀 [AUTH ROUTE] Login request received`);
+    console.log(`📨 [AUTH ROUTE] Request body:`, JSON.stringify(req.body));
+    console.log(`🌐 [AUTH ROUTE] Request headers:`, JSON.stringify(req.headers));
+    
     const { email, password, organizationId } = req.body;
     
+    console.log(`🔑 [AUTH ROUTE] Extracted credentials:`, { 
+      email, 
+      hasPassword: !!password,
+      organizationId 
+    });
+    
     try {
+      console.log(`📞 [AUTH ROUTE] Calling authMiddleware.authenticateUser`);
       const authResult = await authMiddleware.authenticateUser(email, password, organizationId);
       
-      res.json({
+      console.log(`✅ [AUTH ROUTE] Authentication successful:`, {
+        userId: authResult.user.id,
+        userEmail: authResult.user.email,
+        userRole: authResult.user.role,
+        hasAccessToken: !!authResult.accessToken,
+        hasRefreshToken: !!authResult.refreshToken
+      });
+      
+      const response = {
         success: true,
         message: 'Login successful',
         data: {
@@ -41,15 +60,26 @@ router.post('/login',
           tokenType: 'Bearer',
           expiresIn: process.env.JWT_EXPIRY || '24h'
         }
-      });
+      };
+      
+      console.log(`📤 [AUTH ROUTE] Sending success response`);
+      res.json(response);
       
     } catch (error) {
-      res.status(401).json({
+      console.error(`❌ [AUTH ROUTE] Authentication failed:`, {
+        errorMessage: error.message,
+        errorStack: error.stack
+      });
+      
+      const errorResponse = {
         success: false,
         error: 'Authentication failed',
         message: error.message,
         code: 'AUTH_FAILED'
-      });
+      };
+      
+      console.log(`📤 [AUTH ROUTE] Sending error response:`, errorResponse);
+      res.status(401).json(errorResponse);
     }
   })
 );

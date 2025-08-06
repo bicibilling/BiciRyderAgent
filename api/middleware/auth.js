@@ -281,15 +281,19 @@ class AuthMiddleware {
    */
   async authenticateUser(email, password, organizationId) {
     try {
+      console.log(`🔐 [AUTH] Authenticating user:`, { email, organizationId });
+      
       // In production, integrate with your auth system
       // This is a development implementation
       
       if (!email || !password) {
+        console.error(`❌ [AUTH] Missing credentials:`, { email: !!email, password: !!password });
         throw new Error('Email and password required');
       }
       
       // Use default organization if none provided
       organizationId = organizationId || '00000000-0000-0000-0000-000000000001';
+      console.log(`🏢 [AUTH] Using organizationId:`, organizationId);
       
       // Mock authentication - replace with real auth when Supabase is configured
       const mockUsers = [
@@ -319,24 +323,35 @@ class AuthMiddleware {
         }
       ];
       
+      console.log(`👥 [AUTH] Searching for user in mock users database`);
       const user = mockUsers.find(u => u.email === email);
       
       if (!user) {
+        console.error(`❌ [AUTH] User not found:`, email);
         throw new Error('Invalid credentials');
       }
+      
+      console.log(`👤 [AUTH] User found:`, { id: user.id, email: user.email, role: user.role });
       
       // In production: verify password hash
       if (password !== user.password) {
+        console.error(`❌ [AUTH] Password mismatch for user:`, email);
         throw new Error('Invalid credentials');
       }
       
-      return {
+      console.log(`🎫 [AUTH] Generating tokens for user:`, user.id);
+      
+      const result = {
         user,
         accessToken: this.generateToken(user),
         refreshToken: this.generateRefreshToken(user)
       };
       
+      console.log(`✅ [AUTH] Authentication successful for:`, { userId: user.id, email: user.email });
+      return result;
+      
     } catch (error) {
+      console.error(`💥 [AUTH] Authentication failed:`, error.message);
       throw new Error('Authentication failed: ' + error.message);
     }
   }
