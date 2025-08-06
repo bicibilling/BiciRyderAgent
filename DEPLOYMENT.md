@@ -80,14 +80,19 @@ In your ElevenLabs Dashboard:
 
 In your Twilio Console, configure your phone number:
 
-1. **Voice Configuration**
-   - Configure with ElevenLabs native integration
-   - Follow ElevenLabs guide: https://elevenlabs.io/docs/conversational-ai/integrations/twilio
+1. **Voice Configuration (IMPORTANT)**
+   - **When a call comes in:**
+     - Webhook: `https://api.us.elevenlabs.io/twilio/inbound_call`
+     - Method: POST
+   - **NOTE:** This is ElevenLabs' endpoint, NOT your app's URL
+   - The ElevenLabs service handles the voice call directly
+   - Your app receives callbacks via ElevenLabs webhooks configured above
 
-2. **SMS Webhook**
-   - URL: `https://your-app.onrender.com/webhooks/twilio/sms`
-   - Method: POST
-   - Type: Webhook
+2. **SMS Webhook** 
+   - **When a message comes in:**
+     - URL: `https://your-app.onrender.com/webhooks/twilio/sms`
+     - Method: POST
+     - Type: Webhook
 
 3. **SMS Status Callback**
    - URL: `https://your-app.onrender.com/webhooks/twilio/sms/status`
