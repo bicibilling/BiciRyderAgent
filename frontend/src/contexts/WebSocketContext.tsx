@@ -119,7 +119,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
 
   const disconnect = () => {
     if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
+      window.clearTimeout(reconnectTimeoutRef.current)
     }
     
     if (wsRef.current) {
@@ -134,7 +134,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
 
   const scheduleReconnect = () => {
     if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
+      window.clearTimeout(reconnectTimeoutRef.current)
     }
 
     const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000) // Exponential backoff, max 30s
@@ -142,7 +142,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
 
     console.log(`Scheduling reconnect attempt ${reconnectAttempts.current} in ${delay}ms`)
     
-    reconnectTimeoutRef.current = setTimeout(() => {
+    reconnectTimeoutRef.current = window.setTimeout(() => {
       if (isAuthenticated && reconnectAttempts.current <= maxReconnectAttempts) {
         connect()
       }

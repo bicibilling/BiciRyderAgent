@@ -149,7 +149,7 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
         
         // Clear any pending reconnection
         if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current)
+          window.clearTimeout(reconnectTimeoutRef.current)
           reconnectTimeoutRef.current = null
         }
         
@@ -196,7 +196,7 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
             message: `Connection lost. Reconnecting in ${Math.ceil(reconnectDelay / 1000)}s...` 
           })
           
-          reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectTimeoutRef.current = window.setTimeout(() => {
             if (selectedLead) {
               setupEventSource()
             }
@@ -359,10 +359,10 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
   // Session timer management
   const startSessionTimer = useCallback(() => {
     if (sessionTimerRef.current) {
-      clearInterval(sessionTimerRef.current)
+      window.clearInterval(sessionTimerRef.current)
     }
     
-    sessionTimerRef.current = setInterval(() => {
+    sessionTimerRef.current = window.setInterval(() => {
       // Update session duration display
       setCurrentSession(prev => prev ? { ...prev, lastActivity: new Date().toISOString() } : null)
       setCallSession(prev => prev ? { ...prev, duration: prev.duration ? prev.duration + 1 : 1 } : null)
@@ -371,7 +371,7 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
 
   const stopSessionTimer = useCallback(() => {
     if (sessionTimerRef.current) {
-      clearInterval(sessionTimerRef.current)
+      window.clearInterval(sessionTimerRef.current)
       sessionTimerRef.current = null
     }
   }, [])
@@ -656,7 +656,7 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
         eventSourceRef.current = null
       }
       if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
+        window.clearTimeout(reconnectTimeoutRef.current)
       }
     }
   }, [selectedLead?.id, organizationId])
@@ -669,7 +669,7 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
         eventSourceRef.current = null
       }
       if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
+        window.clearTimeout(reconnectTimeoutRef.current)
       }
       stopSessionTimer()
     }
