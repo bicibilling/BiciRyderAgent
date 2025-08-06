@@ -1376,7 +1376,7 @@ router.post('/outbound-call',
         dynamicVariables.service_details = JSON.stringify(serviceDetails);
       }
       
-      // Call ElevenLabs API (in production)
+      // Call ElevenLabs API with correct endpoint and payload format
       const callPayload = {
         agent_id: process.env.ELEVENLABS_AGENT_ID,
         agent_phone_number_id: process.env.ELEVENLABS_PHONE_NUMBER_ID,
@@ -1394,13 +1394,52 @@ router.post('/outbound-call',
         }
       };
       
-      // In production, make actual ElevenLabs API call
-      console.log('Outbound call payload prepared:', {
-        phoneNumber,
-        organizationId,
-        leadId,
-        variablesCount: Object.keys(dynamicVariables).length
-      });
+      // Make actual ElevenLabs API call using the correct endpoint
+      let callResult;
+      if (process.env.NODE_ENV === 'production' && process.env.ELEVENLABS_API_KEY) {
+        try {
+          const response = await fetch('https://api.elevenlabs.io/v1/convai/twilio/outbound-call', {
+            method: 'POST',
+            headers: {
+              'xi-api-key': process.env.ELEVENLABS_API_KEY,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(callPayload)
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('ElevenLabs API Error:', response.status, errorText);
+            throw new Error(`ElevenLabs API error: ${response.status} ${errorText}`);
+          }
+
+          callResult = await response.json();
+          console.log('✅ ElevenLabs outbound call initiated:', callResult);
+        } catch (error) {
+          console.error('❌ Failed to initiate ElevenLabs outbound call:', error);
+          return res.status(500).json({
+            success: false,
+            error: 'Failed to initiate outbound call',
+            details: error.message,
+            code: 'ELEVENLABS_API_FAILED'
+          });
+        }
+      } else {
+        // Development/mock mode
+        console.log('📞 Outbound call payload prepared (mock mode):', {
+          phoneNumber,
+          organizationId,
+          leadId,
+          variablesCount: Object.keys(dynamicVariables).length
+        });
+        
+        // Mock successful response for development
+        callResult = {
+          conversation_id: `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          call_id: `call_${Date.now().toString(36).toUpperCase()}`,
+          status: 'initiated'
+        };
+      }
       
       // Store call initiation in conversation history
       const callMessage = customMessage || `Outbound AI call initiated - Reason: ${callReason || 'general'}`;
@@ -1426,14 +1465,6 @@ router.post('/outbound-call',
         dynamicVariables: dynamicVariables
       });
       
-      // Mock successful response for development
-      // In production, this would come from actual ElevenLabs API call
-      const mockCallResult = {
-        conversation_id: `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        call_sid: `CA${Date.now().toString(36).toUpperCase()}`,
-        status: 'initiated'
-      };
-
       res.json({
         success: true,
         message: 'Outbound call initiated successfully',
@@ -1448,11 +1479,10 @@ router.post('/outbound-call',
           customMessage,
           initiatedBy: userId,
           timestamp: new Date().toISOString(),
-          conversationId: mockCallResult.conversation_id,
-          callSid: mockCallResult.call_sid,
-          status: mockCallResult.status,
-          // In production, these would come from actual ElevenLabs response
-          mock: process.env.NODE_ENV !== 'production'
+          conversationId: callResult.conversation_id,
+          callId: callResult.call_id,
+          status: callResult.status,
+          mock: process.env.NODE_ENV !== 'production' || !process.env.ELEVENLABS_API_KEY
         }
       });
     } catch (error) {

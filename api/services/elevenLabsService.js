@@ -492,7 +492,7 @@ class ElevenLabsService extends EventEmitter {
         hasContext: !!conversationData.dynamicVariables?.conversation_context
       });
       
-      const response = await this.makeApiCall('/convai/conversations/phone', {
+      const response = await this.makeApiCall('/convai/twilio/outbound-call', {
         method: 'POST',
         body: callPayload
       });
@@ -504,14 +504,14 @@ class ElevenLabsService extends EventEmitter {
         conversationId: response.conversation_id,
         organizationId: conversationData.organizationId,
         leadId: conversationData.leadId,
-        callSid: response.call_sid,
+        callId: response.call_id,
         timestamp: new Date().toISOString()
       });
       
       return {
         success: true,
         conversation_id: response.conversation_id,
-        call_sid: response.call_sid
+        call_id: response.call_id
       };
       
     } catch (error) {
