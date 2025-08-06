@@ -135,7 +135,7 @@ CREATE TABLE conversations (
   
   -- Metadata
   timestamp TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  metadata JSONB DEFAULT '{}'::jsonb,
+  metadata JSONB DEFAULT '{}'::jsonb
   
 );
 
@@ -162,11 +162,7 @@ CREATE TABLE conversation_transcripts (
   sample_rate INTEGER DEFAULT 16000,
   
   -- Metadata
-  metadata JSONB DEFAULT '{}'::jsonb,
-  
-  -- Indexes
-  INDEX idx_transcripts_conversation (conversation_id),
-  INDEX idx_transcripts_elevenlabs (elevenlabs_conversation_id)
+  metadata JSONB DEFAULT '{}'::jsonb
 );
 
 -- =============================================
@@ -199,12 +195,7 @@ CREATE TABLE appointments (
   
   -- Metadata
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  
-  -- Indexes
-  INDEX idx_appointments_org (organization_id),
-  INDEX idx_appointments_datetime (appointment_datetime),
-  INDEX idx_appointments_status (status)
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 -- =============================================
@@ -240,12 +231,7 @@ CREATE TABLE sms_messages (
   
   -- Metadata
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  metadata JSONB DEFAULT '{}'::jsonb,
-  
-  -- Indexes
-  INDEX idx_sms_org_phone (organization_id, phone_number_normalized),
-  INDEX idx_sms_status (status),
-  INDEX idx_sms_scheduled (scheduled_for)
+  metadata JSONB DEFAULT '{}'::jsonb
 );
 
 -- =============================================
@@ -288,12 +274,7 @@ CREATE TABLE outbound_calls (
   
   -- Metadata
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  
-  -- Indexes
-  INDEX idx_outbound_org (organization_id),
-  INDEX idx_outbound_status (status),
-  INDEX idx_outbound_scheduled (scheduled_for)
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 -- =============================================
@@ -361,12 +342,7 @@ CREATE TABLE analytics_events (
   -- Metadata
   timestamp TIMESTAMP WITH TIME ZONE DEFAULT now(),
   user_agent TEXT,
-  ip_address INET,
-  
-  -- Indexes for analytics queries
-  INDEX idx_analytics_org_type (organization_id, event_type),
-  INDEX idx_analytics_timestamp (timestamp DESC),
-  INDEX idx_analytics_category (event_category)
+  ip_address INET
 );
 
 -- =============================================
@@ -398,12 +374,7 @@ CREATE TABLE webhook_logs (
   retry_count INTEGER DEFAULT 0,
   
   -- Metadata
-  timestamp TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  
-  -- Indexes
-  INDEX idx_webhook_logs_org (organization_id),
-  INDEX idx_webhook_logs_timestamp (timestamp DESC),
-  INDEX idx_webhook_logs_source (webhook_source)
+  timestamp TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 -- =============================================
@@ -581,14 +552,47 @@ INSERT INTO auth.users (
 ) ON CONFLICT (email) DO NOTHING;
 
 -- Create indexes for optimal query performance
+
+-- Leads table indexes
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_leads_phone_org ON leads(phone_number_normalized, organization_id);
+
+-- Conversations table indexes
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_recent ON conversations(organization_id, timestamp DESC);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_org_phone ON conversations(organization_id, phone_number_normalized);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_lead ON conversations(lead_id);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_timestamp ON conversations(timestamp DESC);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_classification ON conversations(call_classification);
+
+-- Conversation transcripts table indexes
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_transcripts_conversation ON conversation_transcripts(conversation_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_transcripts_elevenlabs ON conversation_transcripts(elevenlabs_conversation_id);
+
+-- Appointments table indexes
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_appointments_org ON appointments(organization_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_appointments_datetime ON appointments(appointment_datetime);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_appointments_status ON appointments(status);
+
+-- SMS messages table indexes
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sms_org_phone ON sms_messages(organization_id, phone_number_normalized);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sms_status ON sms_messages(status);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sms_scheduled ON sms_messages(scheduled_for);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sms_pending ON sms_messages(status, scheduled_for) WHERE status = 'queued';
+
+-- Outbound calls table indexes
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outbound_org ON outbound_calls(organization_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outbound_status ON outbound_calls(status);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outbound_scheduled ON outbound_calls(scheduled_for);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outbound_pending ON outbound_calls(status, scheduled_for) WHERE status = 'pending';
+
+-- Analytics events table indexes
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_analytics_org_type ON analytics_events(organization_id, event_type);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_analytics_timestamp ON analytics_events(timestamp DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_analytics_category ON analytics_events(event_category);
+
+-- Webhook logs table indexes
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_webhook_logs_org ON webhook_logs(organization_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_webhook_logs_timestamp ON webhook_logs(timestamp DESC);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_webhook_logs_source ON webhook_logs(webhook_source);
 
 -- Grant necessary permissions
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
