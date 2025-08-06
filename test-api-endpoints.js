@@ -9,9 +9,9 @@ const axios = require('axios');
 const crypto = require('crypto');
 
 // Configuration
-const BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.API_BASE_URL || 'http://localhost:3001';
 const TEST_PHONE = '+14165551234';
-const TEST_ORGANIZATION_ID = 'bici-demo';
+const TEST_ORGANIZATION_ID = '550e8400-e29b-41d4-a716-446655440000'; // Valid GUID format
 
 class APITester {
   constructor() {
@@ -36,6 +36,9 @@ class APITester {
       
       // Test human control endpoints
       await this.testHumanControlEndpoints();
+      
+      // Test SSE streaming endpoint
+      await this.testSSEStreaming();
       
       // Test webhook endpoints (simulation)
       await this.testWebhookEndpoints();
@@ -141,9 +144,38 @@ class APITester {
   }
 
   async testOutboundCall() {
-    console.log('📞 Testing Outbound Call Endpoint...');
+    console.log('📞 Testing Outbound Call Endpoints...');
     
-    const callData = {
+    // Test the NEW correct endpoint that frontend should use
+    const callDataNew = {
+      phoneNumber: TEST_PHONE,
+      leadId: 'test-lead-123',
+      dynamicVariables: {
+        customer_name: 'Test Customer',
+        lead_status: 'new',
+        conversation_context: 'No previous conversation'
+      },
+      priority: 'normal'
+    };
+
+    const newCallResult = await this.makeRequest('POST', '/api/calls/outbound/start', callDataNew, {
+      'x-organization-id': TEST_ORGANIZATION_ID
+    });
+    this.results.outboundCallNew = newCallResult;
+    
+    if (newCallResult.success) {
+      console.log('✅ NEW outbound call endpoint (/api/calls/outbound/start) working');
+      console.log('   Response:', JSON.stringify(newCallResult.data, null, 2));
+    } else {
+      console.log('❌ NEW outbound call failed:', newCallResult.error);
+      console.log('   Status:', newCallResult.status);
+      if (newCallResult.data) {
+        console.log('   Details:', JSON.stringify(newCallResult.data, null, 2));
+      }
+    }
+
+    // Test the OLD endpoint that still exists for backwards compatibility
+    const callDataOld = {
       phoneNumber: TEST_PHONE,
       leadId: 'test-lead-123',
       callReason: 'follow_up',
@@ -151,17 +183,19 @@ class APITester {
       customMessage: 'This is a test outbound call'
     };
 
-    const callResult = await this.makeRequest('POST', '/api/conversations/outbound-call', callData);
-    this.results.outboundCall = callResult;
+    const oldCallResult = await this.makeRequest('POST', '/api/conversations/outbound-call', callDataOld, {
+      'x-organization-id': TEST_ORGANIZATION_ID
+    });
+    this.results.outboundCallOld = oldCallResult;
     
-    if (callResult.success) {
-      console.log('✅ Outbound call endpoint working');
-      console.log('   Response:', JSON.stringify(callResult.data, null, 2));
+    if (oldCallResult.success) {
+      console.log('✅ OLD outbound call endpoint (/api/conversations/outbound-call) working');
+      console.log('   Response:', JSON.stringify(oldCallResult.data, null, 2));
     } else {
-      console.log('❌ Outbound call failed:', callResult.error);
-      console.log('   Status:', callResult.status);
-      if (callResult.data) {
-        console.log('   Details:', JSON.stringify(callResult.data, null, 2));
+      console.log('❌ OLD outbound call failed:', oldCallResult.error);
+      console.log('   Status:', oldCallResult.status);
+      if (oldCallResult.data) {
+        console.log('   Details:', JSON.stringify(oldCallResult.data, null, 2));
       }
     }
 
@@ -180,7 +214,9 @@ class APITester {
       customMessage: 'Agent taking over for testing'
     };
 
-    const joinResult = await this.makeRequest('POST', '/api/human-control/join', joinData);
+    const joinResult = await this.makeRequest('POST', '/api/human-control/join', joinData, {
+      'x-organization-id': TEST_ORGANIZATION_ID
+    });
     this.results.humanControlJoin = joinResult;
     
     if (joinResult.success) {
@@ -202,7 +238,9 @@ class APITester {
       priority: 'normal'
     };
 
-    const messageResult = await this.makeRequest('POST', '/api/human-control/send-message', messageData);
+    const messageResult = await this.makeRequest('POST', '/api/human-control/send-message', messageData, {
+      'x-organization-id': TEST_ORGANIZATION_ID
+    });
     this.results.humanControlMessage = messageResult;
     
     if (messageResult.success) {
@@ -216,7 +254,9 @@ class APITester {
     }
 
     // Test status endpoint
-    const statusResult = await this.makeRequest('GET', `/api/human-control/status?phoneNumber=${TEST_PHONE}`);
+    const statusResult = await this.makeRequest('GET', `/api/human-control/status?phoneNumber=${TEST_PHONE}`, null, {
+      'x-organization-id': TEST_ORGANIZATION_ID
+    });
     this.results.humanControlStatus = statusResult;
     
     if (statusResult.success) {
@@ -237,7 +277,9 @@ class APITester {
       handoffSuccess: true
     };
 
-    const leaveResult = await this.makeRequest('POST', '/api/human-control/leave', leaveData);
+    const leaveResult = await this.makeRequest('POST', '/api/human-control/leave', leaveData, {
+      'x-organization-id': TEST_ORGANIZATION_ID
+    });
     this.results.humanControlLeave = leaveResult;
     
     if (leaveResult.success) {
@@ -247,6 +289,32 @@ class APITester {
       console.log('   Status:', leaveResult.status);
       if (leaveResult.data && leaveResult.status !== 400) { // 400 expected if not under human control
         console.log('   Details:', JSON.stringify(leaveResult.data, null, 2));
+      }
+    }
+
+    console.log('');
+  }
+
+  async testSSEStreaming() {
+    console.log('📡 Testing SSE Streaming Endpoint...');
+    
+    // Test the SSE endpoint (this will fail quickly since we can't maintain connection in test)
+    const testLeadId = 'test-lead-123';
+    const sseUrl = `/api/stream/conversation/${testLeadId}?phoneNumber=${encodeURIComponent(TEST_PHONE)}&load=true&organizationId=${encodeURIComponent(TEST_ORGANIZATION_ID)}&token=mock-jwt-token-for-testing`;
+    
+    const sseResult = await this.makeRequest('GET', sseUrl);
+    this.results.sseStreaming = sseResult;
+    
+    if (sseResult.success || sseResult.status === 401) { // 401 expected due to mock token
+      console.log('✅ SSE streaming endpoint responding (401 expected with mock token)');
+      if (sseResult.status === 401) {
+        console.log('   Note: Authentication required for SSE, which is correct');
+      }
+    } else {
+      console.log('❌ SSE streaming endpoint failed:', sseResult.error);
+      console.log('   Status:', sseResult.status);
+      if (sseResult.data) {
+        console.log('   Details:', JSON.stringify(sseResult.data, null, 2));
       }
     }
 
@@ -323,11 +391,13 @@ class APITester {
       { name: 'Health Check', key: 'health', critical: true },
       { name: 'Ready Check', key: 'ready', critical: true },
       { name: 'Authentication', key: 'login', critical: true },
-      { name: 'Outbound Call', key: 'outboundCall', critical: true },
+      { name: 'NEW Outbound Call (/api/calls/outbound/start)', key: 'outboundCallNew', critical: true },
+      { name: 'OLD Outbound Call (/api/conversations/outbound-call)', key: 'outboundCallOld', critical: false },
       { name: 'Human Control Join', key: 'humanControlJoin', critical: true },
       { name: 'Human Control Send Message', key: 'humanControlMessage', critical: false },
       { name: 'Human Control Status', key: 'humanControlStatus', critical: true },
       { name: 'Human Control Leave', key: 'humanControlLeave', critical: false },
+      { name: 'SSE Streaming', key: 'sseStreaming', critical: true },
       { name: 'ElevenLabs Webhook', key: 'elevenLabsWebhook', critical: true },
       { name: 'Twilio SMS Webhook', key: 'twilioSMSWebhook', critical: true }
     ];

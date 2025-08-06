@@ -72,7 +72,7 @@ const sseAuthMiddleware = async (req, res, next) => {
  * @desc Server-Sent Events endpoint for real-time conversation streaming
  * @access Private (conversations:read)
  */
-router.get('/stream/conversation/:leadId',
+router.get('/conversation/:leadId',
   sseAuthMiddleware,
   authMiddleware.requirePermission('conversations:read'),
   asyncHandler(async (req, res) => {

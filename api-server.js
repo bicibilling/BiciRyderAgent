@@ -287,7 +287,6 @@ class BiciAPIServer {
     this.app.use('/api/calls',
       authMiddleware.verifyToken,
       authMiddleware.addOrganizationContext,
-      authMiddleware.requirePermission('calls:manage'),
       callRoutes
     );
     

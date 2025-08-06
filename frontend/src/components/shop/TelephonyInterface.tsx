@@ -51,8 +51,8 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
   const [activeMainTab, setActiveMainTab] = useState<MainTabType>('conversation')
   const [humanControlAgent, setHumanControlAgent] = useState<string | null>(null)
   
-  // WebSocket connection state
-  const [wsStatus, setWsStatus] = useState<SSEConnectionStatus>({
+  // SSE connection state
+  const [sseStatus, setSseStatus] = useState<SSEConnectionStatus>({
     connected: false,
     reconnectAttempts: 0
   })
@@ -63,7 +63,7 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
   const [queuedMessagesCount, setQueuedMessagesCount] = useState(0)
   
   // Refs
-  const wsRef = useRef<WebSocket | null>(null)
+  const eventSourceRef = useRef<EventSource | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const conversationEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -87,60 +87,44 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
     return headers
   }, [organizationId])
 
-  // WebSocket Connection Management
-  const setupWebSocketConnection = useCallback(() => {
-    if (!selectedLead || wsRef.current) return
+  // SSE Connection Management
+  const setupEventSourceConnection = useCallback(() => {
+    if (!selectedLead || eventSourceRef.current) return
 
-    // Get token for WebSocket authentication
+    // Get token for SSE authentication
     const token = localStorage.getItem('bici_token')
     if (!token) {
       console.error('❌ No authentication token available')
-      setWsStatus(prev => ({ ...prev, error: 'Authentication required' }))
+      setSseStatus(prev => ({ ...prev, error: 'Authentication required' }))
       return
     }
     
-    setWsStatus(prev => ({ ...prev, connected: false, error: undefined }))
+    setSseStatus(prev => ({ ...prev, connected: false, error: undefined }))
     
     try {
-      // Use WebSocket instead of EventSource for better real-time communication
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsHost = import.meta.env.VITE_WS_URL || API_BASE_URL.replace(/^https?:/, wsProtocol)
-      const wsUrl = `${wsHost}/ws?token=${encodeURIComponent(token)}`
+      // Use SSE for real-time communication (matches backend implementation)
+      const eventSourceURL = `${API_BASE_URL}/api/stream/conversation/${selectedLead.id}?phoneNumber=${encodeURIComponent(selectedLead.phoneNumber)}&load=true&organizationId=${encodeURIComponent(organizationId)}&token=${encodeURIComponent(token)}`
       
-      console.log('🔌 Connecting to WebSocket:', wsUrl)
-      const ws = new WebSocket(wsUrl)
-      wsRef.current = ws
+      console.log('🔌 Connecting to SSE:', eventSourceURL)
+      const eventSource = new EventSource(eventSourceURL)
+      eventSourceRef.current = eventSource
       
-      ws.onopen = () => {
-        console.log('✅ WebSocket Connected successfully')
-        setWsStatus({
+      eventSource.onopen = () => {
+        console.log('✅ SSE Connected successfully')
+        setSseStatus({
           connected: true,
           reconnectAttempts: 0,
           lastHeartbeat: new Date().toISOString()
         })
         
-        // Subscribe to conversation updates for this lead
-        ws.send(JSON.stringify({
-          type: 'subscribe_conversation',
-          data: {
-            conversationId: selectedLead.id,
-            phoneNumber: selectedLead.phoneNumber,
-            organizationId: organizationId
-          }
-        }))
-        
-        // Request conversation history
-        ws.send(JSON.stringify({
-          type: 'get_conversation_history',
-          data: {
-            conversationId: selectedLead.id,
-            phoneNumber: selectedLead.phoneNumber,
-            organizationId: organizationId
-          }
-        }))
+        // Clear any pending reconnection
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current)
+          reconnectTimeoutRef.current = null
+        }
       }
       
-      ws.onmessage = (event) => {
+      eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
           
@@ -150,58 +134,53 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
             return
           }
           
-          handleWebSocketEvent(data)
+          handleSSEEvent(data)
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error)
+          console.error('Error parsing SSE message:', error)
         }
       }
       
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error)
-        setWsStatus(prev => ({
+      eventSource.onerror = (error) => {
+        console.error('SSE error:', error)
+        setSseStatus(prev => ({
           ...prev,
           connected: false,
           error: 'Connection error',
           reconnectAttempts: prev.reconnectAttempts + 1
         }))
-      }
-      
-      ws.onclose = (event) => {
-        console.log('🔌 WebSocket closed:', event.code, event.reason)
-        wsRef.current = null
-        setWsStatus(prev => ({
-          ...prev,
-          connected: false,
-          error: event.reason || 'Connection closed'
-        }))
+        
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close()
+          eventSourceRef.current = null
+        }
         
         // Auto-reconnect with exponential backoff
-        if (selectedLead && wsStatus.reconnectAttempts < 10) {
-          const reconnectDelay = Math.min(1000 * Math.pow(1.5, wsStatus.reconnectAttempts), 30000)
-          console.log(`🔄 Reconnecting in ${reconnectDelay / 1000}s... (attempt ${wsStatus.reconnectAttempts + 1})`)
+        if (selectedLead && sseStatus.reconnectAttempts < 10) {
+          const reconnectDelay = Math.min(1000 * Math.pow(1.5, sseStatus.reconnectAttempts), 30000)
+          console.log(`🔄 Reconnecting in ${reconnectDelay / 1000}s... (attempt ${sseStatus.reconnectAttempts + 1})`)
           
           reconnectTimeoutRef.current = setTimeout(() => {
-            setupWebSocketConnection()
+            setupEventSourceConnection()
           }, reconnectDelay)
         }
       }
     } catch (error) {
-      console.error('Failed to create WebSocket:', error)
-      setWsStatus(prev => ({
+      console.error('Failed to create EventSource:', error)
+      setSseStatus(prev => ({
         ...prev,
         connected: false,
         error: 'Failed to connect'
       }))
     }
-  }, [selectedLead, organizationId, wsStatus.reconnectAttempts])
+  }, [selectedLead, organizationId, sseStatus.reconnectAttempts])
 
-  // Handle WebSocket Events
-  const handleWebSocketEvent = useCallback((data: any) => {
-    console.log('📡 WebSocket Event:', data.type, data)
+  // Handle SSE Events
+  const handleSSEEvent = useCallback((data: any) => {
+    console.log('📡 SSE Event:', data.type, data)
     
     // Update heartbeat for connection health
     if (data.type !== 'heartbeat') {
-      setWsStatus(prev => ({
+      setSseStatus(prev => ({
         ...prev,
         lastHeartbeat: new Date().toISOString()
       }))
@@ -210,7 +189,7 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
     switch (data.type) {
       case 'connected':
       case 'connection_established':
-        setWsStatus(prev => ({
+        setSseStatus(prev => ({
           ...prev,
           connected: true,
           connectionId: data.connectionId,
@@ -220,7 +199,7 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
         
       case 'heartbeat':
       case 'pong':
-        setWsStatus(prev => ({
+        setSseStatus(prev => ({
           ...prev,
           lastHeartbeat: data.timestamp
         }))
@@ -432,20 +411,27 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
     try {
       setIsLoading(true)
       
-      // Send via WebSocket if connected, otherwise fall back to HTTP API
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: 'send_chat_message',
-          data: {
-            conversationId: selectedLead.id,
-            phoneNumber: selectedLead.phoneNumber,
-            organizationId: organizationId,
-            message: message.trim(),
-            messageType: currentMode === 'sms' ? 'sms' : 'text'
-          }
-        }))
+      // Always use HTTP API for sending messages (SSE is read-only)
+      const response = await fetch(`${API_BASE_URL}/api/human-control/send-message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getOrganizationHeaders()
+        },
+        body: JSON.stringify({
+          phoneNumber: selectedLead.phoneNumber,
+          message: message.trim(),
+          leadId: selectedLead.id,
+          messageType: currentMode === 'sms' ? 'sms' : 'text'
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        toast.success('Message sent successfully')
         
-        // Optimistically add message to conversation
+        // Optimistically add message to conversation (will be updated via SSE)
         const optimisticMessage: ConversationMessage = {
           id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           content: message.trim(),
@@ -453,34 +439,11 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
           timestamp: new Date().toISOString(),
           type: 'text',
           phoneNumber: selectedLead.phoneNumber,
-          status: 'sending'
+          status: 'sent'
         }
         addConversationMessage(optimisticMessage)
-        
-        toast.success('Message sent successfully')
       } else {
-        // Fall back to HTTP API if WebSocket is not available
-        const response = await fetch(`${API_BASE_URL}/api/human-control/send-message`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getOrganizationHeaders()
-          },
-          body: JSON.stringify({
-            phoneNumber: selectedLead.phoneNumber,
-            message: message.trim(),
-            leadId: selectedLead.id,
-            messageType: currentMode === 'sms' ? 'sms' : 'text'
-          })
-        })
-        
-        const result = await response.json()
-        
-        if (result.success) {
-          toast.success('Message sent successfully')
-        } else {
-          throw new Error(result.error || 'Failed to send message')
-        }
+        throw new Error(result.error || 'Failed to send message')
       }
     } catch (error: any) {
       console.error('Failed to send message:', error)
@@ -498,16 +461,15 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
       setIsLoading(true)
       
       if (isCallActive) {
-        // End call
-        const response = await fetch(`${API_BASE_URL}/api/calls/end/current`, {
+        // End call - use a mock call ID for now, in production this would be tracked
+        const mockCallId = `call_${Date.now()}`
+        const response = await fetch(`${API_BASE_URL}/api/calls/end/${mockCallId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...getOrganizationHeaders()
           },
           body: JSON.stringify({
-            phoneNumber: selectedLead.phoneNumber,
-            leadId: selectedLead.id,
             reason: 'manual_end'
           })
         })
@@ -522,7 +484,7 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
           throw new Error(result.error || 'Failed to end call')
         }
       } else {
-        // Start call
+        // Start call - use the correct endpoint that exists
         const response = await fetch(`${API_BASE_URL}/api/calls/outbound/start`, {
           method: 'POST',
           headers: {
@@ -592,30 +554,30 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
     }
   }, [isAutoMode, isUnderHumanControl, isLoading])
 
-  // Setup WebSocket connection when lead changes
+  // Setup SSE connection when lead changes
   useEffect(() => {
     if (selectedLead && organizationId) {
-      setupWebSocketConnection()
+      setupEventSourceConnection()
     }
     
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close(1000, 'Component unmounting')
-        wsRef.current = null
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
         reconnectTimeoutRef.current = null
       }
     }
-  }, [selectedLead?.id, organizationId, setupWebSocketConnection])
+  }, [selectedLead?.id, organizationId, setupEventSourceConnection])
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close(1000, 'Component unmounting')
-        wsRef.current = null
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
@@ -664,7 +626,7 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
                   {selectedLead.phoneNumber}
                 </span>
                 <StatusIndicator 
-                  status={wsStatus.connected ? 'connected' : 'disconnected'}
+                  status={sseStatus.connected ? 'connected' : 'disconnected'}
                   mode={currentMode}
                   isCallActive={isCallActive}
                   isUnderHumanControl={isUnderHumanControl}
@@ -763,7 +725,7 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
                       icon={isCallActive ? <StopIcon /> : <PhoneIcon />}
                       onClick={handleCallAction}
                       loading={isLoading && (currentMode === 'voice' || currentMode === 'idle')}
-                      disabled={!wsStatus.connected}
+                      disabled={!sseStatus.connected}
                     >
                       {isCallActive ? 'End Call' : 'Start Call'}
                     </Button>
@@ -799,7 +761,7 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
                 >
                   <ConversationDisplay
                     messages={conversationHistory}
-                    isLoading={!wsStatus.connected}
+                    isLoading={!sseStatus.connected}
                     selectedLead={selectedLead}
                   />
                   <div ref={conversationEndRef} />
@@ -824,7 +786,7 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
                 <div className="border-t border-neutral-200 p-4">
                   <MessageInput
                     onSendMessage={handleSendMessage}
-                    disabled={isLoading || !wsStatus.connected}
+                    disabled={isLoading || !sseStatus.connected}
                     placeholder={isUnderHumanControl ? 
                       "Type your message..." : 
                       "Send SMS message..."
@@ -862,7 +824,7 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
       </div>
 
       {/* Connection Status Warning */}
-      {!wsStatus.connected && (
+      {!sseStatus.connected && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -875,14 +837,14 @@ const TelephonyInterface: React.FC<TelephonyInterfaceProps> = ({
                 Connection Issue
               </p>
               <p className="text-sm text-yellow-700">
-                {wsStatus.error || 'Attempting to reconnect...'}
-                {wsStatus.reconnectAttempts > 0 && ` (Attempt ${wsStatus.reconnectAttempts})`}
+                {sseStatus.error || 'Attempting to reconnect...'}
+                {sseStatus.reconnectAttempts > 0 && ` (Attempt ${sseStatus.reconnectAttempts})`}
               </p>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              onClick={setupWebSocketConnection}
+              onClick={setupEventSourceConnection}
               loading={isLoading}
             >
               Retry
