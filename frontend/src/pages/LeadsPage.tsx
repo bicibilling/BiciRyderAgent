@@ -348,11 +348,11 @@ const LeadsPage: React.FC = () => {
                           size="md"
                           status={lead.leadStatus === 'new' ? 'online' : 'offline'}
                         />
-                        <div className="min-w-0">
-                          <h3 className="font-semibold text-neutral-900 truncate">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-neutral-900 truncate max-w-[150px]">
                             {lead.customerName}
                           </h3>
-                          <p className="text-sm text-neutral-500 truncate">
+                          <p className="text-sm text-neutral-500 truncate max-w-[150px]">
                             {lead.phoneNumber}
                           </p>
                         </div>
@@ -372,19 +372,21 @@ const LeadsPage: React.FC = () => {
                       <Badge variant={getStatusColor(lead.leadStatus)} size="sm">
                         {lead.leadStatus.replace('_', ' ')}
                       </Badge>
-                      <span className="text-xs text-neutral-500 capitalize">
+                      <span className="text-xs text-neutral-500 capitalize truncate max-w-[80px]">
                         {lead.leadSource.replace('_', ' ')}
                       </span>
                     </div>
 
                     {/* Bike Interest */}
                     {lead.bikeInterest?.type && (
-                      <div className="text-sm text-neutral-600">
-                        <strong>Interest:</strong> {lead.bikeInterest.type} bike
+                      <div className="text-sm text-neutral-600 truncate">
+                        <div className="truncate">
+                          <strong>Interest:</strong> {lead.bikeInterest.type} bike
+                        </div>
                         {lead.bikeInterest.budget && (
-                          <span className="block text-xs text-neutral-500">
+                          <div className="text-xs text-neutral-500 truncate">
                             Budget: ${lead.bikeInterest.budget.min} - ${lead.bikeInterest.budget.max}
-                          </span>
+                          </div>
                         )}
                       </div>
                     )}
