@@ -54,6 +54,8 @@ const Button: React.FC<ButtonProps> = ({
     </svg>
   )
 
+  const { onAnimationStart, onAnimationEnd, onAnimationIteration, ...buttonProps } = props;
+
   return (
     <motion.button
       whileHover={{ scale: disabled || loading ? 1 : 1.02 }}
@@ -66,7 +68,7 @@ const Button: React.FC<ButtonProps> = ({
         className
       )}
       disabled={disabled || loading}
-      {...props}
+      {...buttonProps}
     >
       {loading ? (
         <>

@@ -64,7 +64,8 @@ const DashboardPage: React.FC = () => {
   
   const [recentConversations, setRecentConversations] = useState<RecentConversation[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
+  // Disabled for now - will be used for conversation selection feature
+  // const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
 
   // Fetch dashboard data
   const fetchDashboardData = async () => {

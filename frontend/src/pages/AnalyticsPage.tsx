@@ -5,14 +5,11 @@ import {
   ClockIcon,
   PhoneIcon,
   UserGroupIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
   CalendarDaysIcon,
-  FunnelIcon
 } from '@heroicons/react/24/outline'
 import { 
-  LineChart, 
-  Line, 
   AreaChart, 
   Area, 
   BarChart, 
@@ -32,7 +29,7 @@ import Button from '@/components/ui/Button'
 import Badge from '@/components/ui/Badge'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import axios from 'axios'
-import { format, subDays, startOfDay, endOfDay } from 'date-fns'
+import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
 interface AnalyticsData {
@@ -86,7 +83,8 @@ const AnalyticsPage: React.FC = () => {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [dateRange, setDateRange] = useState('7d')
-  const [selectedMetric, setSelectedMetric] = useState('calls')
+  // Disabled for now - will be used in future metric selection feature
+  // const [selectedMetric, setSelectedMetric] = useState('calls')
 
   const fetchAnalyticsData = async () => {
     try {

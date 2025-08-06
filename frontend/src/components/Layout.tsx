@@ -9,8 +9,6 @@ import {
   Bars3Icon,
   XMarkIcon,
   PowerIcon,
-  UserCircleIcon,
-  SignalIcon,
   PhoneIcon
 } from '@heroicons/react/24/outline'
 import { 
