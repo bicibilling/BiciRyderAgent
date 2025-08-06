@@ -22,7 +22,7 @@ function setConversationBridge(bridge) {
 /**
  * Start outbound call
  */
-router.post('/outbound/start', authMiddleware, asyncHandler(async (req, res) => {
+router.post('/outbound/start', authMiddleware.verifyToken, authMiddleware.addOrganizationContext, asyncHandler(async (req, res) => {
   const { phoneNumber, leadId, dynamicVariables, priority } = req.body;
   const organizationId = req.user.organizationId;
   
@@ -123,7 +123,7 @@ router.post('/outbound/start', authMiddleware, asyncHandler(async (req, res) => 
 /**
  * Get call status
  */
-router.get('/status/:callId', authMiddleware, asyncHandler(async (req, res) => {
+router.get('/status/:callId', authMiddleware.verifyToken, authMiddleware.addOrganizationContext, asyncHandler(async (req, res) => {
   const { callId } = req.params;
   const organizationId = req.user.organizationId;
   
@@ -157,7 +157,7 @@ router.get('/status/:callId', authMiddleware, asyncHandler(async (req, res) => {
 /**
  * End/Cancel call
  */
-router.post('/end/:callId', authMiddleware, asyncHandler(async (req, res) => {
+router.post('/end/:callId', authMiddleware.verifyToken, authMiddleware.addOrganizationContext, asyncHandler(async (req, res) => {
   const { callId } = req.params;
   const { reason } = req.body;
   const organizationId = req.user.organizationId;
@@ -203,7 +203,7 @@ router.post('/end/:callId', authMiddleware, asyncHandler(async (req, res) => {
 /**
  * Get conversation metrics
  */
-router.get('/metrics', authMiddleware, asyncHandler(async (req, res) => {
+router.get('/metrics', authMiddleware.verifyToken, authMiddleware.addOrganizationContext, asyncHandler(async (req, res) => {
   try {
     // Check if ConversationBridge is available
     if (!conversationBridge) {
@@ -235,7 +235,7 @@ router.get('/metrics', authMiddleware, asyncHandler(async (req, res) => {
 /**
  * Get active conversations
  */
-router.get('/active', authMiddleware, asyncHandler(async (req, res) => {
+router.get('/active', authMiddleware.verifyToken, authMiddleware.addOrganizationContext, asyncHandler(async (req, res) => {
   const organizationId = req.user.organizationId;
   
   try {
