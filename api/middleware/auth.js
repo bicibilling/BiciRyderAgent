@@ -14,10 +14,15 @@ class AuthMiddleware {
     this.refreshTokenExpiry = process.env.REFRESH_TOKEN_EXPIRY || '7d';
     
     // Initialize Supabase client for user management
-    this.supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_ANON_KEY
-    );
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_URL !== 'https://placeholder.supabase.co') {
+      this.supabase = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY
+      );
+    } else {
+      console.warn('⚠️  Supabase not configured, using mock authentication');
+      this.supabase = null;
+    }
   }
   
   /**
@@ -144,15 +149,27 @@ class AuthMiddleware {
         throw new Error('Invalid token type');
       }
       
-      // Get user data from database
-      const { data: user, error } = await this.supabase
-        .from('users')
-        .select('*')
-        .eq('id', decoded.id)
-        .single();
-      
-      if (error || !user) {
-        throw new Error('User not found');
+      // Get user data from database (mock for development)
+      let user;
+      if (this.supabase) {
+        const { data: userData, error } = await this.supabase
+          .from('users')
+          .select('*')
+          .eq('id', decoded.id)
+          .single();
+        
+        if (error || !userData) {
+          throw new Error('User not found');
+        }
+        user = userData;
+      } else {
+        // Mock user data for development
+        user = {
+          id: decoded.id,
+          email: 'admin@bici.com',
+          role: 'admin',
+          organizationId: '00000000-0000-0000-0000-000000000001'
+        };
       }
       
       // Generate new access token
@@ -277,6 +294,43 @@ class AuthMiddleware {
   }
   
   /**
+   * Add organization context from header or user
+   */
+  addOrganizationContext(req, res, next) {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required',
+        code: 'AUTH_REQUIRED'
+      });
+    }
+    
+    // Get organization ID from header or user context
+    const organizationId = req.headers['organizationid'] || req.user.organizationId;
+    
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Organization context required',
+        code: 'MISSING_ORG_CONTEXT'
+      });
+    }
+    
+    // Verify user has access to this organization
+    if (organizationId !== req.user.organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied to organization',
+        code: 'ORGANIZATION_ACCESS_DENIED'
+      });
+    }
+    
+    // Add to request context
+    req.organizationId = organizationId;
+    next();
+  }
+  
+  /**
    * Authenticate user with email and password
    */
   async authenticateUser(email, password, organizationId) {
@@ -364,6 +418,9 @@ class AuthMiddleware {
       admin: [
         'dashboard:read',
         'dashboard:write',
+        'leads:read',
+        'leads:write',
+        'leads:delete',
         'conversations:read',
         'conversations:write',
         'conversations:manage',
@@ -382,6 +439,8 @@ class AuthMiddleware {
       manager: [
         'dashboard:read',
         'dashboard:write',
+        'leads:read',
+        'leads:write',
         'conversations:read',
         'conversations:write',
         'conversations:manage',
@@ -391,12 +450,15 @@ class AuthMiddleware {
       ],
       agent: [
         'dashboard:read',
+        'leads:read',
+        'leads:write',
         'conversations:read',
         'conversations:write',
         'analytics:read'
       ],
       viewer: [
         'dashboard:read',
+        'leads:read',
         'conversations:read',
         'analytics:read'
       ]
@@ -481,6 +543,7 @@ module.exports = {
   requirePermission: authMiddleware.requirePermission.bind(authMiddleware),
   requirePermissions: authMiddleware.requirePermissions.bind(authMiddleware),
   requireOrganization: authMiddleware.requireOrganization.bind(authMiddleware),
+  addOrganizationContext: authMiddleware.addOrganizationContext.bind(authMiddleware),
   generateToken: authMiddleware.generateToken.bind(authMiddleware),
   generateRefreshToken: authMiddleware.generateRefreshToken.bind(authMiddleware),
   refreshToken: authMiddleware.refreshToken.bind(authMiddleware),

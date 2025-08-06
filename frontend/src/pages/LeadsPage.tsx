@@ -19,6 +19,7 @@ import Avatar from '@/components/ui/Avatar'
 import Input from '@/components/ui/Input'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { TelephonyInterfaceFixed as TelephonyInterface, Lead as TelephonyLead } from '@/components/shop'
+import AddLeadModal from '@/components/AddLeadModal'
 import axios from 'axios'
 import { format, parseISO } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -58,7 +59,7 @@ interface Lead {
   organizationId: string
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
 const LeadsPage: React.FC = () => {
   const { user } = useAuth()
@@ -88,14 +89,20 @@ const LeadsPage: React.FC = () => {
   const [sourceFilter, setSourceFilter] = useState<string>('all')
   const [showFilters, setShowFilters] = useState(false)
   const [sortBy, setSortBy] = useState<'recent' | 'score' | 'name' | 'status'>('recent')
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false)
 
   // Fetch leads from API
   const fetchLeads = async () => {
+    if (!organizationId) return
+
     try {
       setIsLoading(true)
       const response = await axios.get(`${API_BASE_URL}/api/leads`, {
         headers: {
-          'organizationId': organizationId
+          'organizationId': organizationId,
+          ...(axios.defaults.headers.common['Authorization'] && {
+            'Authorization': axios.defaults.headers.common['Authorization']
+          })
         },
         params: {
           search: searchQuery,
@@ -105,93 +112,16 @@ const LeadsPage: React.FC = () => {
           limit: 100
         }
       })
-      setLeads(response.data.data || [])
+      
+      if (response.data.success) {
+        setLeads(response.data.data || [])
+      } else {
+        throw new Error(response.data.error || 'Failed to fetch leads')
+      }
     } catch (error) {
       console.error('Failed to fetch leads:', error)
-      // Mock data for development
-      const mockLeads: Lead[] = [
-        {
-          id: 'lead_001',
-          customerName: 'John Smith',
-          phoneNumber: '+1-416-555-0123',
-          email: 'john.smith@email.com',
-          leadStatus: 'qualified',
-          leadSource: 'inbound_call',
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          updatedAt: new Date(Date.now() - 1800000).toISOString(),
-          lastContactDate: new Date(Date.now() - 900000).toISOString(),
-          conversationCount: 3,
-          leadScore: 85,
-          sentiment: 'positive',
-          bikeInterest: {
-            type: 'mountain',
-            budget: { min: 800, max: 1500 },
-            usage: 'recreation',
-            timeline: 'weeks'
-          },
-          contactPreferences: {
-            sms: true,
-            email: true,
-            call: true,
-            preferredTime: 'evening',
-            language: 'en'
-          },
-          organizationId: organizationId || 'default'
-        },
-        {
-          id: 'lead_002', 
-          customerName: 'Sarah Johnson',
-          phoneNumber: '+1-416-555-0124',
-          email: 'sarah.j@email.com',
-          leadStatus: 'new',
-          leadSource: 'sms_inquiry',
-          createdAt: new Date(Date.now() - 7200000).toISOString(),
-          updatedAt: new Date(Date.now() - 3600000).toISOString(),
-          conversationCount: 1,
-          leadScore: 65,
-          sentiment: 'neutral',
-          bikeInterest: {
-            type: 'electric',
-            budget: { min: 1200, max: 2000 },
-            usage: 'commuting',
-            timeline: 'immediate'
-          },
-          contactPreferences: {
-            sms: true,
-            email: false,
-            call: true,
-            preferredTime: 'morning',
-            language: 'en'
-          },
-          organizationId: organizationId || 'default'
-        },
-        {
-          id: 'lead_003',
-          customerName: 'Mike Chen',
-          phoneNumber: '+1-416-555-0125',
-          leadStatus: 'follow_up',
-          leadSource: 'missed_call',
-          createdAt: new Date(Date.now() - 14400000).toISOString(),
-          updatedAt: new Date(Date.now() - 7200000).toISOString(),
-          lastContactDate: new Date(Date.now() - 14400000).toISOString(),
-          conversationCount: 2,
-          leadScore: 45,
-          sentiment: 'negative',
-          bikeInterest: {
-            type: 'road',
-            timeline: 'researching'
-          },
-          contactPreferences: {
-            sms: true,
-            email: true,
-            call: false,
-            preferredTime: 'business_hours',
-            language: 'en'
-          },
-          organizationId: organizationId || 'default'
-        }
-      ]
-      setLeads(mockLeads)
+      toast.error('Failed to load leads')
+      setLeads([]) // Clear leads on error
     } finally {
       setIsLoading(false)
     }
@@ -306,7 +236,7 @@ const LeadsPage: React.FC = () => {
             variant="primary"
             size="md"
             icon={<PlusIcon />}
-            onClick={() => toast.success('Add lead functionality coming soon')}
+            onClick={() => setShowAddLeadModal(true)}
           >
             Add Lead
           </Button>
@@ -541,6 +471,17 @@ const LeadsPage: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Add Lead Modal */}
+      <AddLeadModal
+        isOpen={showAddLeadModal}
+        onClose={() => setShowAddLeadModal(false)}
+        onLeadAdded={(newLead) => {
+          setLeads(prev => [newLead, ...prev])
+          setShowAddLeadModal(false)
+          fetchLeads() // Refresh the list
+        }}
+      />
     </div>
   )
 }

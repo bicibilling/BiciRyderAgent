@@ -19,12 +19,12 @@ export default defineConfig(({ command, mode }) => {
       host: true, // Allow external connections
       proxy: {
         '/api': {
-          target: env.VITE_API_URL || 'http://localhost:3001',
+          target: env.VITE_API_BASE_URL || 'http://localhost:3001',
           changeOrigin: true,
           secure: mode === 'production',
         },
         '/ws': {
-          target: env.VITE_WS_URL || 'ws://localhost:3001',
+          target: env.VITE_WS_BASE_URL || 'ws://localhost:3001',
           ws: true,
           changeOrigin: true,
         }

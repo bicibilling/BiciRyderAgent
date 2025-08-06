@@ -181,7 +181,7 @@ router.post('/send',
 router.post('/bulk-send',
   authMiddleware.requireRole(['admin', 'manager']),
   validateBody('smsBulkSend'),
-  rateLimitConfig.bulk,
+  rateLimitConfig.communications,
   asyncHandler(async (req, res) => {
     const {
       recipients,

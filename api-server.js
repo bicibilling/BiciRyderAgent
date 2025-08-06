@@ -20,12 +20,14 @@ const { Redis } = require('@upstash/redis');
 // Import route modules
 const authRoutes = require('./api/routes/auth');
 const dashboardRoutes = require('./api/routes/dashboard');
+const leadsRoutes = require('./api/routes/leads');
 const conversationRoutes = require('./api/routes/conversations');
 const analyticsRoutes = require('./api/routes/analytics');
 const webhookRoutes = require('./api/routes/webhooks');
 const integrationRoutes = require('./api/routes/integrations');
 const adminRoutes = require('./api/routes/admin');
 const humanControlRoutes = require('./api/routes/human-control');
+const smsRoutes = require('./api/routes/sms');
 
 // Import middleware
 const authMiddleware = require('./api/middleware/auth');
@@ -252,6 +254,13 @@ class BiciAPIServer {
       dashboardRoutes
     );
     
+    // Leads routes (protected)
+    this.app.use('/api/leads',
+      authMiddleware.verifyToken,
+      authMiddleware.addOrganizationContext,
+      leadsRoutes
+    );
+    
     // SSE Streaming routes (special authentication for real-time features)
     this.app.use('/api/stream',
       authMiddleware.verifyToken,
@@ -263,6 +272,13 @@ class BiciAPIServer {
       authMiddleware.verifyToken,
       authMiddleware.requirePermission('conversations:read'),
       conversationRoutes
+    );
+    
+    // SMS routes (protected)
+    this.app.use('/api/sms',
+      authMiddleware.verifyToken,
+      authMiddleware.addOrganizationContext,
+      smsRoutes
     );
     
     // Analytics routes (protected)
