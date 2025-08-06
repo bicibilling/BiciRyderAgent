@@ -10,7 +10,7 @@
     "build": "./render-build.sh",
     "build:alt": "cd server && npm run build && cd ../client && npm run build",
     "start": "cd server && npm start",
-    "postinstall": "cd server && npm install && cd ../client && npm install"
+    "postinstall": "echo 'Dependencies will be installed by build script'"
   },
   "engines": {
     "node": ">=18.0.0",

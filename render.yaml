@@ -7,10 +7,7 @@ services:
     plan: starter # or standard for production
     
     # Build configuration
-    buildCommand: |
-      cd server && npm install && cd .. &&
-      cd client && npm install && npm run build && cd .. &&
-      npm install
+    buildCommand: chmod +x render-build.sh && ./render-build.sh
     
     # Start command
     startCommand: cd server && npm start
@@ -80,7 +77,3 @@ services:
     
     # Auto-deploy from GitHub
     autoDeploy: true
-    
-    # Domains
-    domains:
-      - bici-voice.onrender.com # Optional custom domain

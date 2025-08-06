@@ -5,6 +5,12 @@ set -e
 
 echo "Starting Render build process..."
 
+# Clean any existing node_modules to avoid conflicts
+echo "Cleaning existing node_modules..."
+rm -rf node_modules
+rm -rf server/node_modules
+rm -rf client/node_modules
+
 # Install root dependencies
 echo "Installing root dependencies..."
 npm install
@@ -13,9 +19,9 @@ npm install
 echo "Building server..."
 cd server
 npm install
-npm run build || true # Continue if no build script
+npm run build || echo "No server build script, continuing..."
 
-# Build client
+# Build client with Vite
 echo "Building client..."
 cd ../client
 npm install
