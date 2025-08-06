@@ -61,7 +61,6 @@
     "joi": "^17.11.0",
     "validator": "^13.11.0",
     "morgan": "^1.10.0",
-    "crypto": "^1.0.1",
     "dotenv": "^16.3.1"
   },
   "devDependencies": {
@@ -77,10 +76,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bici-bikes/ai-assistant.git"
+    "url": "git+https://github.com/divhit/bici.git"
   },
   "bugs": {
-    "url": "https://github.com/bici-bikes/ai-assistant/issues"
+    "url": "https://github.com/divhit/bici/issues"
   },
-  "homepage": "https://github.com/bici-bikes/ai-assistant#readme"
+  "homepage": "https://github.com/divhit/bici#readme"
 }

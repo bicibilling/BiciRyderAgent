@@ -3,15 +3,22 @@
  * Handles background jobs and maintenance tasks for BICI AI Voice Agent
  */
 
-import { createClient } from '@supabase/supabase-js';
-import Redis from '@upstash/redis';
-import { logger } from '../config/logger.js';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+const { createClient } = require('@supabase/supabase-js');
+const { Redis } = require('@upstash/redis');
+const fs = require('fs').promises;
+const path = require('path');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Simple logger for worker
+const logger = {
+  info: (msg, meta) => console.log('INFO:', msg, meta || ''),
+  error: (msg, meta) => console.error('ERROR:', msg, meta || ''),
+  warn: (msg, meta) => console.warn('WARN:', msg, meta || ''),
+  child: (meta) => ({
+    info: (msg, data) => console.log('INFO:', `[${meta.component}]`, msg, data || ''),
+    error: (msg, data) => console.error('ERROR:', `[${meta.component}]`, msg, data || ''),
+    warn: (msg, data) => console.warn('WARN:', `[${meta.component}]`, msg, data || '')
+  })
+};
 
 class BiciAIWorker {
   constructor() {
@@ -401,9 +408,9 @@ class BiciAIWorker {
 }
 
 // Start worker if run directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (require.main === module) {
   const worker = new BiciAIWorker();
   worker.start();
 }
 
-export default BiciAIWorker;
+module.exports = BiciAIWorker;
