@@ -112,9 +112,9 @@ const AnalyticsPage: React.FC = () => {
     return (
       <div className={`flex items-center space-x-1 ${isPositive ? 'text-accent-600' : 'text-secondary-600'}`}>
         {isPositive ? (
-          <TrendingUpIcon className="w-4 h-4" />
+          <ArrowTrendingUpIcon className="w-4 h-4" />
         ) : (
-          <TrendingDownIcon className="w-4 h-4" />
+          <ArrowTrendingDownIcon className="w-4 h-4" />
         )}
         <span className="text-sm font-medium">
           {isPositive ? '+' : ''}{value.toFixed(1)}%

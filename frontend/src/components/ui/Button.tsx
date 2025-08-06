@@ -54,7 +54,7 @@ const Button: React.FC<ButtonProps> = ({
     </svg>
   )
 
-  const { onAnimationStart, onAnimationEnd, onAnimationIteration, ...buttonProps } = props;
+  const { onAnimationStart, onAnimationEnd, onAnimationIteration, onDragStart, onDragEnd, onDrag, onDragEnter, onDragLeave, onDragOver, onDrop, ...buttonProps } = props;
 
   return (
     <motion.button

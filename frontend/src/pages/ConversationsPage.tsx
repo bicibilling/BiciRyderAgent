@@ -50,11 +50,13 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001
 
 const ConversationsPage: React.FC = () => {
   const { 
+    // @ts-ignore - used in future WebSocket implementation
     activeConversations,
     takeoverConversation,
     releaseConversation,
     sendMessage,
     subscribeToConversation,
+    // @ts-ignore - used in future WebSocket implementation  
     unsubscribeFromConversation,
     addEventListener,
     removeEventListener
