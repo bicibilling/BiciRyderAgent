@@ -534,49 +534,49 @@ INSERT INTO organizations (
 -- Create indexes for optimal query performance
 
 -- Leads table indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_leads_phone_org ON leads(phone_number_normalized, organization_id);
+CREATE INDEX IF NOT EXISTS idx_leads_phone_org ON leads(phone_number_normalized, organization_id);
 
 -- Conversations table indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_recent ON conversations(organization_id, timestamp DESC);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_org_phone ON conversations(organization_id, phone_number_normalized);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_lead ON conversations(lead_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_timestamp ON conversations(timestamp DESC);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_conversations_classification ON conversations(call_classification);
+CREATE INDEX IF NOT EXISTS idx_conversations_recent ON conversations(organization_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_org_phone ON conversations(organization_id, phone_number_normalized);
+CREATE INDEX IF NOT EXISTS idx_conversations_lead ON conversations(lead_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_timestamp ON conversations(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_classification ON conversations(call_classification);
 
 -- Conversation transcripts table indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_transcripts_conversation ON conversation_transcripts(conversation_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_transcripts_elevenlabs ON conversation_transcripts(elevenlabs_conversation_id);
+CREATE INDEX IF NOT EXISTS idx_transcripts_conversation ON conversation_transcripts(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_transcripts_elevenlabs ON conversation_transcripts(elevenlabs_conversation_id);
 
 -- Appointments table indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_appointments_org ON appointments(organization_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_appointments_datetime ON appointments(appointment_datetime);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_appointments_status ON appointments(status);
+CREATE INDEX IF NOT EXISTS idx_appointments_org ON appointments(organization_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_datetime ON appointments(appointment_datetime);
+CREATE INDEX IF NOT EXISTS idx_appointments_status ON appointments(status);
 
 -- SMS messages table indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sms_org_phone ON sms_messages(organization_id, phone_number_normalized);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sms_status ON sms_messages(status);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sms_scheduled ON sms_messages(scheduled_for);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sms_pending ON sms_messages(status, scheduled_for) WHERE status = 'queued';
+CREATE INDEX IF NOT EXISTS idx_sms_org_phone ON sms_messages(organization_id, phone_number_normalized);
+CREATE INDEX IF NOT EXISTS idx_sms_status ON sms_messages(status);
+CREATE INDEX IF NOT EXISTS idx_sms_scheduled ON sms_messages(scheduled_for);
+CREATE INDEX IF NOT EXISTS idx_sms_pending ON sms_messages(status, scheduled_for) WHERE status = 'queued';
 
 -- Outbound calls table indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outbound_org ON outbound_calls(organization_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outbound_status ON outbound_calls(status);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outbound_scheduled ON outbound_calls(scheduled_for);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_outbound_pending ON outbound_calls(status, scheduled_for) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_outbound_org ON outbound_calls(organization_id);
+CREATE INDEX IF NOT EXISTS idx_outbound_status ON outbound_calls(status);
+CREATE INDEX IF NOT EXISTS idx_outbound_scheduled ON outbound_calls(scheduled_for);
+CREATE INDEX IF NOT EXISTS idx_outbound_pending ON outbound_calls(status, scheduled_for) WHERE status = 'pending';
 
 -- Phone numbers table indexes and constraints
-CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_phone_numbers_org_primary 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_phone_numbers_org_primary 
 ON phone_numbers(organization_id, is_primary) WHERE is_primary = true;
 
 -- Analytics events table indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_analytics_org_type ON analytics_events(organization_id, event_type);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_analytics_timestamp ON analytics_events(timestamp DESC);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_analytics_category ON analytics_events(event_category);
+CREATE INDEX IF NOT EXISTS idx_analytics_org_type ON analytics_events(organization_id, event_type);
+CREATE INDEX IF NOT EXISTS idx_analytics_timestamp ON analytics_events(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_category ON analytics_events(event_category);
 
 -- Webhook logs table indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_webhook_logs_org ON webhook_logs(organization_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_webhook_logs_timestamp ON webhook_logs(timestamp DESC);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_webhook_logs_source ON webhook_logs(webhook_source);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_org ON webhook_logs(organization_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_timestamp ON webhook_logs(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_source ON webhook_logs(webhook_source);
 
 -- Grant necessary permissions
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
