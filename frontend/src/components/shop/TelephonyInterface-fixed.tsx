@@ -601,6 +601,13 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
     try {
       setIsLoading(true)
       
+      // If not under human control, automatically join human control first
+      if (!isUnderHumanControl) {
+        await handleJoinHumanControl()
+        // Give a moment for human control to be established
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+      
       const response = await fetch(`${API_BASE_URL}/api/human-control/send-message`, {
         method: 'POST',
         headers: {
@@ -619,6 +626,16 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
       const result = await response.json()
       
       if (result.success) {
+        // Add message to conversation history immediately for responsive UI
+        addConversationMessage({
+          id: `temp-${Date.now()}`,
+          type: 'sms',
+          content: message,
+          timestamp: new Date().toISOString(),
+          sentBy: 'human_agent',
+          status: 'sent'
+        })
+        
         onNotification?.({ type: 'info', message: 'Message sent successfully' })
         toast.success('Message sent successfully')
       } else {
@@ -1073,16 +1090,26 @@ const TelephonyInterfaceFixed: React.FC<EnhancedTelephonyInterfaceProps> = ({
                 )}
               </div>
 
-              {/* Enhanced Message Input */}
-              {isUnderHumanControl && (
-                <div className="border-t border-neutral-200 p-4 bg-neutral-50">
-                  <MessageInput
-                    onSendMessage={handleSendMessage}
-                    disabled={isLoading || !sseStatus.connected}
-                    placeholder={`Type your message to ${selectedLead.customerName}...`}
-                  />
-                </div>
-              )}
+              {/* Enhanced Message Input - Always Available */}
+              <div className="border-t border-neutral-200 p-4 bg-neutral-50">
+                <MessageInput
+                  onSendMessage={handleSendMessage}
+                  disabled={isLoading || !sseStatus.connected}
+                  placeholder={
+                    isUnderHumanControl 
+                      ? `Type your message to ${selectedLead.customerName}...`
+                      : `Type to take control and message ${selectedLead.customerName}...`
+                  }
+                />
+                
+                {/* Auto/Manual Mode Indicator */}
+                {!isUnderHumanControl && (
+                  <div className="mt-2 text-xs text-neutral-500 flex items-center">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                    AI is handling this conversation. Type a message to take manual control.
+                  </div>
+                )}
+              </div>
             </motion.div>
           )}
           
