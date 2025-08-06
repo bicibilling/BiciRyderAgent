@@ -29,7 +29,7 @@ const adminRoutes = require('./api/routes/admin');
 // Import middleware
 const authMiddleware = require('./api/middleware/auth');
 const validationMiddleware = require('./api/middleware/validation');
-const errorHandler = require('./api/middleware/errorHandler');
+const { handle: errorHandler } = require('./api/middleware/errorHandler');
 const rateLimitConfig = require('./api/middleware/rateLimit');
 
 // Import services

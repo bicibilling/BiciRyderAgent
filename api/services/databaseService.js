@@ -49,8 +49,7 @@ class DatabaseService extends EventEmitter {
       // Test connection
       const { data, error } = await this.client
         .from('organizations')
-        .select('count(*)')
-        .limit(1);
+        .select('id', { count: 'exact', head: true });
       
       if (error && error.code !== 'PGRST116') { // PGRST116 = table not found (expected in fresh install)
         throw error;
@@ -81,8 +80,7 @@ class DatabaseService extends EventEmitter {
     try {
       const { data, error } = await this.client
         .from('organizations')
-        .select('count(*)')
-        .limit(1);
+        .select('id', { count: 'exact', head: true });
       
       if (error && error.code !== 'PGRST116') {
         throw error;
