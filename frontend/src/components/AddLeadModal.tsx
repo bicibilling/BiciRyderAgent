@@ -1,10 +1,8 @@
 import React, { useState } from 'react'
-import { motion } from 'framer-motion'
 import { UserIcon, PhoneIcon, EnvelopeIcon } from '@heroicons/react/24/outline'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import Badge from '@/components/ui/Badge'
 import { useAuth } from '@/contexts/AuthContext'
 import axios from 'axios'
 import toast from 'react-hot-toast'
@@ -72,7 +70,7 @@ const AddLeadModal: React.FC<AddLeadModalProps> = ({
     setFormData(prev => ({
       ...prev,
       [parentField]: {
-        ...prev[parentField as keyof typeof prev],
+        ...(prev[parentField as keyof typeof prev] as any),
         [childField]: value
       }
     }))
