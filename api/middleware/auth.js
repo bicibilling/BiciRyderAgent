@@ -284,31 +284,37 @@ class AuthMiddleware {
       // In production, integrate with your auth system
       // This is a development implementation
       
-      if (!email || !password || !organizationId) {
-        throw new Error('Email, password, and organization ID required');
+      if (!email || !password) {
+        throw new Error('Email and password required');
       }
       
-      // Mock authentication - replace with real auth
+      // Use default organization if none provided
+      organizationId = organizationId || '00000000-0000-0000-0000-000000000001';
+      
+      // Mock authentication - replace with real auth when Supabase is configured
       const mockUsers = [
         {
           id: 'user_admin',
-          email: 'admin@bici.bike',
+          email: 'admin@bici.com',
+          password: 'BiciAI2024!',
           role: 'admin',
-          organizationId: organizationId,
+          organizationId: '00000000-0000-0000-0000-000000000001',
           permissions: this.getDefaultPermissions('admin')
         },
         {
           id: 'user_agent',
-          email: 'agent@bici.bike',
-          role: 'agent',
-          organizationId: organizationId,
+          email: 'agent@bici.com',
+          password: 'BiciAI2024!',
+          role: 'agent', 
+          organizationId: '00000000-0000-0000-0000-000000000001',
           permissions: this.getDefaultPermissions('agent')
         },
         {
           id: 'user_manager',
-          email: 'manager@bici.bike',
+          email: 'manager@bici.com',
+          password: 'BiciAI2024!',
           role: 'manager',
-          organizationId: organizationId,
+          organizationId: '00000000-0000-0000-0000-000000000001',
           permissions: this.getDefaultPermissions('manager')
         }
       ];
@@ -320,7 +326,7 @@ class AuthMiddleware {
       }
       
       // In production: verify password hash
-      if (password !== 'password123') {
+      if (password !== user.password) {
         throw new Error('Invalid credentials');
       }
       
