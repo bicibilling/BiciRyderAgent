@@ -2356,6 +2356,26 @@ async function getOrganizationByPhoneNumber(phoneNumber) {
   }
 }
 
+// Get organization name by ID
+async function getOrganizationName(organizationId) {
+  try {
+    // In production, this would query the database
+    // For now, return mock data based on organization ID
+    const organizationNames = {
+      'bici-demo': 'BICI Bike Store',
+      'bici-toronto': 'BICI Toronto',
+      'bici-vancouver': 'BICI Vancouver',
+      'bici-montreal': 'BICI Montreal',
+      'default': 'BICI Bike Store'
+    };
+    
+    return organizationNames[organizationId] || process.env.DEFAULT_ORGANIZATION_NAME || 'BICI Bike Store';
+  } catch (error) {
+    console.error('Error getting organization name:', error);
+    return 'BICI Bike Store';
+  }
+}
+
 // Lead management helpers
 async function findLeadByPhone(phoneNumber, organizationId) {
   try {

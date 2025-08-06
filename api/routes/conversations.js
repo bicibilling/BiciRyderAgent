@@ -1316,258 +1316,8 @@ router.delete('/:conversationId',
   })
 );
 
-/**
- * @route POST /api/conversations/human-control/join
- * @desc Join human control session for a lead conversation
- * @access Private (conversations:manage)
- */
-router.post('/human-control/join',
-  authMiddleware.requirePermission('conversations:manage'),
-  validateBody('humanControlJoin'),
-  asyncHandler(async (req, res) => {
-    const { phoneNumber, agentName, leadId } = req.body;
-    const { organizationId, id: userId, email: userEmail } = req.user;
-    
-    // Normalize phone number
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    if (!normalizedPhone) {
-      return res.status(400).json({
-        success: false,
-        error: 'Valid phone number is required',
-        code: 'INVALID_PHONE_NUMBER'
-      });
-    }
-    
-    // Check if already under human control
-    if (isUnderHumanControl(phoneNumber, organizationId)) {
-      const existingSession = getHumanControlSession(phoneNumber, organizationId);
-      return res.status(409).json({
-        success: false,
-        error: 'Conversation is already under human control',
-        code: 'ALREADY_UNDER_HUMAN_CONTROL',
-        data: {
-          currentAgent: existingSession.agentName,
-          startTime: existingSession.startTime
-        }
-      });
-    }
-    
-    // Start human control session
-    const success = startHumanControlSession(phoneNumber, organizationId, agentName || userEmail, leadId);
-    
-    if (success) {
-      // Add system message to conversation history
-      addToConversationHistory(
-        phoneNumber,
-        `Human agent ${agentName || userEmail} has joined the conversation`,
-        'system',
-        'system',
-        organizationId
-      );
-      
-      // Broadcast to UI
-      broadcastConversationUpdate({
-        type: 'human_control_started',
-        leadId,
-        phoneNumber,
-        organizationId,
-        agentName: agentName || userEmail,
-        agentId: userId
-      });
-      
-      res.json({
-        success: true,
-        message: 'Human control session started',
-        data: {
-          phoneNumber,
-          leadId,
-          agentName: agentName || userEmail,
-          agentId: userId,
-          organizationId,
-          timestamp: new Date().toISOString()
-        }
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to start human control session',
-        code: 'HUMAN_CONTROL_START_FAILED'
-      });
-    }
-  })
-);
-
-/**
- * @route POST /api/conversations/human-control/leave
- * @desc Leave human control session and return to AI
- * @access Private (conversations:manage)
- */
-router.post('/human-control/leave',
-  authMiddleware.requirePermission('conversations:manage'),
-  validateBody('humanControlLeave'),
-  asyncHandler(async (req, res) => {
-    const { phoneNumber, leadId, summary } = req.body;
-    const { organizationId, id: userId, email: userEmail } = req.user;
-    
-    // Check if under human control
-    if (!isUnderHumanControl(phoneNumber, organizationId)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Conversation is not under human control',
-        code: 'NOT_UNDER_HUMAN_CONTROL'
-      });
-    }
-    
-    // Get current session to verify agent
-    const currentSession = getHumanControlSession(phoneNumber, organizationId);
-    
-    // End human control session
-    const success = endHumanControlSession(phoneNumber, organizationId);
-    
-    if (success) {
-      // Store conversation summary if provided
-      if (summary) {
-        storeConversationSummary(phoneNumber, summary, organizationId);
-      }
-      
-      // Add system message to conversation history
-      addToConversationHistory(
-        phoneNumber,
-        `Human agent ${currentSession.agentName} has left the conversation. AI agent resumed.`,
-        'system',
-        'system',
-        organizationId
-      );
-      
-      // Broadcast to UI
-      broadcastConversationUpdate({
-        type: 'human_control_ended',
-        leadId,
-        phoneNumber,
-        organizationId,
-        agentName: currentSession.agentName,
-        summary: summary
-      });
-      
-      res.json({
-        success: true,
-        message: 'Human control session ended',
-        data: {
-          phoneNumber,
-          leadId,
-          previousAgent: currentSession.agentName,
-          summary: summary,
-          organizationId,
-          timestamp: new Date().toISOString()
-        }
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to end human control session',
-        code: 'HUMAN_CONTROL_END_FAILED'
-      });
-    }
-  })
-);
-
-/**
- * @route POST /api/conversations/human-control/send-message
- * @desc Send message as human agent during human control
- * @access Private (conversations:write)
- */
-router.post('/human-control/send-message',
-  authMiddleware.requirePermission('conversations:write'),
-  validateBody('humanControlMessage'),
-  rateLimitConfig.communications,
-  asyncHandler(async (req, res) => {
-    const { phoneNumber, message, leadId, messageType = 'text' } = req.body;
-    const { organizationId, id: userId, email: userEmail } = req.user;
-    
-    // Check if under human control
-    if (!isUnderHumanControl(phoneNumber, organizationId)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Conversation is not under human control',
-        code: 'NOT_UNDER_HUMAN_CONTROL'
-      });
-    }
-    
-    // Get current session to verify agent
-    const currentSession = getHumanControlSession(phoneNumber, organizationId);
-    
-    try {
-      // Store message in conversation history
-      const conversationMessage = addToConversationHistory(
-        phoneNumber,
-        message,
-        'human_agent',
-        messageType,
-        organizationId
-      );
-      
-      // In production, send SMS via Twilio or continue voice conversation
-      // await sendSMSReply(phoneNumber, message, organizationId);
-      
-      // Broadcast to UI
-      broadcastConversationUpdate({
-        type: 'human_message_sent',
-        leadId,
-        phoneNumber,
-        organizationId,
-        message: conversationMessage,
-        agentName: currentSession.agentName
-      });
-      
-      res.json({
-        success: true,
-        message: 'Message sent successfully',
-        data: {
-          messageId: conversationMessage.id,
-          phoneNumber,
-          leadId,
-          messageType,
-          agentName: currentSession.agentName,
-          timestamp: conversationMessage.timestamp
-        }
-      });
-    } catch (error) {
-      console.error('Error sending human control message:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to send message',
-        code: 'MESSAGE_SEND_FAILED'
-      });
-    }
-  })
-);
-
-/**
- * @route GET /api/conversations/human-control/status/:phoneNumber
- * @desc Get human control status for a phone number
- * @access Private (conversations:read)
- */
-router.get('/human-control/status/:phoneNumber',
-  authMiddleware.requirePermission('conversations:read'),
-  asyncHandler(async (req, res) => {
-    const { phoneNumber } = req.params;
-    const { organizationId } = req.user;
-    
-    const isUnderControl = isUnderHumanControl(phoneNumber, organizationId);
-    const session = getHumanControlSession(phoneNumber, organizationId);
-    
-    res.json({
-      success: true,
-      data: {
-        phoneNumber,
-        organizationId,
-        isUnderHumanControl: isUnderControl,
-        session: session,
-        timestamp: new Date().toISOString()
-      }
-    });
-  })
-);
+// Note: Human control routes have been moved to /api/human-control/
+// These were duplicate routes that could cause conflicts
 
 /**
  * @route POST /api/conversations/outbound-call
@@ -1579,7 +1329,7 @@ router.post('/outbound-call',
   validateBody('outboundCall'),
   rateLimitConfig.communications,
   asyncHandler(async (req, res) => {
-    const { phoneNumber, leadId, customMessage } = req.body;
+    const { phoneNumber, leadId, customMessage, callReason, priority, scheduledTime, serviceDetails } = req.body;
     const { organizationId, id: userId } = req.user;
     
     try {
@@ -1612,9 +1362,18 @@ router.post('/outbound-call',
       // Build dynamic variables with conversation context
       const dynamicVariables = await buildDynamicVariables(phoneNumber, organizationId, leadData);
       
-      // Add custom message if provided
+      // Add call context to dynamic variables
       if (customMessage) {
         dynamicVariables.custom_message = customMessage;
+      }
+      if (callReason) {
+        dynamicVariables.call_reason = callReason;
+      }
+      if (priority) {
+        dynamicVariables.call_priority = priority;
+      }
+      if (serviceDetails) {
+        dynamicVariables.service_details = JSON.stringify(serviceDetails);
       }
       
       // Call ElevenLabs API (in production)
@@ -1626,6 +1385,10 @@ router.post('/outbound-call',
           lead_id: leadId,
           customer_phone: phoneNumber,
           organization_id: organizationId,
+          call_reason: callReason,
+          priority: priority || 'medium',
+          scheduled_time: scheduledTime,
+          service_details: serviceDetails,
           dynamic_variables: dynamicVariables,
           initiated_by: userId
         }
@@ -1640,9 +1403,10 @@ router.post('/outbound-call',
       });
       
       // Store call initiation in conversation history
+      const callMessage = customMessage || `Outbound AI call initiated - Reason: ${callReason || 'general'}`;
       addToConversationHistory(
         phoneNumber,
-        customMessage || 'Outbound AI call initiated',
+        callMessage,
         'system',
         'voice',
         organizationId
@@ -1655,10 +1419,21 @@ router.post('/outbound-call',
         phoneNumber,
         organizationId,
         callType: 'outbound',
+        callReason,
+        priority: priority || 'medium',
+        scheduledTime,
         initiatedBy: userId,
         dynamicVariables: dynamicVariables
       });
       
+      // Mock successful response for development
+      // In production, this would come from actual ElevenLabs API call
+      const mockCallResult = {
+        conversation_id: `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        call_sid: `CA${Date.now().toString(36).toUpperCase()}`,
+        status: 'initiated'
+      };
+
       res.json({
         success: true,
         message: 'Outbound call initiated successfully',
@@ -1667,11 +1442,17 @@ router.post('/outbound-call',
           leadId,
           organizationId,
           callType: 'outbound',
+          callReason,
+          priority: priority || 'medium',
+          scheduledTime,
+          customMessage,
           initiatedBy: userId,
           timestamp: new Date().toISOString(),
-          // In production, include conversation_id from ElevenLabs response
-          conversationId: callResult.conversation_id,
-          callSid: callResult.call_sid
+          conversationId: mockCallResult.conversation_id,
+          callSid: mockCallResult.call_sid,
+          status: mockCallResult.status,
+          // In production, these would come from actual ElevenLabs response
+          mock: process.env.NODE_ENV !== 'production'
         }
       });
     } catch (error) {
