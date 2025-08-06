@@ -11,6 +11,719 @@ const { asyncHandler } = require('../middleware/errorHandler');
 
 const router = express.Router();
 
+// Import ElevenLabs service integration
+const ElevenLabsService = require('../services/elevenLabsService');
+const elevenLabsService = new ElevenLabsService();
+
+// Conversation memory and SSE connection management
+const conversationHistory = new Map(); // organization:phoneNumber -> messages[]
+const conversationSummaries = new Map(); // organization:phoneNumber -> summary data
+const activeConnections = new Map(); // leadId -> Map(connectionId -> {res, organizationId, phoneNumber})
+const humanControlSessions = new Map(); // organization:phoneNumber -> {agentName, leadId, startTime}
+
+// Helper functions for organization-scoped memory keys
+function createOrgMemoryKey(organizationId, phoneNumber) {
+  const normalized = normalizePhoneNumber(phoneNumber);
+  return `${organizationId}:${normalized}`;
+}
+
+function normalizePhoneNumber(phoneNumber) {
+  if (!phoneNumber) return '';
+  return phoneNumber.replace(/[^\d]/g, '');
+}
+
+/**
+ * @route GET /api/stream/conversation/:leadId
+ * @desc Server-Sent Events endpoint for real-time conversation streaming
+ * @access Private (conversations:read)
+ */
+router.get('/stream/conversation/:leadId',
+  authMiddleware.requirePermission('conversations:read'),
+  asyncHandler(async (req, res) => {
+    const { leadId } = req.params;
+    const { organizationId } = req.user;
+    const phoneNumber = req.query.phoneNumber;
+    const loadHistory = req.query.load === 'true';
+    
+    if (!phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        error: 'Phone number is required',
+        code: 'MISSING_PHONE_NUMBER'
+      });
+    }
+    
+    // Set SSE headers
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Cache-Control'
+    });
+    
+    // Store connection with organization context
+    const connectionId = `${leadId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    if (!activeConnections.has(leadId)) {
+      activeConnections.set(leadId, new Map());
+    }
+    activeConnections.get(leadId).set(connectionId, { 
+      res, 
+      organizationId,
+      phoneNumber,
+      connectedAt: new Date().toISOString()
+    });
+    
+    // Send initial connection confirmation
+    res.write(`data: ${JSON.stringify({
+      type: 'connected',
+      leadId: leadId,
+      organizationId: organizationId,
+      connectionId: connectionId,
+      timestamp: new Date().toISOString()
+    })}\n\n`);
+    
+    // Load and send conversation history if requested
+    if (loadHistory && phoneNumber) {
+      await loadAndSendConversationHistory(leadId, phoneNumber, organizationId, res);
+    }
+    
+    // Keep connection alive with heartbeat
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`data: ${JSON.stringify({
+          type: 'heartbeat',
+          timestamp: new Date().toISOString()
+        })}\n\n`);
+      } catch (error) {
+        clearInterval(heartbeat);
+        cleanupConnection(leadId, connectionId);
+      }
+    }, 30000); // Every 30 seconds
+    
+    // Cleanup on disconnect
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      cleanupConnection(leadId, connectionId);
+    });
+    
+    req.on('error', () => {
+      clearInterval(heartbeat);
+      cleanupConnection(leadId, connectionId);
+    });
+  })
+);
+
+// Conversation memory management functions
+function addToConversationHistory(phoneNumber, message, sentBy, messageType, organizationId) {
+  const key = createOrgMemoryKey(organizationId, phoneNumber);
+  
+  if (!conversationHistory.has(key)) {
+    conversationHistory.set(key, []);
+  }
+  
+  const conversationMessage = {
+    id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    content: message,
+    sentBy: sentBy, // 'user', 'agent', 'human_agent', 'system'
+    timestamp: new Date().toISOString(),
+    type: messageType, // 'text', 'voice', 'system'
+    phoneNumber: normalizePhoneNumber(phoneNumber)
+  };
+  
+  conversationHistory.get(key).push(conversationMessage);
+  
+  // Limit to last 50 messages to prevent memory issues
+  const history = conversationHistory.get(key);
+  if (history.length > 50) {
+    conversationHistory.set(key, history.slice(-50));
+  }
+  
+  return conversationMessage;
+}
+
+function getConversationHistory(phoneNumber, organizationId) {
+  const key = createOrgMemoryKey(organizationId, phoneNumber);
+  return conversationHistory.get(key) || [];
+}
+
+function getConversationSummary(phoneNumber, organizationId) {
+  const key = createOrgMemoryKey(organizationId, phoneNumber);
+  return conversationSummaries.get(key) || null;
+}
+
+function storeConversationSummary(phoneNumber, summary, organizationId) {
+  const key = createOrgMemoryKey(organizationId, phoneNumber);
+  conversationSummaries.set(key, {
+    summary,
+    timestamp: new Date().toISOString(),
+    phoneNumber: normalizePhoneNumber(phoneNumber),
+    organizationId
+  });
+}
+
+async function loadAndSendConversationHistory(leadId, phoneNumber, organizationId, res) {
+  try {
+    const history = getConversationHistory(phoneNumber, organizationId);
+    const summary = getConversationSummary(phoneNumber, organizationId);
+    
+    // Send conversation history
+    res.write(`data: ${JSON.stringify({
+      type: 'conversation_history',
+      leadId,
+      phoneNumber,
+      organizationId,
+      messages: history,
+      summary: summary,
+      timestamp: new Date().toISOString()
+    })}\n\n`);
+    
+  } catch (error) {
+    console.error('Error loading conversation history:', error);
+    res.write(`data: ${JSON.stringify({
+      type: 'error',
+      message: 'Failed to load conversation history',
+      timestamp: new Date().toISOString()
+    })}\n\n`);
+  }
+}
+
+function cleanupConnection(leadId, connectionId) {
+  const leadConnections = activeConnections.get(leadId);
+  if (leadConnections) {
+    leadConnections.delete(connectionId);
+    if (leadConnections.size === 0) {
+      activeConnections.delete(leadId);
+    }
+  }
+}
+
+// Broadcasting system for real-time updates
+function broadcastConversationUpdate(data) {
+  const { leadId, organizationId, phoneNumber } = data;
+  
+  // Find all connections for this lead
+  const leadConnections = activeConnections.get(leadId);
+  if (!leadConnections) return;
+  
+  leadConnections.forEach((connection, connectionId) => {
+    // Security: Only send to same organization
+    if (connection.organizationId !== organizationId) {
+      console.warn('🚨 Blocked cross-org broadcast attempt', {
+        requestedOrg: organizationId,
+        connectionOrg: connection.organizationId,
+        leadId,
+        phoneNumber
+      });
+      return;
+    }
+    
+    // Additional phone number validation if provided
+    if (phoneNumber && connection.phoneNumber && 
+        normalizePhoneNumber(phoneNumber) !== normalizePhoneNumber(connection.phoneNumber)) {
+      return;
+    }
+    
+    try {
+      connection.res.write(`data: ${JSON.stringify({
+        ...data,
+        timestamp: new Date().toISOString()
+      })}\n\n`);
+    } catch (error) {
+      console.error('Error broadcasting to connection:', error);
+      // Remove dead connection
+      leadConnections.delete(connectionId);
+    }
+  });
+}
+
+// Human control session management
+function startHumanControlSession(phoneNumber, organizationId, agentName, leadId) {
+  const key = createOrgMemoryKey(organizationId, phoneNumber);
+  humanControlSessions.set(key, {
+    agentName,
+    leadId,
+    organizationId,
+    startTime: new Date().toISOString(),
+    phoneNumber: normalizePhoneNumber(phoneNumber)
+  });
+  return true;
+}
+
+function endHumanControlSession(phoneNumber, organizationId) {
+  const key = createOrgMemoryKey(organizationId, phoneNumber);
+  return humanControlSessions.delete(key);
+}
+
+function isUnderHumanControl(phoneNumber, organizationId) {
+  const key = createOrgMemoryKey(organizationId, phoneNumber);
+  return humanControlSessions.has(key);
+}
+
+function getHumanControlSession(phoneNumber, organizationId) {
+  const key = createOrgMemoryKey(organizationId, phoneNumber);
+  return humanControlSessions.get(key) || null;
+}
+
+// Context building functions for ElevenLabs dynamic variables
+async function buildConversationContext(phoneNumber, organizationId) {
+  try {
+    // Get recent conversation history (last 6 messages)
+    const history = getConversationHistory(phoneNumber, organizationId);
+    const recentMessages = history.slice(-6);
+    
+    if (!recentMessages || recentMessages.length === 0) {
+      return "No previous conversation";
+    }
+    
+    // Build context string from recent messages
+    const contextMessages = recentMessages.map(msg => {
+      const speaker = msg.sentBy === 'user' ? 'Customer' : 
+                     msg.sentBy === 'human_agent' ? 'Human Agent' : 'AI Agent';
+      return `${speaker}: ${msg.content}`;
+    });
+    
+    return contextMessages.join('\n');
+  } catch (error) {
+    console.error('Error building conversation context:', error);
+    return "No previous conversation";
+  }
+}
+
+async function generateComprehensiveSummary(phoneNumber, organizationId) {
+  try {
+    const history = getConversationHistory(phoneNumber, organizationId);
+    const summary = getConversationSummary(phoneNumber, organizationId);
+    
+    if (!history || history.length === 0) {
+      return summary?.summary || "No previous calls";
+    }
+    
+    // Combine voice call summary with SMS context
+    let comprehensiveSummary = "";
+    
+    if (summary && summary.summary) {
+      comprehensiveSummary += `Previous Call Summary: ${summary.summary}\n\n`;
+    }
+    
+    // Add recent SMS/text interactions
+    const textMessages = history.filter(msg => msg.type === 'text').slice(-3);
+    if (textMessages.length > 0) {
+      comprehensiveSummary += "Recent Text Messages:\n";
+      textMessages.forEach(msg => {
+        const speaker = msg.sentBy === 'user' ? 'Customer' : 'Agent';
+        comprehensiveSummary += `${speaker}: ${msg.content}\n`;
+      });
+    }
+    
+    return comprehensiveSummary || "No previous calls";
+  } catch (error) {
+    console.error('Error generating comprehensive summary:', error);
+    return "No previous calls";
+  }
+}
+
+async function buildDynamicVariables(phoneNumber, organizationId, leadData = null) {
+  try {
+    // Build conversation context from recent messages
+    const conversationContext = await buildConversationContext(phoneNumber, organizationId);
+    
+    // Generate comprehensive summary combining voice + SMS
+    const previousSummary = await generateComprehensiveSummary(phoneNumber, organizationId);
+    
+    // Determine caller type and lead status
+    const hasHistory = conversationContext !== "No previous conversation";
+    const hasPreviousCalls = previousSummary !== "No previous calls";
+    
+    // Get organization name (in production, fetch from database)
+    const organizationName = await getOrganizationName(organizationId);
+    
+    return {
+      conversation_context: conversationContext,
+      customer_name: leadData?.customerName || "Customer",
+      organization_name: organizationName,
+      lead_status: hasPreviousCalls ? "Returning Customer" : "New Inquiry",
+      previous_summary: previousSummary,
+      organization_id: organizationId,
+      caller_type: leadData ? "existing_lead" : "new_caller",
+      has_conversation_history: hasHistory.toString(),
+      total_messages: getConversationHistory(phoneNumber, organizationId).length.toString()
+    };
+  } catch (error) {
+    console.error('Error building dynamic variables:', error);
+    // Return safe defaults if context building fails
+    return {
+      conversation_context: "No previous conversation",
+      customer_name: "Customer",
+      organization_name: "BICI Bike Store",
+      lead_status: "New Inquiry",
+      previous_summary: "No previous calls",
+      organization_id: organizationId,
+      caller_type: "new_caller",
+      has_conversation_history: "false",
+      total_messages: "0"
+    };
+  }
+}
+
+async function getOrganizationName(organizationId) {
+  // In production, this would query the database
+  // For now, return a default or lookup from environment
+  if (organizationId === 'bici-demo') {
+    return 'BICI Bike Store';
+  }
+  return process.env.DEFAULT_ORGANIZATION_NAME || 'BICI Bike Store';
+}
+
+// Continue conversation with ElevenLabs after SMS
+async function continueConversationWithSMS(phoneNumber, message, organizationId, options = {}) {
+  try {
+    const { leadData, conversationMessage, hasMedia } = options;
+    
+    // Store the SMS in conversation history if not already done
+    let storedMessage = conversationMessage;
+    if (!storedMessage) {
+      storedMessage = addToConversationHistory(phoneNumber, message, 'user', 'text', organizationId);
+    }
+    
+    // Check if under human control
+    if (isUnderHumanControl(phoneNumber, organizationId)) {
+      console.log('SMS received during human control, not forwarding to ElevenLabs');
+      return {
+        success: false,
+        reason: 'under_human_control',
+        conversationMessage: storedMessage
+      };
+    }
+    
+    // Analyze SMS content for intent and urgency
+    const smsAnalysis = await analyzeSMSContent(message, leadData);
+    
+    // Build updated dynamic variables with new SMS context
+    const dynamicVariables = await buildDynamicVariables(phoneNumber, organizationId, leadData);
+    
+    // Enhance context with SMS-specific information
+    const enhancedContext = await buildSMSConversationContext(phoneNumber, message, organizationId, {
+      leadData,
+      smsAnalysis,
+      hasMedia,
+      previousContext: dynamicVariables.conversation_context
+    });
+    
+    // Update dynamic variables with enhanced SMS context
+    dynamicVariables.conversation_context = enhancedContext;
+    dynamicVariables.latest_sms_message = message;
+    dynamicVariables.sms_intent = smsAnalysis.intent;
+    dynamicVariables.sms_urgency = smsAnalysis.urgency;
+    dynamicVariables.has_media = hasMedia.toString();
+    dynamicVariables.response_mode = 'sms_continuation';
+    
+    // Determine if SMS warrants immediate response or call
+    const responseStrategy = determineResponseStrategy(smsAnalysis, leadData);
+    
+    console.log('SMS continuation context built:', {
+      phoneNumber,
+      organizationId,
+      messageLength: message.length,
+      contextLength: enhancedContext.length,
+      intent: smsAnalysis.intent,
+      urgency: smsAnalysis.urgency,
+      responseStrategy: responseStrategy.type,
+      hasMedia
+    });
+    
+    // In production, this would:
+    // 1. Find active ElevenLabs conversation for this phone number
+    // 2. Send message continuation request with updated context
+    // 3. Or initiate new conversation if none active
+    // 4. Handle different response strategies (SMS reply, call initiation, etc.)
+    
+    if (responseStrategy.type === 'immediate_call') {
+      console.log(`📞 SMS analysis suggests immediate call for ${phoneNumber}`);
+      
+      // Broadcast call suggestion to dashboard
+      broadcastConversationUpdate({
+        type: 'sms_suggests_call',
+        leadId: leadData?.id,
+        phoneNumber,
+        organizationId,
+        reason: responseStrategy.reason,
+        priority: 'high',
+        smsAnalysis,
+        suggestedAction: 'initiate_outbound_call',
+        timestamp: new Date().toISOString()
+      });
+    } else if (responseStrategy.type === 'sms_response') {
+      console.log(`💬 SMS analysis suggests SMS response for ${phoneNumber}`);
+      
+      // In production, this would trigger ElevenLabs SMS response generation
+      // For now, we'll broadcast to UI for potential automated response
+      broadcastConversationUpdate({
+        type: 'sms_response_suggested',
+        leadId: leadData?.id,
+        phoneNumber,
+        organizationId,
+        suggestedResponseType: responseStrategy.responseType,
+        suggestedTemplate: responseStrategy.template,
+        priority: responseStrategy.urgency === 'high' ? 'high' : 'normal',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    return {
+      success: true,
+      conversationMessage: storedMessage,
+      dynamicVariables,
+      enhancedContext,
+      smsAnalysis,
+      responseStrategy
+    };
+  } catch (error) {
+    console.error('Error continuing conversation with SMS:', error);
+    throw error;
+  }
+}
+
+// Analyze SMS content for intent and urgency
+async function analyzeSMSContent(message, leadData = null) {
+  try {
+    const lowerMessage = message.toLowerCase();
+    const words = lowerMessage.split(' ');
+    
+    // Intent detection
+    let intent = 'general_inquiry';
+    let urgency = 'normal';
+    let keywords = [];
+    let sentiment = 'neutral';
+    
+    // Urgency indicators
+    const urgentWords = ['urgent', 'emergency', 'asap', 'immediately', 'help', 'problem', 'broken', 'stuck'];
+    const highPriorityWords = ['appointment', 'reschedule', 'cancel', 'today', 'tomorrow'];
+    
+    if (urgentWords.some(word => lowerMessage.includes(word))) {
+      urgency = 'high';
+    } else if (highPriorityWords.some(word => lowerMessage.includes(word))) {
+      urgency = 'medium';
+    }
+    
+    // Intent classification
+    if (lowerMessage.includes('appointment') || lowerMessage.includes('schedule') || lowerMessage.includes('book')) {
+      intent = 'appointment_request';
+      keywords.push('appointment');
+    } else if (lowerMessage.includes('cancel') || lowerMessage.includes('reschedule')) {
+      intent = 'appointment_modification';
+      keywords.push('appointment_change');
+    } else if (lowerMessage.includes('price') || lowerMessage.includes('cost') || lowerMessage.includes('how much')) {
+      intent = 'price_inquiry';
+      keywords.push('pricing');
+    } else if (lowerMessage.includes('repair') || lowerMessage.includes('service') || lowerMessage.includes('fix')) {
+      intent = 'service_request';
+      keywords.push('service');
+    } else if (lowerMessage.includes('bike') || lowerMessage.includes('bicycle')) {
+      intent = 'product_inquiry';
+      keywords.push('product');
+    } else if (lowerMessage.includes('hours') || lowerMessage.includes('open') || lowerMessage.includes('closed')) {
+      intent = 'store_hours';
+      keywords.push('hours');
+    } else if (lowerMessage.includes('location') || lowerMessage.includes('address') || lowerMessage.includes('directions')) {
+      intent = 'store_location';
+      keywords.push('location');
+    }
+    
+    // Sentiment analysis (basic)
+    const positiveWords = ['thanks', 'great', 'good', 'excellent', 'yes', 'perfect', 'love'];
+    const negativeWords = ['bad', 'terrible', 'no', 'wrong', 'disappointed', 'frustrated', 'angry'];
+    
+    const positiveScore = positiveWords.filter(word => lowerMessage.includes(word)).length;
+    const negativeScore = negativeWords.filter(word => lowerMessage.includes(word)).length;
+    
+    if (positiveScore > negativeScore) {
+      sentiment = 'positive';
+    } else if (negativeScore > positiveScore) {
+      sentiment = 'negative';
+    }
+    
+    // Question detection
+    const isQuestion = message.includes('?') || 
+                      lowerMessage.startsWith('what') || 
+                      lowerMessage.startsWith('when') || 
+                      lowerMessage.startsWith('where') || 
+                      lowerMessage.startsWith('how') || 
+                      lowerMessage.startsWith('why') ||
+                      lowerMessage.startsWith('can ') ||
+                      lowerMessage.startsWith('do you');
+    
+    return {
+      intent,
+      urgency,
+      keywords,
+      sentiment,
+      isQuestion,
+      wordCount: words.length,
+      hasNumbers: /\d/.test(message),
+      hasTime: /\b\d{1,2}:\d{2}\b|\b\d{1,2}\s?(am|pm)\b/i.test(message),
+      hasDate: /\b(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(message),
+      confidence: 0.8 // Mock confidence score
+    };
+  } catch (error) {
+    console.error('Error analyzing SMS content:', error);
+    return {
+      intent: 'general_inquiry',
+      urgency: 'normal',
+      keywords: [],
+      sentiment: 'neutral',
+      isQuestion: false,
+      confidence: 0.5
+    };
+  }
+}
+
+// Build SMS-specific conversation context
+async function buildSMSConversationContext(phoneNumber, message, organizationId, options = {}) {
+  try {
+    const { leadData, smsAnalysis, hasMedia, previousContext } = options;
+    
+    // Get recent conversation history
+    const history = getConversationHistory(phoneNumber, organizationId);
+    const recentMessages = history.slice(-8); // Last 8 messages for context
+    
+    // Build context with SMS-specific enhancements
+    let context = '';
+    
+    // Add previous conversation context if available
+    if (previousContext && previousContext !== "No previous conversation") {
+      context += `Previous conversation context:\n${previousContext}\n\n`;
+    }
+    
+    // Add recent message history with SMS indicators
+    if (recentMessages && recentMessages.length > 0) {
+      context += `Recent conversation history:\n`;
+      recentMessages.forEach(msg => {
+        const speaker = msg.sentBy === 'user' ? 'Customer' : 
+                       msg.sentBy === 'human_agent' ? 'Human Agent' : 'AI Assistant';
+        const channel = msg.type === 'text' ? ' (SMS)' : msg.type === 'voice' ? ' (Voice)' : '';
+        context += `${speaker}${channel}: ${msg.content}\n`;
+      });
+      context += '\n';
+    }
+    
+    // Add SMS analysis context
+    context += `Current SMS Analysis:\n`;
+    context += `- Intent: ${smsAnalysis.intent}\n`;
+    context += `- Urgency: ${smsAnalysis.urgency}\n`;
+    context += `- Sentiment: ${smsAnalysis.sentiment}\n`;
+    context += `- Contains question: ${smsAnalysis.isQuestion ? 'Yes' : 'No'}\n`;
+    if (smsAnalysis.keywords.length > 0) {
+      context += `- Keywords: ${smsAnalysis.keywords.join(', ')}\n`;
+    }
+    if (hasMedia) {
+      context += `- Contains media: Yes\n`;
+    }
+    context += '\n';
+    
+    // Add lead context if available
+    if (leadData) {
+      context += `Lead Information:\n`;
+      context += `- Status: ${leadData.leadStatus || 'New'}\n`;
+      context += `- Quality Score: ${leadData.leadQualityScore || 'N/A'}\n`;
+      context += `- Previous Interactions: ${leadData.interactionCount || 0}\n`;
+      if (leadData.bikeInterest) {
+        context += `- Bike Interest: ${leadData.bikeInterest.type || 'Unknown'}\n`;
+        if (leadData.bikeInterest.budget) {
+          context += `- Budget Range: $${leadData.bikeInterest.budget.min}-${leadData.bikeInterest.budget.max}\n`;
+        }
+      }
+      context += '\n';
+    }
+    
+    // Add current message with emphasis
+    context += `CURRENT SMS MESSAGE TO RESPOND TO:\n`;
+    context += `"${message}"\n\n`;
+    
+    // Add response guidelines based on analysis
+    context += `Response Guidelines:\n`;
+    if (smsAnalysis.urgency === 'high') {
+      context += `- This is a HIGH PRIORITY message requiring immediate attention\n`;
+    }
+    if (smsAnalysis.isQuestion) {
+      context += `- This is a direct question that needs a specific answer\n`;
+    }
+    if (smsAnalysis.intent === 'appointment_request') {
+      context += `- Customer wants to book an appointment - provide available times\n`;
+    } else if (smsAnalysis.intent === 'appointment_modification') {
+      context += `- Customer wants to modify existing appointment - be flexible and helpful\n`;
+    }
+    context += `- Keep SMS responses concise (under 160 characters if possible)\n`;
+    context += `- Use friendly, conversational tone appropriate for text messaging\n`;
+    
+    return context.trim();
+    
+  } catch (error) {
+    console.error('Error building SMS conversation context:', error);
+    return `Customer sent SMS: "${message}"\n\nPlease provide a helpful response.`;
+  }
+}
+
+// Determine response strategy based on SMS analysis
+function determineResponseStrategy(smsAnalysis, leadData = null) {
+  const { intent, urgency, isQuestion, sentiment } = smsAnalysis;
+  
+  // High urgency messages might need immediate call
+  if (urgency === 'high' && (intent === 'service_request' || sentiment === 'negative')) {
+    return {
+      type: 'immediate_call',
+      reason: 'urgent_service_issue',
+      priority: 'high'
+    };
+  }
+  
+  // Appointment requests with immediate timeline
+  if (intent === 'appointment_request' && (smsAnalysis.hasDate || smsAnalysis.hasTime)) {
+    return {
+      type: 'immediate_call',
+      reason: 'appointment_booking',
+      priority: 'medium'
+    };
+  }
+  
+  // Complex product inquiries from qualified leads
+  if (intent === 'product_inquiry' && leadData?.leadQualityScore > 70) {
+    return {
+      type: 'immediate_call',
+      reason: 'qualified_lead_inquiry',
+      priority: 'medium'
+    };
+  }
+  
+  // Simple informational responses can be SMS
+  if (intent === 'store_hours' || intent === 'store_location') {
+    return {
+      type: 'sms_response',
+      responseType: 'informational',
+      template: intent === 'store_hours' ? 'store_hours' : 'directions',
+      priority: 'low'
+    };
+  }
+  
+  // Questions usually deserve quick SMS responses
+  if (isQuestion && urgency !== 'high') {
+    return {
+      type: 'sms_response',
+      responseType: 'answer_question',
+      template: null,
+      priority: urgency === 'medium' ? 'medium' : 'low'
+    };
+  }
+  
+  // Default to SMS response for most cases
+  return {
+    type: 'sms_response',
+    responseType: 'general_response',
+    template: null,
+    priority: urgency === 'medium' ? 'medium' : 'low'
+  };
+}
+
 /**
  * @route GET /api/conversations
  * @desc Get conversations with filters and pagination
@@ -566,5 +1279,384 @@ router.delete('/:conversationId',
     });
   })
 );
+
+/**
+ * @route POST /api/conversations/human-control/join
+ * @desc Join human control session for a lead conversation
+ * @access Private (conversations:manage)
+ */
+router.post('/human-control/join',
+  authMiddleware.requirePermission('conversations:manage'),
+  validateBody('humanControlJoin'),
+  asyncHandler(async (req, res) => {
+    const { phoneNumber, agentName, leadId } = req.body;
+    const { organizationId, id: userId, email: userEmail } = req.user;
+    
+    // Normalize phone number
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+    if (!normalizedPhone) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid phone number is required',
+        code: 'INVALID_PHONE_NUMBER'
+      });
+    }
+    
+    // Check if already under human control
+    if (isUnderHumanControl(phoneNumber, organizationId)) {
+      const existingSession = getHumanControlSession(phoneNumber, organizationId);
+      return res.status(409).json({
+        success: false,
+        error: 'Conversation is already under human control',
+        code: 'ALREADY_UNDER_HUMAN_CONTROL',
+        data: {
+          currentAgent: existingSession.agentName,
+          startTime: existingSession.startTime
+        }
+      });
+    }
+    
+    // Start human control session
+    const success = startHumanControlSession(phoneNumber, organizationId, agentName || userEmail, leadId);
+    
+    if (success) {
+      // Add system message to conversation history
+      addToConversationHistory(
+        phoneNumber,
+        `Human agent ${agentName || userEmail} has joined the conversation`,
+        'system',
+        'system',
+        organizationId
+      );
+      
+      // Broadcast to UI
+      broadcastConversationUpdate({
+        type: 'human_control_started',
+        leadId,
+        phoneNumber,
+        organizationId,
+        agentName: agentName || userEmail,
+        agentId: userId
+      });
+      
+      res.json({
+        success: true,
+        message: 'Human control session started',
+        data: {
+          phoneNumber,
+          leadId,
+          agentName: agentName || userEmail,
+          agentId: userId,
+          organizationId,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to start human control session',
+        code: 'HUMAN_CONTROL_START_FAILED'
+      });
+    }
+  })
+);
+
+/**
+ * @route POST /api/conversations/human-control/leave
+ * @desc Leave human control session and return to AI
+ * @access Private (conversations:manage)
+ */
+router.post('/human-control/leave',
+  authMiddleware.requirePermission('conversations:manage'),
+  validateBody('humanControlLeave'),
+  asyncHandler(async (req, res) => {
+    const { phoneNumber, leadId, summary } = req.body;
+    const { organizationId, id: userId, email: userEmail } = req.user;
+    
+    // Check if under human control
+    if (!isUnderHumanControl(phoneNumber, organizationId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Conversation is not under human control',
+        code: 'NOT_UNDER_HUMAN_CONTROL'
+      });
+    }
+    
+    // Get current session to verify agent
+    const currentSession = getHumanControlSession(phoneNumber, organizationId);
+    
+    // End human control session
+    const success = endHumanControlSession(phoneNumber, organizationId);
+    
+    if (success) {
+      // Store conversation summary if provided
+      if (summary) {
+        storeConversationSummary(phoneNumber, summary, organizationId);
+      }
+      
+      // Add system message to conversation history
+      addToConversationHistory(
+        phoneNumber,
+        `Human agent ${currentSession.agentName} has left the conversation. AI agent resumed.`,
+        'system',
+        'system',
+        organizationId
+      );
+      
+      // Broadcast to UI
+      broadcastConversationUpdate({
+        type: 'human_control_ended',
+        leadId,
+        phoneNumber,
+        organizationId,
+        agentName: currentSession.agentName,
+        summary: summary
+      });
+      
+      res.json({
+        success: true,
+        message: 'Human control session ended',
+        data: {
+          phoneNumber,
+          leadId,
+          previousAgent: currentSession.agentName,
+          summary: summary,
+          organizationId,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to end human control session',
+        code: 'HUMAN_CONTROL_END_FAILED'
+      });
+    }
+  })
+);
+
+/**
+ * @route POST /api/conversations/human-control/send-message
+ * @desc Send message as human agent during human control
+ * @access Private (conversations:write)
+ */
+router.post('/human-control/send-message',
+  authMiddleware.requirePermission('conversations:write'),
+  validateBody('humanControlMessage'),
+  rateLimitConfig.communications,
+  asyncHandler(async (req, res) => {
+    const { phoneNumber, message, leadId, messageType = 'text' } = req.body;
+    const { organizationId, id: userId, email: userEmail } = req.user;
+    
+    // Check if under human control
+    if (!isUnderHumanControl(phoneNumber, organizationId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Conversation is not under human control',
+        code: 'NOT_UNDER_HUMAN_CONTROL'
+      });
+    }
+    
+    // Get current session to verify agent
+    const currentSession = getHumanControlSession(phoneNumber, organizationId);
+    
+    try {
+      // Store message in conversation history
+      const conversationMessage = addToConversationHistory(
+        phoneNumber,
+        message,
+        'human_agent',
+        messageType,
+        organizationId
+      );
+      
+      // In production, send SMS via Twilio or continue voice conversation
+      // await sendSMSReply(phoneNumber, message, organizationId);
+      
+      // Broadcast to UI
+      broadcastConversationUpdate({
+        type: 'human_message_sent',
+        leadId,
+        phoneNumber,
+        organizationId,
+        message: conversationMessage,
+        agentName: currentSession.agentName
+      });
+      
+      res.json({
+        success: true,
+        message: 'Message sent successfully',
+        data: {
+          messageId: conversationMessage.id,
+          phoneNumber,
+          leadId,
+          messageType,
+          agentName: currentSession.agentName,
+          timestamp: conversationMessage.timestamp
+        }
+      });
+    } catch (error) {
+      console.error('Error sending human control message:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to send message',
+        code: 'MESSAGE_SEND_FAILED'
+      });
+    }
+  })
+);
+
+/**
+ * @route GET /api/conversations/human-control/status/:phoneNumber
+ * @desc Get human control status for a phone number
+ * @access Private (conversations:read)
+ */
+router.get('/human-control/status/:phoneNumber',
+  authMiddleware.requirePermission('conversations:read'),
+  asyncHandler(async (req, res) => {
+    const { phoneNumber } = req.params;
+    const { organizationId } = req.user;
+    
+    const isUnderControl = isUnderHumanControl(phoneNumber, organizationId);
+    const session = getHumanControlSession(phoneNumber, organizationId);
+    
+    res.json({
+      success: true,
+      data: {
+        phoneNumber,
+        organizationId,
+        isUnderHumanControl: isUnderControl,
+        session: session,
+        timestamp: new Date().toISOString()
+      }
+    });
+  })
+);
+
+/**
+ * @route POST /api/conversations/outbound-call
+ * @desc Initiate outbound call via ElevenLabs
+ * @access Private (conversations:write)
+ */
+router.post('/outbound-call',
+  authMiddleware.requirePermission('conversations:write'),
+  validateBody('outboundCall'),
+  rateLimitConfig.communications,
+  asyncHandler(async (req, res) => {
+    const { phoneNumber, leadId, customMessage } = req.body;
+    const { organizationId, id: userId } = req.user;
+    
+    try {
+      // Normalize phone number
+      const normalizedPhone = normalizePhoneNumber(phoneNumber);
+      if (!normalizedPhone) {
+        return res.status(400).json({
+          success: false,
+          error: 'Valid phone number is required',
+          code: 'INVALID_PHONE_NUMBER'
+        });
+      }
+      
+      // Check if already under human control
+      if (isUnderHumanControl(phoneNumber, organizationId)) {
+        return res.status(409).json({
+          success: false,
+          error: 'Conversation is under human control. Cannot initiate AI call.',
+          code: 'UNDER_HUMAN_CONTROL'
+        });
+      }
+      
+      // Get lead data for context (in production, fetch from database)
+      const leadData = leadId ? { 
+        id: leadId, 
+        customerName: 'Customer', // Would be fetched from DB
+        phoneNumber: phoneNumber 
+      } : null;
+      
+      // Build dynamic variables with conversation context
+      const dynamicVariables = await buildDynamicVariables(phoneNumber, organizationId, leadData);
+      
+      // Add custom message if provided
+      if (customMessage) {
+        dynamicVariables.custom_message = customMessage;
+      }
+      
+      // Call ElevenLabs API (in production)
+      const callPayload = {
+        agent_id: process.env.ELEVENLABS_AGENT_ID,
+        agent_phone_number_id: process.env.ELEVENLABS_PHONE_NUMBER_ID,
+        to_number: phoneNumber,
+        conversation_initiation_client_data: {
+          lead_id: leadId,
+          customer_phone: phoneNumber,
+          organization_id: organizationId,
+          dynamic_variables: dynamicVariables,
+          initiated_by: userId
+        }
+      };
+      
+      // In production, make actual ElevenLabs API call
+      console.log('Outbound call payload prepared:', {
+        phoneNumber,
+        organizationId,
+        leadId,
+        variablesCount: Object.keys(dynamicVariables).length
+      });
+      
+      // Store call initiation in conversation history
+      addToConversationHistory(
+        phoneNumber,
+        customMessage || 'Outbound AI call initiated',
+        'system',
+        'voice',
+        organizationId
+      );
+      
+      // Broadcast call initiation to UI
+      broadcastConversationUpdate({
+        type: 'call_initiated',
+        leadId,
+        phoneNumber,
+        organizationId,
+        callType: 'outbound',
+        initiatedBy: userId,
+        dynamicVariables: dynamicVariables
+      });
+      
+      res.json({
+        success: true,
+        message: 'Outbound call initiated successfully',
+        data: {
+          phoneNumber,
+          leadId,
+          organizationId,
+          callType: 'outbound',
+          initiatedBy: userId,
+          timestamp: new Date().toISOString(),
+          // In production, include conversation_id from ElevenLabs response
+          conversationId: callResult.conversation_id,\n          callSid: callResult.call_sid
+        }
+      });
+    } catch (error) {
+      console.error('Error initiating outbound call:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to initiate outbound call',
+        code: 'OUTBOUND_CALL_FAILED'
+      });
+    }
+  })
+);
+
+// Export functions for use in webhooks and other modules
+router.addToConversationHistory = addToConversationHistory;
+router.getConversationHistory = getConversationHistory;
+router.broadcastConversationUpdate = broadcastConversationUpdate;
+router.buildDynamicVariables = buildDynamicVariables;
+router.continueConversationWithSMS = continueConversationWithSMS;
+router.storeConversationSummary = storeConversationSummary;
+router.isUnderHumanControl = isUnderHumanControl;
+router.startHumanControlSession = startHumanControlSession;
+router.endHumanControlSession = endHumanControlSession;
 
 module.exports = router;

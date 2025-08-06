@@ -25,6 +25,7 @@ const analyticsRoutes = require('./api/routes/analytics');
 const webhookRoutes = require('./api/routes/webhooks');
 const integrationRoutes = require('./api/routes/integrations');
 const adminRoutes = require('./api/routes/admin');
+const humanControlRoutes = require('./api/routes/human-control');
 
 // Import middleware
 const authMiddleware = require('./api/middleware/auth');
@@ -251,6 +252,12 @@ class BiciAPIServer {
       dashboardRoutes
     );
     
+    // SSE Streaming routes (special authentication for real-time features)
+    this.app.use('/api/stream',
+      authMiddleware.verifyToken,
+      conversationRoutes
+    );
+    
     // Conversation routes (protected)
     this.app.use('/api/conversations',
       authMiddleware.verifyToken,
@@ -277,6 +284,13 @@ class BiciAPIServer {
       authMiddleware.verifyToken,
       authMiddleware.requireRole('admin'),
       adminRoutes
+    );
+    
+    // Human Control routes (protected with special permissions)
+    this.app.use('/api/human-control',
+      authMiddleware.verifyToken,
+      authMiddleware.requirePermission('conversations:manage'),
+      humanControlRoutes
     );
     
     // Webhook routes (special rate limiting and authentication)
@@ -515,6 +529,7 @@ class BiciAPIServer {
     console.log(`   Auth: POST /api/auth/login`);
     console.log(`   Dashboard: GET /api/dashboard/*`);
     console.log(`   Conversations: GET /api/conversations/*`);
+    console.log(`   Human Control: POST /api/human-control/*`);
     console.log(`   Analytics: GET /api/analytics/*`);
     console.log(`   Webhooks: POST /api/webhooks/*`);
     console.log(`   WebSocket: ws://${this.host}:${this.port}/ws`);

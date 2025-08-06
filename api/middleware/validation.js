@@ -98,10 +98,103 @@ class ValidationMiddleware {
       // SMS schemas
       smsMessage: Joi.object({
         phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
-        templateId: Joi.string().min(1).max(100).required(),
+        templateId: Joi.string().min(1).max(100).optional(),
+        message: Joi.string().min(1).max(1600).when('templateId', {
+          is: Joi.exist(),
+          then: Joi.optional(),
+          otherwise: Joi.required()
+        }),
         variables: Joi.object().optional(),
         language: Joi.string().valid('en', 'fr').default('en'),
-        messageType: Joi.string().valid('manual', 'automated', 'reminder').default('manual')
+        messageType: Joi.string().valid('manual', 'automated', 'reminder', 'follow_up', 'appointment', 'human_control').default('manual'),
+        priority: Joi.string().valid('low', 'normal', 'high', 'urgent').default('normal'),
+        scheduledTime: Joi.string().isoDate().optional(),
+        leadId: Joi.string().optional()
+      }).xor('templateId', 'message'), // Either templateId or message is required, but not both
+
+      smsBulkSend: Joi.object({
+        recipients: Joi.array().items(
+          Joi.object({
+            phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+            variables: Joi.object().optional(),
+            language: Joi.string().valid('en', 'fr').default('en'),
+            leadId: Joi.string().optional()
+          })
+        ).min(1).max(100).required(),
+        templateId: Joi.string().min(1).max(100).required(),
+        commonVariables: Joi.object().optional(),
+        batchSize: Joi.number().integer().min(1).max(20).default(10),
+        batchDelay: Joi.number().integer().min(100).max(10000).default(1000)
+      }),
+
+      smsTemplate: Joi.object({
+        templateId: Joi.string().min(1).max(100).required(),
+        language: Joi.string().valid('en', 'fr').default('en'),
+        subject: Joi.string().min(1).max(200).required(),
+        body: Joi.string().min(1).max(1600).required(),
+        category: Joi.string().valid('welcome', 'appointment', 'follow_up', 'product', 'order', 'human_control', 'missed_call', 'reminder').required(),
+        variables: Joi.array().items(Joi.string().min(1).max(50)).optional(),
+        active: Joi.boolean().default(true)
+      }),
+
+      smsSchedule: Joi.object({
+        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+        templateId: Joi.string().min(1).max(100).optional(),
+        message: Joi.string().min(1).max(1600).when('templateId', {
+          is: Joi.exist(),
+          then: Joi.optional(),
+          otherwise: Joi.required()
+        }),
+        variables: Joi.object().optional(),
+        language: Joi.string().valid('en', 'fr').default('en'),
+        scheduledTime: Joi.string().isoDate().required(),
+        messageType: Joi.string().valid('reminder', 'follow_up', 'appointment', 'promotional').required(),
+        leadId: Joi.string().optional(),
+        repeatInterval: Joi.string().valid('none', 'daily', 'weekly', 'monthly').default('none'),
+        maxOccurrences: Joi.number().integer().min(1).max(50).default(1)
+      }),
+
+      smsDeliveryStatus: Joi.object({
+        messageId: Joi.string().required(),
+        status: Joi.string().valid('queued', 'sent', 'delivered', 'undelivered', 'failed').required(),
+        errorCode: Joi.string().optional(),
+        errorMessage: Joi.string().optional(),
+        timestamp: Joi.string().isoDate().optional()
+      }),
+
+      smsSearch: Joi.object({
+        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).optional(),
+        leadId: Joi.string().optional(),
+        messageType: Joi.string().valid('manual', 'automated', 'reminder', 'follow_up', 'appointment', 'human_control').optional(),
+        status: Joi.string().valid('queued', 'sent', 'delivered', 'undelivered', 'failed').optional(),
+        templateId: Joi.string().optional(),
+        startDate: Joi.string().isoDate().optional(),
+        endDate: Joi.string().isoDate().optional(),
+        direction: Joi.string().valid('inbound', 'outbound', 'both').default('both'),
+        limit: Joi.number().integer().min(1).max(100).default(50),
+        offset: Joi.number().integer().min(0).default(0),
+        sortBy: Joi.string().valid('timestamp', 'status', 'phoneNumber').default('timestamp'),
+        sortOrder: Joi.string().valid('asc', 'desc').default('desc')
+      }),
+
+      smsAnalytics: Joi.object({
+        timeframe: Joi.string().valid('1h', '24h', '7d', '30d', '90d', 'custom').default('24h'),
+        startDate: Joi.string().isoDate().when('timeframe', {
+          is: 'custom',
+          then: Joi.required(),
+          otherwise: Joi.optional()
+        }),
+        endDate: Joi.string().isoDate().when('timeframe', {
+          is: 'custom',
+          then: Joi.required(),
+          otherwise: Joi.optional()
+        }),
+        metrics: Joi.array().items(
+          Joi.string().valid('sent', 'delivered', 'failed', 'response_rate', 'delivery_rate', 'cost')
+        ).default(['sent', 'delivered', 'failed']),
+        groupBy: Joi.string().valid('hour', 'day', 'week', 'month').default('day'),
+        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).optional(),
+        messageType: Joi.string().valid('manual', 'automated', 'reminder', 'follow_up', 'appointment', 'human_control').optional()
       }),
       
       // Outbound call schemas
@@ -112,6 +205,39 @@ class ValidationMiddleware {
         priority: Joi.string().valid('low', 'medium', 'high', 'urgent').default('medium'),
         scheduledTime: Joi.string().isoDate().optional(),
         serviceDetails: Joi.object().optional()
+      }),
+
+      // Human Control schemas
+      humanControlJoin: Joi.object({
+        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+        agentName: Joi.string().min(2).max(100).optional(),
+        leadId: Joi.string().optional(),
+        handoffReason: Joi.string().valid(
+          'manual_takeover', 'customer_request', 'complex_issue', 'escalation', 
+          'ai_confidence_low', 'technical_issue', 'custom'
+        ).default('manual_takeover'),
+        customMessage: Joi.string().max(1600).optional()
+      }),
+
+      humanControlMessage: Joi.object({
+        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+        message: Joi.string().min(1).max(1600).required(),
+        leadId: Joi.string().optional(),
+        messageType: Joi.string().valid('text', 'voice', 'system').default('text'),
+        priority: Joi.string().valid('low', 'normal', 'high', 'urgent').default('normal')
+      }),
+
+      humanControlLeave: Joi.object({
+        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).required(),
+        leadId: Joi.string().optional(),
+        summary: Joi.string().max(5000).optional(),
+        nextSteps: Joi.array().items(Joi.string().max(500)).max(10).optional(),
+        handoffSuccess: Joi.boolean().default(true)
+      }),
+
+      humanControlStatus: Joi.object({
+        phoneNumber: Joi.string().pattern(/^\+[1-9]\d{1,14}$/).optional(),
+        includeAgentSessions: Joi.boolean().default(false)
       }),
       
       // Analytics schemas

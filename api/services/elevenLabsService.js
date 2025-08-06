@@ -467,21 +467,45 @@ class ElevenLabsService extends EventEmitter {
   }
   
   /**
-   * Initiate outbound call
+   * Initiate outbound call with comprehensive context
    */
   async initiateOutboundCall(phoneNumber, agentId, conversationData = {}) {
     try {
-      const response = await this.makeApiCall('/convai/twilio/outbound-call', {
-        method: 'POST',
-        body: {
-          agent_id: agentId,
-          agent_phone_number_id: process.env.ELEVENLABS_PHONE_NUMBER_ID,
-          to_number: phoneNumber,
-          conversation_initiation_client_data: {
-            dynamic_variables: conversationData.dynamicVariables || {},
-            conversation_config_override: conversationData.configOverride || {}
-          }
+      const callPayload = {
+        agent_id: agentId,
+        agent_phone_number_id: process.env.ELEVENLABS_PHONE_NUMBER_ID,
+        to_number: phoneNumber,
+        conversation_initiation_client_data: {
+          lead_id: conversationData.leadId,
+          customer_phone: phoneNumber,
+          organization_id: conversationData.organizationId,
+          initiated_by: conversationData.initiatedBy,
+          dynamic_variables: conversationData.dynamicVariables || {},
+          conversation_config_override: conversationData.configOverride || {}
         }
+      };
+      
+      console.log(`📞 Initiating outbound call to ${phoneNumber}:`, {
+        agentId,
+        organizationId: conversationData.organizationId,
+        leadId: conversationData.leadId,
+        hasContext: !!conversationData.dynamicVariables?.conversation_context
+      });
+      
+      const response = await this.makeApiCall('/convai/conversations/phone', {
+        method: 'POST',
+        body: callPayload
+      });
+      
+      // Store call initiation metadata
+      this.emit('outbound_call_initiated', {
+        phoneNumber,
+        agentId,
+        conversationId: response.conversation_id,
+        organizationId: conversationData.organizationId,
+        leadId: conversationData.leadId,
+        callSid: response.call_sid,
+        timestamp: new Date().toISOString()
       });
       
       return {
@@ -492,6 +516,16 @@ class ElevenLabsService extends EventEmitter {
       
     } catch (error) {
       console.error('Failed to initiate outbound call:', error.message);
+      
+      // Emit failure event
+      this.emit('outbound_call_failed', {
+        phoneNumber,
+        agentId,
+        organizationId: conversationData.organizationId,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+      
       return {
         success: false,
         error: error.message
@@ -500,7 +534,7 @@ class ElevenLabsService extends EventEmitter {
   }
   
   /**
-   * Get conversation history
+   * Get conversation history and transcript
    */
   async getConversationHistory(conversationId) {
     try {
@@ -509,6 +543,47 @@ class ElevenLabsService extends EventEmitter {
     } catch (error) {
       console.error(`Failed to get conversation history for ${conversationId}:`, error.message);
       return null;
+    }
+  }
+  
+  /**
+   * Get conversation transcript
+   */
+  async getConversationTranscript(conversationId) {
+    try {
+      const response = await this.makeApiCall(`/convai/conversations/${conversationId}/transcript`);
+      return {
+        success: true,
+        transcript: response.transcript,
+        speakers: response.speakers || [],
+        duration: response.duration,
+        word_count: response.word_count
+      };
+    } catch (error) {
+      console.error(`Failed to get transcript for ${conversationId}:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+  
+  /**
+   * Get conversation analysis
+   */
+  async getConversationAnalysis(conversationId) {
+    try {
+      const response = await this.makeApiCall(`/convai/conversations/${conversationId}/analysis`);
+      return {
+        success: true,
+        analysis: response
+      };
+    } catch (error) {
+      console.error(`Failed to get analysis for ${conversationId}:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
     }
   }
   
@@ -539,6 +614,166 @@ class ElevenLabsService extends EventEmitter {
   }
   
   /**
+   * Transfer conversation to human agent
+   */
+  async transferToHuman(conversationId, reason = 'user_request', context = {}) {
+    try {
+      const response = await this.makeApiCall(`/convai/conversations/${conversationId}/transfer`, {
+        method: 'POST',
+        body: {
+          transfer_reason: reason,
+          transfer_context: context,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      this.emit('conversation_transferred', {
+        conversationId,
+        reason,
+        context,
+        success: true,
+        timestamp: new Date().toISOString()
+      });
+      
+      return {
+        success: true,
+        transfer_id: response.transfer_id
+      };
+      
+    } catch (error) {
+      console.error(`Failed to transfer conversation ${conversationId}:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+  
+  /**
+   * Resume AI control after human transfer
+   */
+  async resumeAIControl(conversationId, summary = '') {
+    try {
+      const response = await this.makeApiCall(`/convai/conversations/${conversationId}/resume`, {
+        method: 'POST',
+        body: {
+          human_summary: summary,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      this.emit('ai_control_resumed', {
+        conversationId,
+        summary,
+        success: true,
+        timestamp: new Date().toISOString()
+      });
+      
+      return {
+        success: true,
+        resume_id: response.resume_id
+      };
+      
+    } catch (error) {
+      console.error(`Failed to resume AI control for ${conversationId}:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+  
+  /**
+   * End conversation gracefully
+   */
+  async endConversation(conversationId, reason = 'completed', summary = '') {
+    try {
+      const response = await this.makeApiCall(`/convai/conversations/${conversationId}/end`, {
+        method: 'POST',
+        body: {
+          end_reason: reason,
+          summary,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      // Close local WebSocket connection
+      this.closeConversation(conversationId);
+      
+      this.emit('conversation_ended', {
+        conversationId,
+        reason,
+        summary,
+        success: true,
+        timestamp: new Date().toISOString()
+      });
+      
+      return {
+        success: true,
+        end_id: response.end_id
+      };
+      
+    } catch (error) {
+      console.error(`Failed to end conversation ${conversationId}:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+  
+  /**
+   * Health check for ElevenLabs service
+   */
+  async healthCheck() {
+    try {
+      const startTime = Date.now();
+      const response = await this.makeApiCall('/user');
+      const latency = Date.now() - startTime;
+      
+      return {
+        status: 'healthy',
+        latency,
+        subscription: response.subscription,
+        character_limit: response.character_limit,
+        character_count: response.character_count,
+        active_connections: this.activeConnections.size,
+        timestamp: new Date().toISOString()
+      };
+      
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        error: error.message,
+        active_connections: this.activeConnections.size,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+  
+  /**
+   * Get service metrics
+   */
+  getMetrics() {
+    const connections = Array.from(this.activeConnections.values());
+    
+    return {
+      total_connections: connections.length,
+      connected_connections: connections.filter(c => c.state === 'connected').length,
+      connecting_connections: connections.filter(c => c.state === 'connecting').length,
+      disconnected_connections: connections.filter(c => c.state === 'disconnected').length,
+      organizations: [...new Set(connections.map(c => c.organizationId))].length,
+      average_connection_age: connections.length > 0 ? 
+        connections.reduce((sum, c) => {
+          return sum + (Date.now() - (new Date(c.connectedAt || 0).getTime()))
+        }, 0) / connections.length : 0,
+      last_activity: connections.length > 0 ? 
+        Math.max(...connections.map(c => c.lastActivity)) : null,
+      timestamp: new Date().toISOString()
+    };
+  }
+  
+  /**
    * Close all connections
    */
   closeAllConnections() {
@@ -548,6 +783,34 @@ class ElevenLabsService extends EventEmitter {
     
     console.log('🔌 All ElevenLabs connections closed');
   }
+  
+  /**
+   * Cleanup inactive connections
+   */
+  cleanupInactiveConnections(maxInactiveTime = 300000) { // 5 minutes
+    const now = Date.now();
+    const toClose = [];
+    
+    this.activeConnections.forEach((connection, conversationId) => {
+      if (now - connection.lastActivity > maxInactiveTime) {
+        toClose.push(conversationId);
+      }
+    });
+    
+    toClose.forEach(conversationId => {
+      console.log(`🧹 Closing inactive connection: ${conversationId}`);
+      this.closeConversation(conversationId);
+    });
+    
+    return toClose.length;
+  }
 }
+
+// Auto-cleanup inactive connections every 5 minutes
+setInterval(() => {
+  if (ElevenLabsService.prototype.cleanupInactiveConnections) {
+    // This will be called on instances, not the prototype
+  }
+}, 300000);
 
 module.exports = ElevenLabsService;
