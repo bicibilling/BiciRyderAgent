@@ -306,7 +306,7 @@ class AuthMiddleware {
     }
     
     // Get organization ID from header or user context
-    const organizationId = req.headers['organizationid'] || req.user.organizationId;
+    const organizationId = req.headers['x-organization-id'] || req.user.organizationId;
     
     if (!organizationId) {
       return res.status(400).json({

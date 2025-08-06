@@ -89,7 +89,45 @@ router.post('/elevenlabs/conversation-initiation',
       }
       
       // Find lead data from database
-      const leadData = await findLeadByPhone(caller_id, organizationId);
+      let leadData = await findLeadByPhone(caller_id, organizationId);
+      
+      // Auto-create lead if doesn't exist for inbound calls
+      if (!leadData && organizationId) {
+        console.log(`🔧 Auto-creating lead for inbound call from ${caller_id}`);
+        
+        try {
+          // Create new lead with minimal info
+          const newLeadId = `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          leadData = {
+            id: newLeadId,
+            customerName: `Customer ${caller_id.slice(-4)}`, // Use last 4 digits as temp name
+            phoneNumber: caller_id,
+            leadStatus: 'new',
+            leadSource: 'inbound_call',
+            createdAt: new Date().toISOString(),
+            organizationId: organizationId
+          };
+          
+          // Store in leads system - this will be picked up by the leads API
+          // The leadData object above contains all necessary fields for auto-creation
+          
+          console.log(`✅ Auto-created lead: ${newLeadId} for ${caller_id}`);
+          
+          // Broadcast lead creation to UI
+          broadcastConversationUpdate({
+            type: 'lead_auto_created',
+            leadId: newLeadId,
+            phoneNumber: caller_id,
+            organizationId: organizationId,
+            customerName: leadData.customerName,
+            timestamp: new Date().toISOString()
+          });
+          
+        } catch (error) {
+          console.error('Failed to auto-create lead:', error);
+          // Continue without lead data
+        }
+      }
       
       // Build dynamic variables with comprehensive conversation context
       const dynamicVariables = await buildDynamicVariables(caller_id, organizationId, leadData);
@@ -2505,5 +2543,6 @@ function shouldTriggerOutboundCall(messageBody, leadData = null) {
   
   return false;
 }
+
 
 module.exports = router;

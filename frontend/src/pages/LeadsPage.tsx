@@ -99,7 +99,7 @@ const LeadsPage: React.FC = () => {
       setIsLoading(true)
       const response = await axios.get(`${API_BASE_URL}/api/leads`, {
         headers: {
-          'organizationId': organizationId,
+          'x-organization-id': organizationId,
           ...(axios.defaults.headers.common['Authorization'] && {
             'Authorization': axios.defaults.headers.common['Authorization']
           })
