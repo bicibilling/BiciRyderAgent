@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   HomeIcon, 
+  UserGroupIcon,
   ChatBubbleLeftRightIcon, 
   ChartBarIcon, 
   Cog6ToothIcon,
@@ -13,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { 
   HomeIcon as HomeIconSolid, 
+  UserGroupIcon as UserGroupIconSolid,
   ChatBubbleLeftRightIcon as ChatIconSolid, 
   ChartBarIcon as ChartIconSolid, 
   Cog6ToothIcon as CogIconSolid 
@@ -35,6 +37,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation()
 
   const navigation = [
+    {
+      name: 'Leads',
+      href: '/leads',
+      icon: UserGroupIcon,
+      iconSolid: UserGroupIconSolid,
+    },
     {
       name: 'Dashboard',
       href: '/dashboard',

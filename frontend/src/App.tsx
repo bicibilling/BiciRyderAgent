@@ -12,6 +12,7 @@ import Layout from '@/components/Layout'
 // Pages
 import LoginPage from '@/pages/LoginPage'
 import DashboardPage from '@/pages/DashboardPage'
+import LeadsPage from '@/pages/LeadsPage'
 import ConversationsPage from '@/pages/ConversationsPage'
 import AnalyticsPage from '@/pages/AnalyticsPage'
 import SettingsPage from '@/pages/SettingsPage'
@@ -33,7 +34,8 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <Routes>
-                        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                        <Route path="/" element={<Navigate to="/leads" replace />} />
+                        <Route path="/leads" element={<LeadsPage />} />
                         <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/conversations" element={<ConversationsPage />} />
                         <Route path="/analytics" element={<AnalyticsPage />} />
