@@ -138,7 +138,12 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       organization_id: organization.id,
       lead_id: lead.id,
       elevenlabs_conversation_id: sessionId,
-      status: 'initiated'
+      call_type: 'inbound',
+      status: 'initiated',
+      metadata: {
+        call_sid: sessionId,
+        agent_id: agent_id
+      }
     });
     
     // Broadcast to dashboard
@@ -210,8 +215,9 @@ export async function handlePostCall(req: Request, res: Response) {
       ? transcript.map(turn => `${turn.role}: ${turn.message}`).join('\n')
       : transcript || '';
     
-    // Update call session
-    const session = await callSessionService.updateSession(sessionId, {
+    // Find the most recent call session for this phone number instead of by conversation_id
+    // since ElevenLabs sends different IDs in initiation vs post-call
+    const sessionUpdateData = {
       status: 'completed',
       ended_at: new Date(),
       duration_seconds: duration,
@@ -219,9 +225,18 @@ export async function handlePostCall(req: Request, res: Response) {
         transcript: fullTranscript,
         summary: analysis?.call_summary_title || analysis?.transcript_summary,
         raw_transcript: transcript,
-        elevenlabs_analysis: analysis
+        elevenlabs_analysis: analysis,
+        conversation_id: sessionId  // Store the conversation_id from post-call
       }
-    });
+    };
+    
+    // Try direct lookup first, then fallback to phone-based
+    let session = await callSessionService.updateSession(sessionId, sessionUpdateData);
+    
+    if (!session) {
+      // Fallback: find most recent session by phone number and update it
+      session = await callSessionService.updateRecentSessionByPhone(phone_number, sessionUpdateData);
+    }
     
     if (!session) {
       logger.error('Call session not found:', sessionId);
