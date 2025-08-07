@@ -104,26 +104,179 @@ function getTodaysHours(): string {
   return `Today: ${hours.open} - ${hours.close}`;
 }
 
-// Build conversation context from history
+// Build comprehensive conversation context with summaries and recent messages
 async function buildConversationContext(leadId: string): Promise<string> {
-  const history = await conversationService.getRecentConversations(leadId, 6);
+  // Get previous conversation summaries for comprehensive context
+  const previousSummaries = await conversationService.getAllSummaries(leadId);
   
-  if (!history || history.length === 0) {
+  // Get all conversation history for analysis
+  const allHistory = await conversationService.getRecentConversations(leadId, 50);
+  
+  // Get the most recent 6 messages for immediate context
+  const recentMessages = await conversationService.getRecentConversations(leadId, 6);
+  
+  if (!allHistory || allHistory.length === 0) {
     return "This is the first interaction with this customer.";
   }
   
-  let context = `RECENT CONVERSATION HISTORY:\n\n`;
+  let context = `=== COMPREHENSIVE CUSTOMER CONTEXT ===\n\n`;
   
-  history.forEach(msg => {
-    const speaker = msg.sent_by === 'user' ? 'Customer' : 
-                   msg.sent_by === 'human_agent' ? 'Human Agent' : 'Agent';
-    const channel = msg.type === 'voice' ? ' (Voice)' : ' (SMS)';
-    context += `${speaker}${channel}: ${msg.content}\n`;
+  // 1. PREVIOUS CONVERSATION SUMMARIES (for historical context)
+  if (previousSummaries && previousSummaries.length > 0) {
+    context += `PREVIOUS CONVERSATION SUMMARIES:\n`;
+    previousSummaries.forEach((summary, index) => {
+      const timeAgo = getTimeAgo(summary.created_at);
+      context += `${index + 1}. ${summary.call_classification?.toUpperCase() || 'GENERAL'} (${timeAgo}):\n`;
+      context += `   Summary: ${summary.summary}\n`;
+      if (summary.key_points && summary.key_points.length > 0) {
+        context += `   Key Points: ${summary.key_points.join(', ')}\n`;
+      }
+      if (summary.next_steps && summary.next_steps.length > 0) {
+        context += `   Follow-ups: ${summary.next_steps.join(', ')}\n`;
+      }
+      context += `   Sentiment: ${getSentimentLabel(summary.sentiment_score)}\n\n`;
+    });
+  }
+  
+  // 2. CONVERSATION STATISTICS & PATTERNS
+  const voiceConversations = allHistory.filter(msg => msg.type === 'voice');
+  const smsConversations = allHistory.filter(msg => msg.type === 'sms' || msg.type === 'text');
+  const customerMessages = allHistory.filter(msg => msg.sent_by === 'user');
+  
+  context += `CUSTOMER ENGAGEMENT OVERVIEW:\n`;
+  context += `- Total interactions: ${allHistory.length} messages\n`;
+  context += `- Voice calls: ${voiceConversations.length} messages\n`;
+  context += `- SMS/Text: ${smsConversations.length} messages\n`;
+  context += `- Customer messages: ${customerMessages.length}\n`;
+  context += `- Communication style: ${getCustomerStyle(customerMessages)}\n`;
+  context += `- Relationship duration: ${getRelationshipDuration(allHistory)}\n`;
+  context += `- Last contact: ${getTimeAgo(allHistory[allHistory.length - 1]?.timestamp)}\n\n`;
+  
+  // 3. RECENT CONVERSATION FLOW (last 6 messages for immediate context)
+  context += `IMMEDIATE CONVERSATION CONTEXT (Last ${recentMessages.length} Messages):\n`;
+  context += `--- This is what we were just talking about ---\n`;
+  
+  recentMessages.forEach((msg, index) => {
+    const speaker = msg.sent_by === 'user' ? 'CUSTOMER' : 
+                   msg.sent_by === 'human_agent' ? 'HUMAN AGENT' : 'AI AGENT';
+    const timeAgo = getTimeAgo(msg.timestamp);
+    const channel = msg.type === 'voice' ? ' 🎤' : ' 📱';
+    
+    context += `${index + 1}. ${speaker}${channel} (${timeAgo}):\n`;
+    context += `   "${msg.content}"\n\n`;
   });
   
-  context += `\n\nCRITICAL: Continue naturally from where the conversation left off. Don't repeat questions already answered.`;
+  // 4. CONVERSATION TOPICS & INTERESTS (from all history)
+  const topics = extractTopics(allHistory);
+  if (topics.length > 0) {
+    context += `DISCUSSION TOPICS & INTERESTS:\n`;
+    topics.forEach(topic => {
+      context += `- ${topic}\n`;
+    });
+    context += '\n';
+  }
+  
+  // 5. CRITICAL INSTRUCTIONS FOR NATURAL CONVERSATION
+  context += `=== CRITICAL CONVERSATION INSTRUCTIONS ===\n`;
+  context += `🔥 IMMEDIATE PRIORITY: Continue naturally from the last message above\n`;
+  context += `🧠 CONTEXT AWARENESS: Reference previous conversations when relevant\n`;
+  context += `🎯 NO REPETITION: Don't ask questions already answered in history\n`;
+  context += `💬 MATCH ENERGY: Use customer's communication style (${getCustomerStyle(customerMessages)})\n`;
+  context += `🤝 BE HUMAN: Sound natural, not robotic - use conversation summaries to show you remember\n`;
+  context += `⚡ FOCUS: Address what they were just talking about in the recent messages\n`;
   
   return context;
+}
+
+// Helper function to get time ago string
+function getTimeAgo(timestamp: Date): string {
+  const now = new Date();
+  const diff = now.getTime() - new Date(timestamp).getTime();
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  
+  if (days > 0) return `${days}d ago`;
+  if (hours > 0) return `${hours}h ago`;
+  if (minutes > 0) return `${minutes}m ago`;
+  return 'just now';
+}
+
+// Helper function to analyze customer communication style
+function getCustomerStyle(messages: any[]): string {
+  if (!messages || messages.length === 0) return 'unknown';
+  
+  const totalLength = messages.reduce((sum, msg) => sum + msg.content.length, 0);
+  const avgLength = totalLength / messages.length;
+  
+  if (avgLength > 100) return 'detailed/chatty';
+  if (avgLength > 50) return 'conversational';
+  return 'brief/direct';
+}
+
+// Helper function to get sentiment label
+function getSentimentLabel(score: number): string {
+  if (score >= 0.7) return 'Very Positive';
+  if (score >= 0.5) return 'Positive';
+  if (score >= 0.3) return 'Neutral';
+  if (score >= 0.1) return 'Negative';
+  return 'Very Negative';
+}
+
+// Helper function to get relationship duration
+function getRelationshipDuration(messages: any[]): string {
+  if (!messages || messages.length === 0) return 'New customer';
+  
+  const oldest = new Date(messages[0].timestamp);
+  const newest = new Date(messages[messages.length - 1].timestamp);
+  const diffDays = Math.floor((newest.getTime() - oldest.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return 'Same day';
+  if (diffDays === 1) return '1 day';
+  if (diffDays < 7) return `${diffDays} days`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months`;
+  return `${Math.floor(diffDays / 365)} years`;
+}
+
+// Helper function to extract conversation topics
+function extractTopics(messages: any[]): string[] {
+  const topics = new Set<string>();
+  const bikeTypes = ['road bike', 'mountain bike', 'hybrid bike', 'e-bike', 'electric bike', 'kids bike'];
+  const services = ['repair', 'tune-up', 'service', 'maintenance', 'fitting', 'custom build'];
+  const interests = ['budget', 'price', 'cost', 'appointment', 'test ride', 'visit store', 'hours', 'location'];
+  
+  messages.forEach(msg => {
+    const content = msg.content.toLowerCase();
+    
+    // Check for bike types
+    bikeTypes.forEach(bike => {
+      if (content.includes(bike)) {
+        topics.add(`Interested in ${bike}s`);
+      }
+    });
+    
+    // Check for services
+    services.forEach(service => {
+      if (content.includes(service)) {
+        topics.add(`Needs ${service} service`);
+      }
+    });
+    
+    // Check for other interests
+    interests.forEach(interest => {
+      if (content.includes(interest)) {
+        topics.add(`Asked about ${interest}`);
+      }
+    });
+    
+    // Check for specific budget mentions
+    if (content.match(/\$[\d,]+/) || content.includes('budget')) {
+      topics.add('Discussed budget/pricing');
+    }
+  });
+  
+  return Array.from(topics).slice(0, 8); // Limit to top 8 topics
 }
 
 // Handle conversation initiation (for inbound calls)

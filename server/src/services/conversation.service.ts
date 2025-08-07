@@ -170,6 +170,26 @@ export class ConversationService {
       return null;
     }
   }
+
+  async getAllSummaries(leadId: string): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('conversation_summaries')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('created_at', { ascending: false })
+        .limit(10); // Get last 10 summaries for comprehensive context
+      
+      if (error) {
+        handleSupabaseError(error, 'get all summaries');
+      }
+      
+      return data || [];
+    } catch (error) {
+      logger.error('Error getting all summaries:', error);
+      return [];
+    }
+  }
   
   async generateComprehensiveSummary(leadId: string): Promise<string> {
     try {
