@@ -122,9 +122,17 @@ export class ConversationService {
   
   async createSummary(summaryData: any): Promise<any> {
     try {
+      // Only include fields that exist in the conversation_summaries table
       const summary = {
         id: uuidv4(),
-        ...summaryData,
+        organization_id: summaryData.organization_id,
+        lead_id: summaryData.lead_id,
+        phone_number: summaryData.phone_number,
+        summary: summaryData.summary,
+        key_points: summaryData.key_points,
+        next_steps: summaryData.next_steps,
+        sentiment_score: summaryData.sentiment_score,
+        call_classification: summaryData.call_classification,
         created_at: new Date()
       };
       
