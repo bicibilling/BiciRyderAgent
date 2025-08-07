@@ -139,6 +139,40 @@ export class CallSessionService {
     }
   }
 
+  async cleanupStaleSessions(organizationId: string): Promise<number> {
+    try {
+      // Close any sessions older than 5 minutes that are still initiated/active
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      
+      const { data, error } = await supabase
+        .from('call_sessions')
+        .update({ 
+          status: 'completed',
+          ended_at: new Date(),
+          metadata: { auto_closed: true, reason: 'stale_session' }
+        })
+        .eq('organization_id', organizationId)
+        .in('status', ['initiated', 'active'])
+        .lt('started_at', fiveMinutesAgo.toISOString())
+        .select();
+      
+      if (error) {
+        logger.error('Error cleaning up stale sessions:', error);
+        return 0;
+      }
+      
+      const count = data?.length || 0;
+      if (count > 0) {
+        logger.info(`Cleaned up ${count} stale sessions`);
+      }
+      
+      return count;
+    } catch (error) {
+      logger.error('Error in cleanupStaleSessions:', error);
+      return 0;
+    }
+  }
+
   async updateRecentSessionByPhone(phoneNumber: string, updates: Partial<CallSession>): Promise<CallSession | null> {
     try {
       logger.info('Looking for recent call session by phone:', phoneNumber);

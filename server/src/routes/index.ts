@@ -229,6 +229,9 @@ export function setupAPIRoutes(app: Express) {
       const organizationId = req.headers['x-organization-id'] as string || 'b0c1b1c1-0000-0000-0000-000000000001';
       const { supabase } = await import('../config/supabase.config');
       
+      // Clean up stale sessions first
+      await callSessionService.cleanupStaleSessions(organizationId);
+      
       // Get counts
       const [leads, calls, conversations, activeCalls] = await Promise.all([
         supabase.from('leads').select('count').eq('organization_id', organizationId),

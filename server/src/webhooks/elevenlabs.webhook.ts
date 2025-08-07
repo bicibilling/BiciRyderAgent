@@ -219,16 +219,9 @@ export async function handleConversationInitiation(req: Request, res: Response) 
         qualification_status: lead.qualification_data?.ready_to_buy ? 'ready to purchase' : 'exploring options',
         interaction_count: await conversationService.getConversationCount(lead.id),
         last_contact: lead.last_contact_at ? new Date(lead.last_contact_at).toLocaleDateString() : 'First contact'
-      },
-      conversation_config_override: {
-        agent: {
-          prompt: {
-            prompt: buildDynamicPrompt(lead, conversationContext, previousSummary)
-          },
-          first_message: generateFirstMessage(lead),
-          language: lead.contact_preferences?.language || 'en'
-        }
       }
+      // Removed conversation_config_override as first_message is not allowed
+      // The agent configuration should be done in ElevenLabs dashboard
     };
     
     res.json(response);
@@ -315,8 +308,8 @@ export async function handlePostCall(req: Request, res: Response) {
       return res.status(404).json({ error: 'Session not found' });
     }
     
-    // Process transcript for insights
-    const insights = await processTranscript(fullTranscript, analysis);
+    // Process transcript for insights (pass the raw transcript array)
+    const insights = await processTranscript(fullTranscript, { ...analysis, data: { transcript } });
     
     // Update lead with extracted data
     const updateData: any = {
