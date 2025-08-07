@@ -470,11 +470,14 @@ export async function handlePostCall(req: Request, res: Response) {
     const { 
       conversation_id, 
       transcript = [], 
-      metadata = {} 
+      metadata = {},
+      conversation_initiation_client_data = {}
     } = data;
     
     const sessionId = conversation_id || metadata?.phone_call?.call_sid;
-    const phone_number = metadata?.phone_call?.external_number;
+    // For SMS/text conversations, phone number might be in dynamic_variables
+    const phone_number = metadata?.phone_call?.external_number || 
+                        conversation_initiation_client_data?.dynamic_variables?.customer_phone;
     const duration = metadata?.call_duration_secs;
     
     logger.info('Post-call session details:', {
@@ -525,8 +528,30 @@ export async function handlePostCall(req: Request, res: Response) {
       session = await callSessionService.updateRecentSessionByPhone(phone_number, sessionUpdateData);
     }
     
+    // If still no session (for SMS conversations), create a minimal session object
+    if (!session && phone_number) {
+      // Find lead by phone number for SMS conversations
+      const leadService = new LeadService();
+      const organizationId = 'b0c1b1c1-0000-0000-0000-000000000001'; // Default org
+      const lead = await leadService.findLeadByPhone(phone_number, organizationId);
+      
+      if (lead) {
+        session = {
+          id: sessionId,
+          organization_id: organizationId,
+          lead_id: lead.id,
+          status: 'completed',
+          metadata: sessionUpdateData.metadata
+        };
+        logger.info('Created minimal session for SMS conversation:', { 
+          lead_id: lead.id, 
+          phone: phone_number 
+        });
+      }
+    }
+    
     if (!session) {
-      logger.error('Call session not found:', sessionId);
+      logger.error('Call session not found and unable to create:', sessionId);
       return res.status(404).json({ error: 'Session not found' });
     }
     
@@ -576,16 +601,17 @@ export async function handlePostCall(req: Request, res: Response) {
       });
     }
     
-    // Store conversation summary
+    // Store conversation summary for both voice and SMS
     await conversationService.createSummary({
       organization_id: session.organization_id,
       lead_id: session.lead_id,
-      phone_number: phone_number,
-      summary: analysis?.call_summary_title || analysis?.transcript_summary || 'Call completed',
+      phone_number: phone_number || session.metadata?.phone_number,
+      summary: analysis?.call_summary_title || analysis?.transcript_summary || 'Conversation completed',
       key_points: insights.keyPoints || [],
       next_steps: insights.nextSteps || [],
       sentiment_score: insights.sentiment || 0.5,
-      call_classification: insights.classification || 'general'
+      call_classification: insights.classification || 'general',
+      conversation_type: metadata?.phone_call ? 'voice' : 'sms' // Track conversation type
     });
     
     // Store individual conversation turns from the transcript array
