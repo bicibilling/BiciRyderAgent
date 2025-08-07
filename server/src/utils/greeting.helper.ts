@@ -69,13 +69,15 @@ export function getWeatherGreeting(): string {
 /**
  * Get customer-specific greeting
  */
-export function getCustomerGreeting(customerName?: string, lastVisit?: Date): string {
+export function getCustomerGreeting(customerName?: string, lastVisit?: Date | string): string {
   if (!customerName) {
     return "there";
   }
   
   if (lastVisit) {
-    const daysSinceVisit = Math.floor((Date.now() - lastVisit.getTime()) / (1000 * 60 * 60 * 24));
+    // Convert string to Date if needed
+    const visitDate = typeof lastVisit === 'string' ? new Date(lastVisit) : lastVisit;
+    const daysSinceVisit = Math.floor((Date.now() - visitDate.getTime()) / (1000 * 60 * 60 * 24));
     
     if (daysSinceVisit === 0) {
       return `back ${customerName}`;
