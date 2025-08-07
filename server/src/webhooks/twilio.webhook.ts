@@ -8,6 +8,7 @@ import { SMSAutomationService } from '../services/sms.service';
 import { broadcastToClients } from '../services/realtime.service';
 import { normalizePhoneNumber } from '../config/twilio.config';
 import { storeInfo, businessHours } from '../config/elevenlabs.config';
+import { generateGreetingContext } from '../utils/greeting.helper';
 import WebSocket from 'ws';
 
 const leadService = new LeadService();
@@ -317,6 +318,9 @@ async function generateElevenLabsTextResponse(
     ws.on('open', () => {
       logger.info('ElevenLabs WebSocket connected for SMS');
       
+      // Generate greeting context for dynamic first message
+      const greetingContext = generateGreetingContext(lead);
+      
       // Send conversation initialization with ONLY dynamic variables - NO overrides
       const initMessage = {
         type: 'conversation_initiation_client_data',
@@ -343,7 +347,10 @@ async function generateElevenLabsTextResponse(
           
           // Additional context
           last_interaction_date: lead.last_contact_at || 'First contact',
-          customer_sentiment: lead.sentiment || 'neutral'
+          customer_sentiment: lead.sentiment || 'neutral',
+          
+          // Add greeting context for dynamic first message
+          ...greetingContext
         }
       };
       

@@ -588,10 +588,13 @@ export async function handlePostCall(req: Request, res: Response) {
     // Update customer name based on extraction
     if (insights.customerName) {
       updateData.customer_name = insights.customerName;
+      logger.info('Updating customer name to:', insights.customerName);
     } else if (insights.clearCustomerName) {
-      // ElevenLabs explicitly found no customer name - clear any incorrect one
+      // Only clear if we found an incorrect name (like "Mark")
       updateData.customer_name = null;
+      logger.info('Clearing incorrect customer name');
     }
+    // Note: If neither customerName nor clearCustomerName is set, we keep the existing name
     
     const updatedLead = await leadService.updateLead(session.lead_id, updateData);
     logger.info('Lead updated with extracted data:', {
@@ -716,18 +719,22 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
     logger.info('Data collection results found:', analysis.data_collection_results);
     
     // Extract customer name if collected (note: ElevenLabs returns structured data with .value)
-    // IMPORTANT: If ElevenLabs returns null, it means no customer name was found
-    // We should clear any existing incorrect name
-    if (analysis.data_collection_results.customer_name) {
-      if (analysis.data_collection_results.customer_name.value) {
-        insights.customerName = analysis.data_collection_results.customer_name.value;
+    // IMPORTANT: Only update the name if we found a new one, don't clear existing names
+    if (analysis.data_collection_results.customer_name?.value) {
+      const extractedName = analysis.data_collection_results.customer_name.value;
+      
+      // Only set the name if it's not "Mark" (our agent's name) or other false positives
+      if (!['mark', 'agent', 'assistant'].includes(extractedName.toLowerCase())) {
+        insights.customerName = extractedName;
         logger.info('Extracted customer name:', insights.customerName);
       } else {
-        // ElevenLabs explicitly says no name was found - clear any incorrect name
+        // Found agent's name as customer name - this should be cleared
         insights.clearCustomerName = true;
-        logger.info('No customer name found by ElevenLabs - will clear existing if any');
+        logger.info('Found agent name as customer name - will clear:', extractedName);
       }
     }
+    // Note: If no name was found, we do NOT clear the existing name
+    // Customer might not say their name in every call, especially short ones
     
     // Extract bike preferences if collected
     if (analysis.data_collection_results.bike_type?.value) {
