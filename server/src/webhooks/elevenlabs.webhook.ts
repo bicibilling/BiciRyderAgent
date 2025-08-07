@@ -175,24 +175,40 @@ export async function handlePostCall(req: Request, res: Response) {
       // return res.status(403).json({ error: 'Invalid signature' });
     }
     
-    const { 
-      conversation_id,
-      call_sid,
-      phone_number,
-      transcript,
-      analysis,
-      metadata,
-      duration
-    } = req.body;
+    // ElevenLabs sends a different structure than expected
+    const { data, analysis } = req.body;
     
-    const sessionId = conversation_id || call_sid;
+    if (!data) {
+      logger.error('No data field in post-call webhook');
+      return res.status(400).json({ error: 'No data field found' });
+    }
+    
+    const { 
+      conversation_id, 
+      transcript = [], 
+      metadata = {} 
+    } = data;
+    
+    const sessionId = conversation_id || metadata?.phone_call?.call_sid;
+    const phone_number = metadata?.phone_call?.external_number;
+    const duration = metadata?.call_duration_secs;
     
     if (!sessionId || !phone_number) {
-      logger.error('Missing required fields in post-call', { conversation_id, call_sid, phone_number });
+      logger.error('Missing required fields in post-call', { 
+        conversation_id, 
+        call_sid: metadata?.phone_call?.call_sid,
+        phone_number,
+        sessionId 
+      });
       return res.status(400).json({ error: 'Missing required fields' });
     }
     
     logger.info('Processing post-call for session:', sessionId);
+    
+    // Process transcript array into readable text
+    const fullTranscript = Array.isArray(transcript) 
+      ? transcript.map(turn => `${turn.role}: ${turn.message}`).join('\n')
+      : transcript || '';
     
     // Update call session
     const session = await callSessionService.updateSession(sessionId, {
@@ -200,8 +216,10 @@ export async function handlePostCall(req: Request, res: Response) {
       ended_at: new Date(),
       duration_seconds: duration,
       metadata: {
-        transcript: transcript,
-        summary: analysis?.summary
+        transcript: fullTranscript,
+        summary: analysis?.call_summary_title || analysis?.transcript_summary,
+        raw_transcript: transcript,
+        elevenlabs_analysis: analysis
       }
     });
     
@@ -211,7 +229,7 @@ export async function handlePostCall(req: Request, res: Response) {
     }
     
     // Process transcript for insights
-    const insights = await processTranscript(transcript, analysis);
+    const insights = await processTranscript(fullTranscript, analysis);
     
     // Update lead with extracted data
     await leadService.updateLead(session.lead_id, {
