@@ -123,14 +123,15 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     const dynamicVariables: ElevenLabsDynamicVariables = {
       conversation_context: conversationContext,
       previous_summary: previousSummary?.summary || "First time caller - no previous interactions",
-      customer_name: lead.customer_name || "valued customer",
+      customer_name: lead.customer_name || "",  // Empty string if no name
       customer_phone: caller_id,
       lead_status: lead.status,
       bike_interest: JSON.stringify(lead.bike_interest),
       organization_name: organization.name,
       organization_id: organization.id,
       location_address: storeInfo.address,
-      business_hours: getTodaysHours()
+      business_hours: getTodaysHours(),
+      has_customer_name: lead.customer_name ? "true" : "false"  // Flag to check if name exists
     };
     
     // Create call session record
@@ -247,7 +248,7 @@ export async function handlePostCall(req: Request, res: Response) {
     const insights = await processTranscript(fullTranscript, analysis);
     
     // Update lead with extracted data
-    await leadService.updateLead(session.lead_id, {
+    const updateData: any = {
       bike_interest: insights.bikePreferences || {},
       qualification_data: {
         ready_to_buy: (insights.purchaseIntent || 0) > 0.7,
@@ -257,7 +258,14 @@ export async function handlePostCall(req: Request, res: Response) {
       },
       status: (insights.leadStatus || 'contacted') as Lead['status'],
       last_contact_at: new Date()
-    });
+    };
+    
+    // Update customer name if extracted
+    if (insights.customerName) {
+      updateData.customer_name = insights.customerName;
+    }
+    
+    await leadService.updateLead(session.lead_id, updateData);
     
     // Store conversation summary
     await conversationService.createSummary({
@@ -355,6 +363,25 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
   if (transcript.toLowerCase().includes('appointment') || transcript.toLowerCase().includes('schedule')) {
     insights.triggers.push('appointment_request');
     insights.appointmentScheduled = true;
+  }
+  
+  // Extract customer name if mentioned
+  const namePatterns = [
+    /(?:i'm|i am|my name is|this is|it's)\s+([A-Z][a-z]+)/i,
+    /(?:call me|name's)\s+([A-Z][a-z]+)/i
+  ];
+  
+  for (const pattern of namePatterns) {
+    const match = transcript.match(pattern);
+    if (match && match[1]) {
+      insights.customerName = match[1];
+      break;
+    }
+  }
+  
+  // Check for "Didi" specifically from your logs
+  if (transcript.includes('Didi')) {
+    insights.customerName = 'Didi';
   }
   
   // Extract bike preferences

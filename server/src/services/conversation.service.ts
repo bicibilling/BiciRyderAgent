@@ -56,12 +56,7 @@ export class ConversationService {
   
   async getRecentConversations(leadId: string, limit: number = 6): Promise<Conversation[]> {
     try {
-      // Check cache first
-      if (this.conversationCache.has(leadId)) {
-        const cached = this.conversationCache.get(leadId)!;
-        return cached.slice(-limit);
-      }
-      
+      // Always fetch from database for accuracy
       const { data, error } = await supabase
         .from('conversations')
         .select('*')

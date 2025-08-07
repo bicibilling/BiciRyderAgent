@@ -78,6 +78,7 @@ export interface ElevenLabsDynamicVariables {
   organization_id: string;
   location_address: string;
   business_hours: string;
+  has_customer_name?: string;
   call_reason?: string;
   last_interaction_date?: string;
   last_interaction_summary?: string;
@@ -95,4 +96,5 @@ export interface ConversationInsights {
   appointmentDetails?: any;
   purchaseIntent?: number;
   sentiment?: number;
+  customerName?: string;
 }
