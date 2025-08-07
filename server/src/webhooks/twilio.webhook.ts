@@ -262,68 +262,20 @@ function getTodaysHours(): string {
   return `Today: ${hours.open} - ${hours.close}`;
 }
 
-// Generate AI response using ElevenLabs API with comprehensive context
+// Generate AI response using intelligent context-aware system
 async function generateAIResponse(message: string, lead: any): Promise<string> {
   try {
     // Build comprehensive conversation context
     const conversationContext = await buildConversationContext(lead.id);
-    const previousSummary = await conversationService.getLatestSummary(lead.id);
     
-    // Create system prompt for SMS context
-    const systemPrompt = `You are Mark, a friendly and knowledgeable assistant for BICI Bike Store. You are responding to a text message from a customer.
-
-STORE INFO:
-- Address: ${storeInfo.address}
-- Phone: ${storeInfo.phone}
-- Services: ${storeInfo.services.join(', ')}
-- Hours: ${getTodaysHours()}
-
-CUSTOMER CONTEXT:
-${conversationContext}
-
-CONVERSATION STYLE:
-- Keep responses concise but helpful (this is SMS)
-- Be conversational and natural
-- Reference previous interactions when relevant
-- Match the customer's communication style
-- Don't repeat questions already answered
-- Show you remember past conversations
-
-CUSTOMER INFO:
-- Name: ${lead.customer_name || 'Unknown'}
-- Phone: ${lead.phone_number}
-- Status: ${lead.status}
-- Bike Interest: ${JSON.stringify(lead.bike_interest)}
-
-PREVIOUS SUMMARY: ${previousSummary?.summary || 'First interaction'}
-
-Respond naturally to the customer's text message. Be helpful and human-like.`;
-
-    const response = await fetch('https://api.elevenlabs.io/v1/convai/conversation/get_signed_url', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'xi-api-key': process.env.ELEVENLABS_API_KEY!
-      },
-      body: JSON.stringify({
-        agent_id: process.env.ELEVENLABS_AGENT_ID!,
-        // Use text completion endpoint for SMS instead of voice
-        mode: 'text',
-        context: systemPrompt,
-        message: message
-      })
+    logger.info('Generating SMS response with context:', {
+      lead_id: lead.id,
+      customer_name: lead.customer_name,
+      message_preview: message.substring(0, 50),
+      has_context: !!conversationContext
     });
-
-    if (!response.ok) {
-      logger.error('ElevenLabs API error:', response.statusText);
-      // Fallback to intelligent default
-      return generateFallbackResponse(message, lead);
-    }
-
-    const data = await response.json();
     
-    // For now, let's use a simpler approach - direct text generation
-    // ElevenLabs primarily focuses on voice, so we'll create an intelligent fallback
+    // Use intelligent response generation based on context and patterns
     return generateIntelligentResponse(message, lead, conversationContext);
 
   } catch (error) {

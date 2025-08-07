@@ -768,6 +768,12 @@ export async function handleClientEvents(req: Request, res: Response) {
       case 'user_transcript':
         // Store user's speech in real-time
         if (data.user_transcript && session) {
+          logger.info('Real-time user transcript:', {
+            lead_id: session.lead_id,
+            transcript_length: data.user_transcript.length,
+            conversation_id
+          });
+
           await conversationService.storeConversation({
             organization_id: session.organization_id,
             lead_id: session.lead_id,
@@ -779,17 +785,23 @@ export async function handleClientEvents(req: Request, res: Response) {
             metadata: {
               real_time: true,
               event_type: 'user_transcript',
-              conversation_id
+              conversation_id,
+              event_id,
+              stream_timestamp: new Date().toISOString()
             }
           });
           
-          // Broadcast to dashboard for real-time display
+          // Broadcast to dashboard for real-time display with enhanced data
           broadcastToClients({
             type: 'live_transcript',
             lead_id: session.lead_id,
             speaker: 'user',
             message: data.user_transcript,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            conversation_id,
+            event_id,
+            is_final: data.is_final || false,
+            confidence: data.confidence || null
           });
         }
         break;
@@ -797,6 +809,12 @@ export async function handleClientEvents(req: Request, res: Response) {
       case 'agent_response':
         // Store agent's response in real-time
         if (data.agent_response && session) {
+          logger.info('Real-time agent response:', {
+            lead_id: session.lead_id,
+            response_length: data.agent_response.length,
+            conversation_id
+          });
+
           await conversationService.storeConversation({
             organization_id: session.organization_id,
             lead_id: session.lead_id,
@@ -808,17 +826,23 @@ export async function handleClientEvents(req: Request, res: Response) {
             metadata: {
               real_time: true,
               event_type: 'agent_response',
-              conversation_id
+              conversation_id,
+              event_id,
+              stream_timestamp: new Date().toISOString()
             }
           });
           
-          // Broadcast to dashboard
+          // Broadcast to dashboard with enhanced data
           broadcastToClients({
             type: 'live_transcript',
             lead_id: session.lead_id,
             speaker: 'agent',
             message: data.agent_response,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            conversation_id,
+            event_id,
+            is_final: true, // Agent responses are always final
+            confidence: 1.0 // Agent responses have full confidence
           });
         }
         break;
@@ -830,6 +854,59 @@ export async function handleClientEvents(req: Request, res: Response) {
             type: 'user_speaking',
             lead_id: session.lead_id,
             vad_score: data.vad_score,
+            timestamp: new Date().toISOString()
+          });
+        }
+        break;
+        
+      case 'partial_transcript':
+      case 'interim_transcript':
+        // Partial/interim transcripts (not final)
+        if (data.transcript && session) {
+          logger.info('Real-time partial transcript:', {
+            lead_id: session.lead_id,
+            transcript_length: data.transcript.length,
+            is_final: data.is_final,
+            speaker: data.speaker || 'user'
+          });
+
+          // Broadcast partial transcript for live display (don't store in DB yet)
+          broadcastToClients({
+            type: 'live_transcript_partial',
+            lead_id: session.lead_id,
+            speaker: data.speaker || 'user',
+            message: data.transcript,
+            timestamp: new Date().toISOString(),
+            conversation_id,
+            event_id,
+            is_final: data.is_final || false,
+            confidence: data.confidence || null,
+            is_partial: true
+          });
+        }
+        break;
+        
+      case 'conversation_started':
+        // Conversation has started
+        if (session) {
+          logger.info('Real-time conversation started:', { lead_id: session.lead_id });
+          broadcastToClients({
+            type: 'conversation_started',
+            lead_id: session.lead_id,
+            conversation_id,
+            timestamp: new Date().toISOString()
+          });
+        }
+        break;
+        
+      case 'conversation_ended':
+        // Conversation has ended
+        if (session) {
+          logger.info('Real-time conversation ended:', { lead_id: session.lead_id });
+          broadcastToClients({
+            type: 'conversation_ended',
+            lead_id: session.lead_id,
+            conversation_id,
             timestamp: new Date().toISOString()
           });
         }
