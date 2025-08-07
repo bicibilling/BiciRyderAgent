@@ -4,7 +4,7 @@ import { logger } from '../utils/logger';
 import { LeadService } from '../services/lead.service';
 import { ConversationService } from '../services/conversation.service';
 import { CallSessionService } from '../services/callSession.service';
-import { SMSAutomationService } from '../services/sms.service';
+import { EnhancedSMSAutomationService } from '../services/enhanced-sms.service';
 import { broadcastToClients } from '../services/realtime.service';
 import { businessHours, storeInfo } from '../config/elevenlabs.config';
 import { ElevenLabsDynamicVariables, ConversationInsights, Lead, CallSession } from '../types';
@@ -13,7 +13,7 @@ import { generateGreetingContext } from '../utils/greeting.helper';
 const leadService = new LeadService();
 const conversationService = new ConversationService();
 const callSessionService = new CallSessionService();
-const smsAutomationService = new SMSAutomationService();
+const enhancedSMSService = new EnhancedSMSAutomationService();
 
 // Verify ElevenLabs webhook signature
 function verifyElevenLabsSignature(req: Request): boolean {
@@ -661,8 +661,8 @@ export async function handlePostCall(req: Request, res: Response) {
       });
     }
     
-    // Trigger SMS automation if needed
-    await smsAutomationService.triggerAutomation(session, insights);
+    // Trigger enhanced SMS automation using ElevenLabs data
+    await enhancedSMSService.triggerSmartAutomation(session, insights, fullTranscript);
     
     // Broadcast to dashboard
     broadcastToClients({
@@ -691,32 +691,63 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
     sentiment: 0
   };
   
-  // Classify the conversation
-  if (transcript.toLowerCase().includes('buy') || transcript.toLowerCase().includes('purchase')) {
-    insights.classification = 'sales';
-    insights.leadStatus = 'qualified';
-  } else if (transcript.toLowerCase().includes('repair') || transcript.toLowerCase().includes('service')) {
-    insights.classification = 'service';
-  } else if (transcript.toLowerCase().includes('help') || transcript.toLowerCase().includes('support')) {
-    insights.classification = 'support';
+  // Use ElevenLabs data collection if available, otherwise fallback to keyword matching
+  if (analysis?.data_collection_results?.call_classification?.value) {
+    // ElevenLabs has already classified the call intelligently
+    insights.classification = analysis.data_collection_results.call_classification.value;
+    logger.info('Using ElevenLabs call classification:', insights.classification);
+  } else {
+    // Fallback to keyword matching
+    if (transcript.toLowerCase().includes('buy') || transcript.toLowerCase().includes('purchase')) {
+      insights.classification = 'sales';
+      insights.leadStatus = 'qualified';
+    } else if (transcript.toLowerCase().includes('repair') || transcript.toLowerCase().includes('service')) {
+      insights.classification = 'service';
+    } else if (transcript.toLowerCase().includes('help') || transcript.toLowerCase().includes('support')) {
+      insights.classification = 'support';
+    }
   }
   
-  // Check for triggers
-  if (transcript.toLowerCase().includes('hours') || transcript.toLowerCase().includes('open')) {
-    insights.triggers.push('asked_hours');
-  }
-  if (transcript.toLowerCase().includes('direction') || transcript.toLowerCase().includes('location')) {
-    insights.triggers.push('asked_directions');
-  }
-  if (transcript.toLowerCase().includes('appointment') || transcript.toLowerCase().includes('schedule')) {
-    insights.triggers.push('appointment_request');
-    insights.appointmentScheduled = true;
+  // Use ElevenLabs triggers if available, otherwise fallback
+  if (analysis?.data_collection_results?.customer_triggers?.value) {
+    insights.triggers = analysis.data_collection_results.customer_triggers.value;
+    logger.info('Using ElevenLabs customer triggers:', insights.triggers);
+  } else {
+    // Fallback trigger detection
+    if (transcript.toLowerCase().includes('hours') || transcript.toLowerCase().includes('open')) {
+      insights.triggers.push('asked_hours');
+    }
+    if (transcript.toLowerCase().includes('direction') || transcript.toLowerCase().includes('location')) {
+      insights.triggers.push('asked_directions');
+    }
+    if (transcript.toLowerCase().includes('appointment') || transcript.toLowerCase().includes('schedule')) {
+      insights.triggers.push('appointment_request');
+      insights.appointmentScheduled = true;
+    }
   }
   
   // Extract customer data from ElevenLabs data collection
   // This should be configured in the ElevenLabs dashboard under Analysis > Data Collection
   if (analysis?.data_collection_results) {
     logger.info('Data collection results found:', analysis.data_collection_results);
+    
+    // Extract call classification from ElevenLabs
+    if (analysis.data_collection_results.call_classification?.value) {
+      insights.classification = analysis.data_collection_results.call_classification.value;
+      logger.info('Call classified as:', insights.classification);
+    }
+    
+    // Extract customer triggers from ElevenLabs
+    if (analysis.data_collection_results.customer_triggers?.value) {
+      insights.triggers = analysis.data_collection_results.customer_triggers.value || [];
+      logger.info('Customer triggers:', insights.triggers);
+    }
+    
+    // Extract follow-up recommendation from ElevenLabs
+    if (analysis.data_collection_results.follow_up_needed?.value) {
+      insights.followUpNeeded = analysis.data_collection_results.follow_up_needed.value;
+      logger.info('Follow-up needed:', insights.followUpNeeded);
+    }
     
     // Extract customer name if collected (note: ElevenLabs returns structured data with .value)
     // IMPORTANT: Only update the name if we found a new one, don't clear existing names

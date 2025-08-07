@@ -103,4 +103,5 @@ export interface ConversationInsights {
   ridingExperience?: string;
   purchaseTimeline?: string;
   budgetRange?: string;
+  followUpNeeded?: string;  // ElevenLabs recommendation for follow-up SMS
 }
