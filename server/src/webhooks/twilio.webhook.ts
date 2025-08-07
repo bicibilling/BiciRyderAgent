@@ -8,6 +8,7 @@ import { SMSAutomationService } from '../services/sms.service';
 import { broadcastToClients } from '../services/realtime.service';
 import { normalizePhoneNumber } from '../config/twilio.config';
 import { storeInfo, businessHours } from '../config/elevenlabs.config';
+import WebSocket from 'ws';
 
 const leadService = new LeadService();
 const conversationService = new ConversationService();
@@ -262,104 +263,127 @@ function getTodaysHours(): string {
   return `Today: ${hours.open} - ${hours.close}`;
 }
 
-// Generate AI response using intelligent context-aware system
+// Generate AI response using ElevenLabs Conversational AI WebSocket
 async function generateAIResponse(message: string, lead: any): Promise<string> {
   try {
     // Build comprehensive conversation context
     const conversationContext = await buildConversationContext(lead.id);
+    const previousSummary = await conversationService.getLatestSummary(lead.id);
     
-    logger.info('Generating SMS response with context:', {
+    logger.info('Generating ElevenLabs SMS response:', {
       lead_id: lead.id,
       customer_name: lead.customer_name,
       message_preview: message.substring(0, 50),
       has_context: !!conversationContext
     });
     
-    // Use intelligent response generation based on context and patterns
-    return generateIntelligentResponse(message, lead, conversationContext);
+    // Use ElevenLabs WebSocket for text conversation
+    return await generateElevenLabsTextResponse(message, lead, conversationContext, previousSummary);
 
   } catch (error) {
-    logger.error('Error generating AI response:', error);
+    logger.error('Error generating ElevenLabs AI response:', error);
     return generateFallbackResponse(message, lead);
   }
 }
 
-// Generate intelligent response based on context and patterns
-async function generateIntelligentResponse(message: string, lead: any, context: string): Promise<string> {
-  const lowerMessage = message.toLowerCase();
-  const customerName = lead.customer_name || 'there';
-  
-  // Extract recent conversation for smart responses
-  const recentConversations = await conversationService.getRecentConversations(lead.id, 3);
-  const hasRecentContact = recentConversations.length > 0;
-  const lastMessage = recentConversations[recentConversations.length - 1];
-  
-  // Smart greeting for returning customers
-  if (lowerMessage.includes('hi') || lowerMessage.includes('hello') || lowerMessage.includes('hey')) {
-    if (lead.customer_name) {
-      return `Hey ${customerName}! Good to hear from you again. What can I help you with today?`;
-    }
-    if (hasRecentContact) {
-      return `Hi there! Great to hear from you again. How can I help you today?`;
-    }
-    return `Hello! Welcome to BICI. I'm Mark, how can I help you with your cycling needs?`;
-  }
-  
-  // Context-aware responses
-  if (lowerMessage.includes('hours') || lowerMessage.includes('open')) {
-    const hours = getTodaysHours();
-    if (lead.customer_name) {
-      return `Hi ${customerName}! ${hours}. Planning to visit us?`;
-    }
-    return `${hours}. Hope to see you soon!`;
-  }
-  
-  if (lowerMessage.includes('location') || lowerMessage.includes('address') || lowerMessage.includes('where')) {
-    return `We're at ${storeInfo.address}. Here's the map: https://maps.google.com/?q=${encodeURIComponent(storeInfo.address)}. See you soon!`;
-  }
-  
-  if (lowerMessage.includes('repair') || lowerMessage.includes('service') || lowerMessage.includes('fix')) {
-    if (hasRecentContact && lastMessage?.content.includes('bike')) {
-      return `Perfect! Bring your bike in and we'll take great care of it. ${getTodaysHours()}. Any specific issues you're noticing?`;
-    }
-    return `We'd love to help with your bike service! What type of repair do you need? You can bring it in during ${getTodaysHours()}.`;
-  }
-  
-  if (lowerMessage.includes('price') || lowerMessage.includes('cost') || lowerMessage.includes('how much')) {
-    if (lead.bike_interest?.type) {
-      return `Great question! For ${lead.bike_interest.type} bikes, we have options starting around $600-800. Want to come in and see what we have in stock?`;
-    }
-    return `We have bikes for every budget! Road bikes from $800, mountain bikes from $600, e-bikes from $1,500. What type are you most interested in?`;
-  }
-  
-  // Bike type inquiries
-  const bikeTypes = ['road', 'mountain', 'hybrid', 'electric', 'e-bike', 'kids'];
-  const mentionedBike = bikeTypes.find(type => lowerMessage.includes(type));
-  if (mentionedBike) {
-    return `Great choice! We have several excellent ${mentionedBike} bikes in stock. What's your riding style and budget looking like? Come check them out!`;
-  }
-  
-  // Appointment/visit related
-  if (lowerMessage.includes('appointment') || lowerMessage.includes('visit') || lowerMessage.includes('come in')) {
-    return `Sounds great! We're open ${getTodaysHours()}. Feel free to drop by or call ${storeInfo.phone} if you'd like to set a specific time.`;
-  }
-  
-  // Follow up on previous conversations
-  if (hasRecentContact && lowerMessage.includes('still') || lowerMessage.includes('update')) {
-    return `Absolutely! Thanks for following up. What specific information can I help you with?`;
-  }
-  
-  // Thank you responses
-  if (lowerMessage.includes('thank')) {
-    return `You're very welcome${customerName !== 'there' ? ' ' + customerName : ''}! Always happy to help with your cycling needs. 🚴`;
-  }
-  
-  // Default intelligent response
-  if (lead.customer_name && hasRecentContact) {
-    return `Thanks for your message, ${customerName}! I'd be happy to help with that. Can you tell me a bit more about what you're looking for?`;
-  }
-  
-  return `Thanks for reaching out! I'm here to help with any questions about bikes, service, or our store. What can I assist you with today?`;
+// Generate ElevenLabs text response using WebSocket API
+async function generateElevenLabsTextResponse(
+  message: string, 
+  lead: any, 
+  conversationContext: string, 
+  previousSummary: any
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const timeoutMs = 30000; // 30 second timeout
+    let responseReceived = false;
+
+    // Create WebSocket connection to ElevenLabs
+    const wsUrl = `wss://api.elevenlabs.io/v1/convai/conversation?agent_id=${process.env.ELEVENLABS_AGENT_ID}`;
+    const ws = new WebSocket(wsUrl, {
+      headers: {
+        'xi-api-key': process.env.ELEVENLABS_API_KEY!
+      }
+    });
+
+    const timeout = setTimeout(() => {
+      if (!responseReceived) {
+        ws.close();
+        reject(new Error('ElevenLabs WebSocket timeout'));
+      }
+    }, timeoutMs);
+
+    ws.on('open', () => {
+      logger.info('ElevenLabs WebSocket connected for SMS');
+      
+      // Send conversation initialization with enhanced context
+      const initMessage = {
+        type: 'conversation_initiation_client_data',
+        conversation_config_override: {
+          agent_config: {
+            conversation_context: conversationContext,
+            customer_name: lead.customer_name || '',
+            customer_phone: lead.phone_number,
+            lead_status: lead.status,
+            bike_interest: JSON.stringify(lead.bike_interest),
+            organization_name: 'BICI Bike Store',
+            location_address: storeInfo.address,
+            business_hours: getTodaysHours(),
+            previous_summary: previousSummary?.summary || 'First interaction',
+            communication_mode: 'text_only' // Indicate this is text conversation
+          }
+        }
+      };
+      
+      ws.send(JSON.stringify(initMessage));
+      
+      // Send user message
+      setTimeout(() => {
+        const userMessage = {
+          type: 'user_message',
+          text: message
+        };
+        ws.send(JSON.stringify(userMessage));
+        logger.info('Sent user message to ElevenLabs:', { message: message.substring(0, 50) });
+      }, 1000);
+    });
+
+    ws.on('message', (data) => {
+      try {
+        const response = JSON.parse(data.toString());
+        logger.info('ElevenLabs WebSocket response:', { type: response.type });
+
+        if (response.type === 'agent_response' && response.agent_response_event?.agent_response) {
+          responseReceived = true;
+          clearTimeout(timeout);
+          ws.close();
+          
+          const aiResponse = response.agent_response_event.agent_response;
+          logger.info('Received ElevenLabs SMS response:', { 
+            response_length: aiResponse.length,
+            lead_id: lead.id 
+          });
+          
+          resolve(aiResponse);
+        }
+      } catch (error) {
+        logger.error('Error parsing ElevenLabs WebSocket response:', error);
+      }
+    });
+
+    ws.on('error', (error) => {
+      logger.error('ElevenLabs WebSocket error:', error);
+      clearTimeout(timeout);
+      reject(error);
+    });
+
+    ws.on('close', () => {
+      logger.info('ElevenLabs WebSocket closed');
+      clearTimeout(timeout);
+      if (!responseReceived) {
+        reject(new Error('WebSocket closed without response'));
+      }
+    });
+  });
 }
 
 // Fallback response for errors

@@ -10,31 +10,31 @@
     "test": "jest"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "twilio": "^5.0.0",
     "@supabase/supabase-js": "^2.39.7",
-    "jsonwebtoken": "^9.0.2",
+    "cors": "^2.8.5",
+    "date-fns": "^3.3.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
     "express-validator": "^7.0.1",
-    "winston": "^3.11.0",
+    "jsonwebtoken": "^9.0.2",
     "node-fetch": "^3.3.2",
-    "ws": "^8.16.0",
+    "twilio": "^5.0.0",
     "uuid": "^9.0.1",
-    "date-fns": "^3.3.1"
+    "winston": "^3.11.0",
+    "ws": "^8.16.0"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
     "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.11",
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.11.16",
-    "@types/ws": "^8.5.10",
     "@types/uuid": "^9.0.8",
-    "typescript": "^5.3.3",
-    "tsx": "^4.7.0",
-    "@types/jest": "^29.5.11",
+    "@types/ws": "^8.5.10",
     "jest": "^29.7.0",
-    "ts-jest": "^29.1.2"
+    "ts-jest": "^29.1.2",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
   },
   "overrides": {
     "typescript": "^5.3.3"
