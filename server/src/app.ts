@@ -41,6 +41,35 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
+// Database health check
+app.get('/health/db', async (req: Request, res: Response) => {
+  try {
+    const supabaseModule = await import('./config/supabase.config');
+    const { data, error } = await supabaseModule.supabase
+      .from('organizations')
+      .select('id, name, phone_number')
+      .limit(5);
+    
+    if (error) throw error;
+    
+    res.json({
+      status: 'healthy',
+      database: 'connected',
+      organizations_count: data?.length || 0,
+      organizations: data,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Database health check failed:', error);
+    res.status(500).json({
+      status: 'unhealthy',
+      database: 'disconnected',
+      error: (error as Error).message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Initialize services
 initializeServices(wss);
 

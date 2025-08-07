@@ -153,5 +153,6 @@ INSERT INTO organizations (id, name, phone_number)
 VALUES (
   'b0c1b1c1-0000-0000-0000-000000000001',
   'BICI Bike Store',
-  '+15145551234'
-) ON CONFLICT DO NOTHING;
+  '+17786528784'
+) ON CONFLICT (id) DO UPDATE SET 
+  phone_number = EXCLUDED.phone_number;

@@ -99,11 +99,29 @@ export class LeadService {
     const normalized = normalizePhoneNumber(phoneNumber);
     
     try {
+      logger.info('Getting organization by phone', { phoneNumber, normalized });
+      
+      // First try exact match
       const { data, error } = await supabase
         .from('organizations')
         .select('*')
         .eq('phone_number', phoneNumber)
         .single();
+      
+      // Also try normalized phone
+      if (error && normalized !== phoneNumber) {
+        logger.info('Trying normalized phone number', normalized);
+        const { data: normalizedData, error: normalizedError } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('phone_number', normalized)
+          .single();
+          
+        if (!normalizedError && normalizedData) {
+          logger.info('Found organization with normalized phone');
+          return normalizedData;
+        }
+      }
       
       if (error && error.code !== 'PGRST116') {
         handleSupabaseError(error, 'get organization by phone');
