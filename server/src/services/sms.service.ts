@@ -57,15 +57,21 @@ export class SMSAutomationService {
       });
       
       // Store the sent message with lead_id (match voice conversation pattern)
-      const conversation = await conversationService.storeConversation({
-        organization_id: organizationId,
-        lead_id: lead?.id,
-        phone_number_normalized: to.replace(/\D/g, ''),
-        content: message,
-        sent_by: 'agent',
-        type: 'sms',
-        metadata: { message_sid: result.sid }
-      });
+      let conversation;
+      try {
+        conversation = await conversationService.storeConversation({
+          organization_id: organizationId,
+          lead_id: lead?.id,
+          phone_number_normalized: to.replace(/\D/g, ''),
+          content: message,
+          sent_by: 'agent',
+          type: 'sms',
+          metadata: { message_sid: result.sid }
+        });
+      } catch (dbError) {
+        logger.error('Failed to store SMS conversation:', dbError);
+        throw new Error('Database operation failed: store conversation');
+      }
       
       logger.info('SMS stored with conversation:', {
         conversation_id: conversation.id,

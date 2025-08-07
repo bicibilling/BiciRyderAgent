@@ -27,7 +27,13 @@ export function setupDebugRoutes(app: Express) {
       });
       
       // Send SMS
-      const result = await smsService.sendSMS(phoneNumber, message, organizationId);
+      let result, error;
+      try {
+        result = await smsService.sendSMS(phoneNumber, message, organizationId);
+      } catch (e) {
+        error = e;
+        logger.error('DEBUG: Detailed SMS error:', e);
+      }
       
       // Get recent conversations for this lead
       if (lead) {
@@ -36,11 +42,13 @@ export function setupDebugRoutes(app: Express) {
       }
       
       res.json({
-        success: true,
+        success: !error,
         lead_found: !!lead,
         lead_id: lead?.id,
         sms_sent: !!result,
-        message_sid: result?.sid
+        message_sid: result?.sid,
+        error: error ? error.message : null,
+        error_details: error ? error.toString() : null
       });
     } catch (error) {
       logger.error('DEBUG: SMS test error:', error);
