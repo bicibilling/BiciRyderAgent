@@ -611,8 +611,8 @@ export async function handlePostCall(req: Request, res: Response) {
       key_points: insights.keyPoints || [],
       next_steps: insights.nextSteps || [],
       sentiment_score: insights.sentiment || 0.5,
-      call_classification: insights.classification || 'general'
-      // Note: conversation_type field doesn't exist in DB, using call_classification instead
+      call_classification: insights.classification || 'general',
+      conversation_type: metadata?.phone_call ? 'voice' : 'sms' // Track the conversation medium
     });
     
     // Store individual conversation turns from the transcript array
