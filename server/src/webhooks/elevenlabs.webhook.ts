@@ -449,6 +449,14 @@ export async function handlePostCall(req: Request, res: Response) {
     // ElevenLabs sends a different structure than expected
     const { data, analysis } = req.body;
     
+    logger.info('Post-call webhook body structure:', {
+      has_data: !!data,
+      has_analysis: !!analysis,
+      body_keys: Object.keys(req.body),
+      data_keys: data ? Object.keys(data) : null,
+      analysis_keys: analysis ? Object.keys(analysis) : null
+    });
+    
     if (!data) {
       logger.error('No data field in post-call webhook');
       return res.status(400).json({ error: 'No data field found' });

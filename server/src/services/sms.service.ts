@@ -44,9 +44,14 @@ export class SMSAutomationService {
         messageLength: message.length 
       });
       
-      // Store the sent message
+      // Find lead_id first  
+      const leadService = new (await import('./lead.service')).LeadService();
+      const lead = await leadService.findLeadByPhone(to, organizationId);
+      
+      // Store the sent message with lead_id
       const conversation = await conversationService.storeConversation({
         organization_id: organizationId,
+        lead_id: lead?.id, // This was missing!
         phone_number_normalized: to.replace(/\D/g, ''),
         content: message,
         sent_by: 'agent',
@@ -54,9 +59,11 @@ export class SMSAutomationService {
         metadata: { message_sid: result.sid }
       });
       
-      // Find lead_id for broadcast
-      const leadService = new (await import('./lead.service')).LeadService();
-      const lead = await leadService.findLeadByPhone(to, organizationId);
+      logger.info('SMS stored with conversation:', {
+        conversation_id: conversation.id,
+        lead_id: lead?.id,
+        has_lead: !!lead
+      });
       
       // Broadcast SMS sent event
       if (lead) {
