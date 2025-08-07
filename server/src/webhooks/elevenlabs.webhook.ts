@@ -169,12 +169,12 @@ export async function handlePostCall(req: Request, res: Response) {
     await leadService.updateLead(session.lead_id, {
       bike_interest: insights.bikePreferences || {},
       qualification_data: {
-        ready_to_buy: insights.purchaseIntent > 0.7,
-        timeline: insights.timeline,
+        ready_to_buy: (insights.purchaseIntent || 0) > 0.7,
+        timeline: (insights as any).timeline,
         purchase_intent: insights.purchaseIntent || 0,
         contact_preference: 'phone'
       },
-      status: insights.leadStatus,
+      status: (insights.leadStatus || 'contacted') as Lead['status'],
       last_contact_at: new Date()
     });
     

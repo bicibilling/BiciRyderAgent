@@ -132,8 +132,8 @@ export class LeadService {
   }
   
   async classifyLead(leadId: string, classification: any): Promise<Lead> {
-    const updates = {
-      status: this.determineStatus(classification),
+    const updates: Partial<Lead> = {
+      status: this.determineStatus(classification) as Lead['status'],
       qualification_data: {
         ready_to_buy: classification.purchaseIntent > 0.7,
         timeline: classification.timeline,
@@ -145,7 +145,7 @@ export class LeadService {
     return this.updateLead(leadId, updates);
   }
   
-  private determineStatus(classification: any): string {
+  private determineStatus(classification: any): Lead['status'] {
     if (classification.purchaseIntent > 0.8) return 'hot';
     if (classification.appointmentScheduled) return 'qualified';
     if (classification.engaged) return 'contacted';

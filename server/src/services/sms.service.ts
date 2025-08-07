@@ -65,6 +65,14 @@ export class SMSAutomationService {
   
   async triggerAutomation(session: CallSession, insights: ConversationInsights): Promise<void> {
     try {
+      // Get lead to get phone number
+      const leadService = new (await import('./lead.service')).LeadService();
+      const lead = await leadService.getLead(session.lead_id);
+      if (!lead || !lead.phone_number) {
+        logger.error('Lead or phone number not found for SMS automation');
+        return;
+      }
+      
       const { triggers, classification } = insights;
       const messages: string[] = [];
       
@@ -88,7 +96,7 @@ export class SMSAutomationService {
         // Delay this message by 5 minutes
         setTimeout(async () => {
           await this.sendSMS(
-            session.phone_number || '',
+            lead.phone_number,
             this.automationTemplates.follow_up(),
             session.organization_id
           );
@@ -98,7 +106,7 @@ export class SMSAutomationService {
       // Send messages
       for (const message of messages) {
         await this.sendSMS(
-          session.phone_number || '',
+          lead.phone_number,
           message,
           session.organization_id
         );

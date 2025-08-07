@@ -28,7 +28,8 @@ export function setupAPIRoutes(app: Express) {
     try {
       const organizationId = req.headers['x-organization-id'] as string || 'b0c1b1c1-0000-0000-0000-000000000001';
       
-      const { data, error } = await import('../config/supabase.config').then(m => m.supabase)
+      const supabaseModule = await import('../config/supabase.config');
+      const { data, error } = await supabaseModule.supabase
         .from('leads')
         .select('*')
         .eq('organization_id', organizationId)
@@ -147,7 +148,7 @@ export function setupAPIRoutes(app: Express) {
         })
       });
       
-      const result = await response.json();
+      const result = await response.json() as any;
       
       // Create call session
       await callSessionService.createSession({
