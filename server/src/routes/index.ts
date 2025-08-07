@@ -196,7 +196,7 @@ export function setupAPIRoutes(app: Express) {
         phone_number_normalized: '',
         content: `[Context Update] ${context}`,
         sent_by: 'system',
-        type: 'sms',  // Use 'sms' instead of 'text' to match database constraint
+        type: 'system',  // Use 'system' for system messages
         metadata: {
           context_type: type,
           during_call: true
