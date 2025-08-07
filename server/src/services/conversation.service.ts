@@ -2,6 +2,7 @@ import { supabase, handleSupabaseError } from '../config/supabase.config';
 import { Conversation } from '../types';
 import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { broadcastToClients } from './realtime.service';
 
 export class ConversationService {
   private conversationCache = new Map<string, Conversation[]>();
@@ -35,6 +36,15 @@ export class ConversationService {
         id: stored.id, 
         lead_id: data.lead_id,
         type: data.type 
+      });
+      
+      // Broadcast real-time update
+      broadcastToClients({
+        type: 'conversation_added',
+        lead_id: data.lead_id,
+        conversation: stored,
+        sent_by: data.sent_by,
+        message_type: data.type
       });
       
       return stored;

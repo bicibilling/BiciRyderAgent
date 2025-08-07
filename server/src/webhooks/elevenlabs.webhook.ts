@@ -395,12 +395,34 @@ export async function handleConversationEvents(req: Request, res: Response) {
     
     logger.info(`Conversation event received: ${type}`, { conversation_id });
     
+    // Try to find the session to get lead_id for targeted broadcast
+    const session = await callSessionService.getSessionByConversationId(conversation_id);
+    
     // Broadcast real-time events to dashboard
     broadcastToClients({
       type: `conversation_${type}`,
       conversation_id,
-      data
+      lead_id: session?.lead_id,
+      data,
+      timestamp: new Date().toISOString()
     });
+    
+    // If it's a transcript event, store it immediately
+    if (type === 'transcript' && data.message && session) {
+      await conversationService.storeConversation({
+        organization_id: session.organization_id,
+        lead_id: session.lead_id,
+        phone_number_normalized: data.phone_number?.replace(/\D/g, '') || '',
+        content: data.message,
+        sent_by: data.role === 'user' ? 'user' : 'agent',
+        type: 'voice',
+        call_classification: 'live',
+        metadata: {
+          real_time: true,
+          conversation_id
+        }
+      });
+    }
     
     res.json({ success: true });
   } catch (error) {

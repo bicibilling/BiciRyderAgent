@@ -120,6 +120,25 @@ export class CallSessionService {
     }
   }
 
+  async getSessionByConversationId(conversationId: string): Promise<CallSession | null> {
+    try {
+      const { data, error } = await supabase
+        .from('call_sessions')
+        .select('*')
+        .eq('elevenlabs_conversation_id', conversationId)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        handleSupabaseError(error, 'get session by conversation id');
+      }
+      
+      return data;
+    } catch (error) {
+      logger.error('Error getting session by conversation id:', error);
+      return null;
+    }
+  }
+
   async updateRecentSessionByPhone(phoneNumber: string, updates: Partial<CallSession>): Promise<CallSession | null> {
     try {
       logger.info('Looking for recent call session by phone:', phoneNumber);

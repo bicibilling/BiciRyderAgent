@@ -2,6 +2,7 @@ import { twilioClient, formatPhoneNumber } from '../config/twilio.config';
 import { ConversationService } from './conversation.service';
 import { logger } from '../utils/logger';
 import { CallSession, ConversationInsights } from '../types';
+import { broadcastToClients } from './realtime.service';
 import { storeInfo, businessHours } from '../config/elevenlabs.config';
 
 const conversationService = new ConversationService();
@@ -44,7 +45,7 @@ export class SMSAutomationService {
       });
       
       // Store the sent message
-      await conversationService.storeConversation({
+      const conversation = await conversationService.storeConversation({
         organization_id: organizationId,
         phone_number_normalized: to.replace(/\D/g, ''),
         content: message,
@@ -52,6 +53,21 @@ export class SMSAutomationService {
         type: 'sms',
         metadata: { message_sid: result.sid }
       });
+      
+      // Find lead_id for broadcast
+      const leadService = new (await import('./lead.service')).LeadService();
+      const lead = await leadService.findLeadByPhone(to, organizationId);
+      
+      // Broadcast SMS sent event
+      if (lead) {
+        broadcastToClients({
+          type: 'sms_sent',
+          lead_id: lead.id,
+          phone_number: to,
+          message: message,
+          conversation_id: conversation.id
+        });
+      }
       
       // Log to automation table
       await this.logAutomation(organizationId, to, message, result.sid);

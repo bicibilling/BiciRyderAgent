@@ -16,6 +16,7 @@ function App() {
     active_sessions: 0
   });
   const [loading, setLoading] = useState(true);
+  const [realtimeData, setRealtimeData] = useState<any>(null);
 
   useEffect(() => {
     // Load initial data
@@ -56,11 +57,16 @@ function App() {
   const handleRealtimeUpdate = (data: any) => {
     console.log('Realtime update:', data);
     
+    // Pass real-time data to components
+    setRealtimeData(data);
+    
     switch (data.type) {
       case 'call_initiated':
       case 'call_completed':
       case 'sms_received':
       case 'sms_sent':
+      case 'conversation_user':
+      case 'conversation_agent':
         // Reload data on important events
         loadLeads();
         loadStats();
@@ -120,6 +126,7 @@ function App() {
                   loadLeads();
                   loadStats();
                 }}
+                realtimeData={realtimeData}
               />
             ) : (
               <div className="bici-card h-full flex items-center justify-center">

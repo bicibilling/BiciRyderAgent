@@ -5,9 +5,10 @@ import { conversationAPI, humanControlAPI, callAPI, smsAPI } from '../services/a
 interface ConversationPanelProps {
   lead: Lead;
   onUpdate: () => void;
+  realtimeData?: any;
 }
 
-const ConversationPanel: React.FC<ConversationPanelProps> = ({ lead, onUpdate }) => {
+const ConversationPanel: React.FC<ConversationPanelProps> = ({ lead, onUpdate, realtimeData }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -18,6 +19,19 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ lead, onUpdate })
   useEffect(() => {
     loadConversations();
   }, [lead.id]);
+
+  // Handle real-time updates
+  useEffect(() => {
+    if (realtimeData && realtimeData.lead_id === lead.id) {
+      // Reload conversations when new data arrives for this lead
+      if (realtimeData.type === 'conversation_added' || 
+          realtimeData.type === 'sms_sent' || 
+          realtimeData.type === 'sms_received' ||
+          realtimeData.type === 'call_completed') {
+        loadConversations();
+      }
+    }
+  }, [realtimeData]);
 
   useEffect(() => {
     scrollToBottom();
