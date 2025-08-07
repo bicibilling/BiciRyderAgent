@@ -40,13 +40,13 @@ export const businessHours = {
   sunday: { open: 'closed', close: 'closed' }
 };
 
-// Store information
+// Store information - configurable via environment variables
 export const storeInfo = {
-  name: 'BICI Bike Store',
-  address: '123 Bike Street, Montreal, QC H2X 1Y7',
+  name: process.env.STORE_NAME || 'BICI Bike Store',
+  address: process.env.STORE_ADDRESS || '1234 Main Street, Vancouver, BC V6B 2W9',  // Default Vancouver address
   phone: process.env.TWILIO_PHONE_NUMBER!,
-  email: 'info@bici.cc',
-  website: 'https://www.bici.cc',
+  email: process.env.STORE_EMAIL || 'info@bici.cc',
+  website: process.env.STORE_WEBSITE || 'https://www.bici.cc',
   services: [
     'Bike Sales (Road, Mountain, Hybrid, E-Bikes)',
     'Professional Bike Repairs',
