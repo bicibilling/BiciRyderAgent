@@ -230,17 +230,25 @@ export function setupAPIRoutes(app: Express) {
       const { supabase } = await import('../config/supabase.config');
       
       // Get counts
-      const [leads, calls, conversations] = await Promise.all([
+      const [leads, calls, conversations, activeCalls] = await Promise.all([
         supabase.from('leads').select('count').eq('organization_id', organizationId),
         supabase.from('call_sessions').select('count').eq('organization_id', organizationId),
-        supabase.from('conversations').select('count').eq('organization_id', organizationId)
+        supabase.from('conversations').select('count').eq('organization_id', organizationId),
+        supabase.from('call_sessions')
+          .select('count')
+          .eq('organization_id', organizationId)
+          .in('status', ['initiated', 'active'])
       ]);
+      
+      // Count both human control sessions and active calls
+      const humanSessions = humanControlService.getActiveSessions().length;
+      const activeCallSessions = activeCalls.data?.[0]?.count || 0;
       
       res.json({
         total_leads: leads.data?.[0]?.count || 0,
         total_calls: calls.data?.[0]?.count || 0,
         total_conversations: conversations.data?.[0]?.count || 0,
-        active_sessions: humanControlService.getActiveSessions().length
+        active_sessions: humanSessions + activeCallSessions
       });
     } catch (error) {
       logger.error('Error fetching dashboard stats:', error);

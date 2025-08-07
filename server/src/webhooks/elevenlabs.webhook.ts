@@ -142,8 +142,10 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       call_type: 'inbound',
       status: 'initiated',
       metadata: {
-        call_sid: sessionId,
-        agent_id: agent_id
+        call_sid: call_sid || sessionId,
+        agent_id: agent_id,
+        caller_id: caller_id,
+        called_number: called_number
       }
     });
     
@@ -365,22 +367,30 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
     insights.appointmentScheduled = true;
   }
   
-  // Extract customer name if mentioned
+  // Extract customer name if mentioned (only from user messages)
   const namePatterns = [
     /(?:i'm|i am|my name is|this is|it's)\s+([A-Z][a-z]+)/i,
     /(?:call me|name's)\s+([A-Z][a-z]+)/i
   ];
   
+  // Only look for names in user messages, not agent messages
+  const userTranscript = transcript.split('\n')
+    .filter(line => line.toLowerCase().includes('user:') || line.toLowerCase().includes('customer:'))
+    .join(' ');
+  
   for (const pattern of namePatterns) {
-    const match = transcript.match(pattern);
-    if (match && match[1]) {
+    const match = userTranscript.match(pattern);
+    if (match && match[1] && match[1] !== 'Mark') { // Exclude agent name
       insights.customerName = match[1];
       break;
     }
   }
   
-  // Check for "Didi" specifically from your logs
-  if (transcript.includes('Didi')) {
+  // Check for specific names mentioned by users
+  if (userTranscript.includes('Dev')) {
+    insights.customerName = 'Dev';
+  }
+  if (userTranscript.includes('Didi')) {
     insights.customerName = 'Didi';
   }
   

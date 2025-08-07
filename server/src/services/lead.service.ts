@@ -95,6 +95,28 @@ export class LeadService {
     }
   }
   
+  async findLeadByPhone(phoneNumber: string, organizationId: string): Promise<Lead | null> {
+    try {
+      const normalized = phoneNumber.replace(/\D/g, '');
+      
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('phone_number_normalized', normalized)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        handleSupabaseError(error, 'find lead by phone');
+      }
+      
+      return data;
+    } catch (error) {
+      logger.error('Error finding lead by phone:', error);
+      return null;
+    }
+  }
+
   async getOrganizationByPhone(phoneNumber: string): Promise<Organization | null> {
     const normalized = normalizePhoneNumber(phoneNumber);
     

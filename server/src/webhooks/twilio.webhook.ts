@@ -59,7 +59,7 @@ export async function handleIncomingSMS(req: Request, res: Response) {
     await conversationService.storeConversation({
       organization_id: organization.id,
       lead_id: lead.id,
-      phone_number: From,
+      phone_number_normalized: From.replace(/\D/g, ''),
       content: Body,
       sent_by: 'user',
       type: 'sms',
