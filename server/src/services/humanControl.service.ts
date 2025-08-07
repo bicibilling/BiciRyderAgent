@@ -62,7 +62,7 @@ export class HumanControlService {
       await conversationService.storeConversation({
         organization_id: organizationId,
         lead_id: leadId,
-        phone_number: '',
+        phone_number_normalized: '',
         content: `${agentName} has joined the conversation`,
         sent_by: 'system',
         type: 'text'
@@ -100,7 +100,7 @@ export class HumanControlService {
       await conversationService.storeConversation({
         organization_id: session.organization_id,
         lead_id: leadId,
-        phone_number: '',
+        phone_number_normalized: '',
         content: 'AI assistant has resumed control',
         sent_by: 'system',
         type: 'text'
@@ -137,7 +137,7 @@ export class HumanControlService {
       await conversationService.storeConversation({
         organization_id: session.organization_id,
         lead_id: leadId,
-        phone_number: phoneNumber,
+        phone_number_normalized: phoneNumber.replace(/\D/g, ''),
         content: message,
         sent_by: 'human_agent',
         type: 'sms'

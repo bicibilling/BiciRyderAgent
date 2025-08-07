@@ -46,7 +46,7 @@ export class SMSAutomationService {
       // Store the sent message
       await conversationService.storeConversation({
         organization_id: organizationId,
-        phone_number: to,
+        phone_number_normalized: to.replace(/\D/g, ''),
         content: message,
         sent_by: 'agent',
         type: 'sms',
