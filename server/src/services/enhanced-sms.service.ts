@@ -189,30 +189,41 @@ export class EnhancedSMSAutomationService {
       const scheduledMessages: Array<{message: string, delay: number}> = [];
 
       // First, check if ElevenLabs has recommended a specific follow-up
-      if (insights.followUpNeeded && insights.followUpNeeded !== 'none') {
+      if (insights.followUpNeeded && 
+          insights.followUpNeeded !== 'none' && 
+          insights.followUpNeeded !== 'no follow-up needed') {
         logger.info('ElevenLabs recommended follow-up:', insights.followUpNeeded);
         
         // Map ElevenLabs recommendations to specific messages
         const elevenLabsTemplates: Record<string, () => string> = {
           'send_hours': () => this.smartTemplates.find(t => t.message({} as any).includes('hours'))?.message(insights) || '',
+          'send store hours': () => this.smartTemplates.find(t => t.message({} as any).includes('hours'))?.message(insights) || '',
           'send_directions': () => this.smartTemplates.find(t => t.message({} as any).includes('Directions'))?.message(insights) || '',
+          'send directions with map links': () => this.smartTemplates.find(t => t.message({} as any).includes('Directions'))?.message(insights) || '',
           'send_price_list': () => this.smartTemplates.find(t => t.message({} as any).includes('Price Match'))?.message(insights) || '',
+          'send price list': () => this.smartTemplates.find(t => t.message({} as any).includes('Price Match'))?.message(insights) || '',
           'confirm_appointment': () => `🔧 Service Appointment Confirmed!\n\nPlease bring:\n• Your bike\n• Any specific parts/accessories\n• Previous service records if available\n\nOur expert mechanics are ready to help!`,
+          'confirm appointment details': () => `🔧 Service Appointment Confirmed!\n\nPlease bring:\n• Your bike\n• Any specific parts/accessories\n• Previous service records if available\n\nOur expert mechanics are ready to help!`,
           'manager_callback': () => `We understand your concern! 🤝\n\nA manager will call you within 30 minutes.\nYou can also reach them directly at ${storeInfo.phone} ext. 2.\n\nYour satisfaction is our priority.`,
-          'thank_you': () => `Thanks for calling BICI! 🚴\n\nWe're here to help:\n📞 ${storeInfo.phone}\n📧 ${storeInfo.email}\n🌐 ${storeInfo.website}\n\nHappy cycling! 🌟`
+          'arrange manager callback for escalation': () => `We understand your concern! 🤝\n\nA manager will call you within 30 minutes.\nYou can also reach them directly at ${storeInfo.phone} ext. 2.\n\nYour satisfaction is our priority.`,
+          'thank_you': () => `Thanks for calling BICI! 🚴\n\nWe're here to help:\n📞 ${storeInfo.phone}\n📧 ${storeInfo.email}\n🌐 ${storeInfo.website}\n\nHappy cycling! 🌟`,
+          'send thank you message': () => `Thanks for calling BICI! 🚴\n\nWe're here to help:\n📞 ${storeInfo.phone}\n📧 ${storeInfo.email}\n🌐 ${storeInfo.website}\n\nHappy cycling! 🌟`
         };
         
         const recommendedMessage = elevenLabsTemplates[insights.followUpNeeded];
         if (recommendedMessage) {
           scheduledMessages.push({
             message: recommendedMessage(),
-            delay: insights.followUpNeeded === 'manager_callback' ? 0 : 2 * 60 * 1000 // Immediate for escalations
+            delay: insights.followUpNeeded.includes('manager') ? 0 : 2 * 60 * 1000 // Immediate for escalations
           });
         }
       }
       
       // If no ElevenLabs recommendation or we want additional messages, use template matching
-      if (scheduledMessages.length === 0) {
+      // Also use this when ElevenLabs says "no follow-up needed" but we have triggers
+      if (scheduledMessages.length === 0 && insights.triggers && insights.triggers.length > 0) {
+        logger.info('Using trigger-based templates since no ElevenLabs recommendation but triggers exist:', insights.triggers);
+        
         // Sort templates by priority
         const sortedTemplates = [...this.smartTemplates].sort((a, b) => b.priority - a.priority);
         
@@ -225,8 +236,8 @@ export class EnhancedSMSAutomationService {
               delay: template.delay || 0
             });
             
-            // Only send top 3 messages to avoid spamming
-            if (scheduledMessages.length >= 3) break;
+            // Only send top 2 messages when using fallback
+            if (scheduledMessages.length >= 2) break;
           }
         }
       }

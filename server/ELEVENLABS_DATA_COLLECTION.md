@@ -41,19 +41,19 @@ Add these data collection fields in your ElevenLabs Agent dashboard under **Anal
 ## 3. Follow-up Needed
 - **ID**: `follow_up_needed`
 - **Type**: `string`
-- **Description**: `What follow-up SMS should we send after the call`
+- **Description**: `What follow-up SMS should be sent after the call? Choose: send directions with map links, send store hours, send price list, confirm appointment details, arrange manager callback for escalation, send thank you message, or no follow-up needed`
 - **Schema**:
 ```json
 {
   "type": "string",
   "enum": [
-    "send_hours",
-    "send_directions",
-    "send_price_list",
-    "confirm_appointment",
-    "manager_callback",
-    "thank_you",
-    "none"
+    "send store hours",
+    "send directions with map links",
+    "send price list",
+    "confirm appointment details",
+    "arrange manager callback for escalation",
+    "send thank you message",
+    "no follow-up needed"
   ]
 }
 ```
