@@ -44,15 +44,15 @@ export interface Lead {
 export interface Conversation {
   id: string;
   organization_id: string;
-  lead_id: string;
-  phone_number: string;
+  lead_id?: string; // Make optional since some voice calls might not have lead_id
+  phone_number?: string; // Make optional to match actual usage
   phone_number_normalized?: string;
   content: string;
   sent_by: 'user' | 'agent' | 'human_agent' | 'system';
   type: 'text' | 'voice' | 'sms';
   classification?: 'sales' | 'support' | 'service' | 'general';
   call_classification?: 'sales' | 'support' | 'service' | 'general' | 'live';
-  timestamp: Date;
+  timestamp?: Date; // Make optional since it's auto-generated
   metadata?: Record<string, any>;
 }
 

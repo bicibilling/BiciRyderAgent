@@ -55,11 +55,10 @@ export async function handleIncomingSMS(req: Request, res: Response) {
     // Get or create lead
     const lead = await leadService.findOrCreateLead(From, organization.id);
     
-    // Store incoming message
+    // Store incoming message (match voice conversation pattern)
     await conversationService.storeConversation({
       organization_id: organization.id,
       lead_id: lead.id,
-      phone_number: From, // Required field
       phone_number_normalized: From.replace(/\D/g, ''),
       content: Body,
       sent_by: 'user',
