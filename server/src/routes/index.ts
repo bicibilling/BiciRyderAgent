@@ -28,6 +28,8 @@ export function setupAPIRoutes(app: Express) {
     try {
       const organizationId = req.headers['x-organization-id'] as string || 'b0c1b1c1-0000-0000-0000-000000000001';
       
+      logger.info('Fetching leads for organization:', { organizationId });
+      
       const supabaseModule = await import('../config/supabase.config');
       const { data, error } = await supabaseModule.supabase
         .from('leads')
@@ -37,6 +39,7 @@ export function setupAPIRoutes(app: Express) {
       
       if (error) throw error;
       
+      logger.info('Found leads:', { count: data?.length || 0, leads: data });
       res.json(data);
     } catch (error) {
       logger.error('Error fetching leads:', error);

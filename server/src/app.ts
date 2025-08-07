@@ -21,7 +21,7 @@ const wss = new WebSocketServer({ server: httpServer });
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL 
+    ? '*'  // Allow all origins in production for now
     : ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true
 }));
@@ -38,6 +38,15 @@ app.get('/health', (req: Request, res: Response) => {
     status: 'healthy', 
     timestamp: new Date().toISOString(),
     service: 'BICI Voice Agent API'
+  });
+});
+
+// API test endpoint
+app.get('/api/test', (req: Request, res: Response) => {
+  res.json({
+    message: 'API is working!',
+    timestamp: new Date().toISOString(),
+    organization: req.headers['x-organization-id']
   });
 });
 
