@@ -87,12 +87,17 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       headers: req.headers
     });
     
-    const { caller_id, called_number, conversation_id } = req.body;
+    const { caller_id, called_number, conversation_id, call_sid, agent_id } = req.body;
     
-    if (!caller_id || !called_number || !conversation_id) {
-      logger.error('Missing required fields', { caller_id, called_number, conversation_id });
+    // Use conversation_id or call_sid as fallback
+    const sessionId = conversation_id || call_sid;
+    
+    if (!caller_id || !called_number || !sessionId) {
+      logger.error('Missing required fields', { caller_id, called_number, conversation_id, call_sid, agent_id });
       return res.status(400).json({ error: 'Missing required fields' });
     }
+    
+    logger.info('Processing conversation with ID:', sessionId);
     
     // Get organization from called number
     logger.info('Looking up organization for phone:', called_number);
@@ -132,7 +137,7 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     await callSessionService.createSession({
       organization_id: organization.id,
       lead_id: lead.id,
-      elevenlabs_conversation_id: conversation_id,
+      elevenlabs_conversation_id: sessionId,
       status: 'initiated'
     });
     
@@ -141,7 +146,7 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       type: 'call_initiated',
       lead_id: lead.id,
       phone_number: caller_id,
-      conversation_id: conversation_id
+      conversation_id: sessionId
     });
     
     logger.info('Returning dynamic variables for conversation', { lead_id: lead.id });
@@ -169,6 +174,7 @@ export async function handlePostCall(req: Request, res: Response) {
     
     const { 
       conversation_id,
+      call_sid,
       phone_number,
       transcript,
       analysis,
@@ -176,8 +182,17 @@ export async function handlePostCall(req: Request, res: Response) {
       duration
     } = req.body;
     
+    const sessionId = conversation_id || call_sid;
+    
+    if (!sessionId || !phone_number) {
+      logger.error('Missing required fields in post-call', { conversation_id, call_sid, phone_number });
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    logger.info('Processing post-call for session:', sessionId);
+    
     // Update call session
-    const session = await callSessionService.updateSession(conversation_id, {
+    const session = await callSessionService.updateSession(sessionId, {
       status: 'completed',
       ended_at: new Date(),
       duration_seconds: duration,
@@ -186,7 +201,7 @@ export async function handlePostCall(req: Request, res: Response) {
     });
     
     if (!session) {
-      logger.error('Call session not found:', conversation_id);
+      logger.error('Call session not found:', sessionId);
       return res.status(404).json({ error: 'Session not found' });
     }
     
