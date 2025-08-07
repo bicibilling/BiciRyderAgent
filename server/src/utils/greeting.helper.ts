@@ -3,10 +3,16 @@
  */
 
 /**
- * Get time-based greeting
+ * Get time-based greeting (Pacific Time)
  */
 export function getTimeBasedGreeting(): string {
-  const hour = new Date().getHours();
+  // Get current time in Pacific timezone
+  const pacificTime = new Date().toLocaleString("en-US", {
+    timeZone: "America/Vancouver",
+    hour12: false,
+    hour: "2-digit"
+  });
+  const hour = parseInt(pacificTime.substring(0, 2));
   
   if (hour < 5) return "Thanks for calling so late!";
   if (hour < 12) return "Good morning!";
@@ -16,11 +22,16 @@ export function getTimeBasedGreeting(): string {
 }
 
 /**
- * Get day-specific context
+ * Get day-specific context (Pacific Time)
  */
 export function getDayContext(): string {
-  const day = new Date().getDay();
-  const hour = new Date().getHours();
+  // Get current date in Pacific timezone
+  const pacificDate = new Date().toLocaleString("en-US", {
+    timeZone: "America/Vancouver"
+  });
+  const date = new Date(pacificDate);
+  const day = date.getDay();
+  const hour = date.getHours();
   
   // Weekend
   if (day === 0 || day === 6) {
@@ -68,38 +79,46 @@ export function getWeatherGreeting(): string {
 
 /**
  * Get customer-specific greeting
+ * Returns the appropriate way to address the customer
  */
 export function getCustomerGreeting(customerName?: string, lastVisit?: Date | string): string {
+  // No customer name - generic greeting
   if (!customerName) {
-    return "there";
+    return "";  // Empty string so it just says "Hey! I'm Mark..."
   }
   
+  // Have customer name
   if (lastVisit) {
     // Convert string to Date if needed
     const visitDate = typeof lastVisit === 'string' ? new Date(lastVisit) : lastVisit;
     const daysSinceVisit = Math.floor((Date.now() - visitDate.getTime()) / (1000 * 60 * 60 * 24));
     
     if (daysSinceVisit === 0) {
-      return `back ${customerName}`;
+      return `${customerName}`;  // Same day: "Hey Dev!"
     } else if (daysSinceVisit < 7) {
-      return `${customerName}, good to hear from you again`;
-    } else if (daysSinceVisit < 30) {
-      return `${customerName}, welcome back`;
+      return `${customerName}`;  // Recent: "Hey Dev!"
+    } else {
+      return `${customerName}`;  // Older: "Hey Dev!"
     }
   }
   
-  return customerName;
+  return `${customerName}`;  // Default: "Hey Dev!"
 }
 
 /**
  * Generate a complete dynamic greeting context
  */
 export function generateGreetingContext(lead?: any): Record<string, string> {
+  const hasName = !!lead?.customer_name;
+  const customerName = lead?.customer_name || "";
+  
   return {
     time_greeting: getTimeBasedGreeting(),
     day_context: getDayContext(),
     weather_context: getWeatherGreeting(),
     customer_greeting: getCustomerGreeting(lead?.customer_name, lead?.last_contact_at),
+    customer_name: customerName,  // Just the name: "Dev" or empty
+    greeting_opener: hasName ? `Hey ${customerName}!` : "Hey there!",  // "Hey Dev!" or "Hey there!"
     greeting_variation: Math.random() > 0.5 ? "What can I help you with" : "How can I help you"
   };
 }
