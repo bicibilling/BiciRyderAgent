@@ -317,48 +317,33 @@ async function generateElevenLabsTextResponse(
     ws.on('open', () => {
       logger.info('ElevenLabs WebSocket connected for SMS');
       
-      // Send conversation initialization with dynamic variables
+      // Send conversation initialization with ONLY dynamic variables - NO overrides
       const initMessage = {
         type: 'conversation_initiation_client_data',
-        conversation_config_override: {
-          agent: {
-            prompt: {
-              prompt: `You are Mark, a friendly assistant for BICI Bike Store responding to an SMS text message.
-
-CRITICAL INSTRUCTIONS FOR SMS:
-1. The customer just sent you a text message - respond DIRECTLY to their query
-2. Do NOT send a greeting like "Hey there" or "How can I help"
-3. Jump straight into answering their question
-4. Keep responses concise and helpful (SMS format)
-5. If they ask about Cannondale or other specific brands, provide helpful information
-6. Reference past interactions when relevant
-
-Customer Name: ${lead.customer_name || 'Unknown'}
-Customer Status: ${lead.status}
-Previous Interest: ${JSON.stringify(lead.bike_interest)}
-
-Store Info:
-- Address: ${storeInfo.address}
-- Phone: ${storeInfo.phone}
-- Hours: ${getTodaysHours()}
-- Services: Professional bike sales, repairs, and servicing
-
-CONVERSATION CONTEXT:
-${conversationContext}
-
-Previous Summary: ${previousSummary?.summary || 'First interaction'}
-
-Remember: This is SMS - be direct, helpful, and skip the pleasantries.`
-            }
-          }
-        },
-        // Pass conversation context as dynamic variables
+        // Pass ALL context through dynamic variables only
         dynamic_variables: {
-          customer_name: lead.customer_name || '',
+          // Customer info
+          customer_name: lead.customer_name || 'Unknown',
           customer_phone: lead.phone_number,
           lead_status: lead.status,
+          bike_interest: JSON.stringify(lead.bike_interest),
+          
+          // Conversation context
+          conversation_context: conversationContext,
           previous_summary: previousSummary?.summary || 'First interaction',
-          conversation_mode: 'sms_text_only'
+          
+          // Store info
+          organization_name: 'BICI Bike Store',
+          location_address: storeInfo.address,
+          business_hours: getTodaysHours(),
+          
+          // SMS specific flag
+          conversation_mode: 'sms_text_only',
+          is_sms: 'true',
+          
+          // Additional context
+          last_interaction_date: lead.last_contact_at || 'First contact',
+          customer_sentiment: lead.sentiment || 'neutral'
         }
       };
       
