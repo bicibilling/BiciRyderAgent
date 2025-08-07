@@ -296,6 +296,8 @@ async function generateElevenLabsTextResponse(
   return new Promise((resolve, reject) => {
     const timeoutMs = 30000; // 30 second timeout
     let responseReceived = false;
+    let isFirstResponse = true; // Track if this is the first agent response (greeting)
+    let conversationStarted = false;
 
     // Create WebSocket connection to ElevenLabs
     const wsUrl = `wss://api.elevenlabs.io/v1/convai/conversation?agent_id=${process.env.ELEVENLABS_AGENT_ID}`;
@@ -315,55 +317,102 @@ async function generateElevenLabsTextResponse(
     ws.on('open', () => {
       logger.info('ElevenLabs WebSocket connected for SMS');
       
-      // Send conversation initialization with enhanced context
+      // Send conversation initialization with context BUT suppress first message
       const initMessage = {
         type: 'conversation_initiation_client_data',
         conversation_config_override: {
-          agent_config: {
-            conversation_context: conversationContext,
-            customer_name: lead.customer_name || '',
-            customer_phone: lead.phone_number,
-            lead_status: lead.status,
-            bike_interest: JSON.stringify(lead.bike_interest),
-            organization_name: 'BICI Bike Store',
-            location_address: storeInfo.address,
-            business_hours: getTodaysHours(),
-            previous_summary: previousSummary?.summary || 'First interaction',
-            communication_mode: 'text_only' // Indicate this is text conversation
+          agent: {
+            prompt: {
+              prompt: `You are Mark, a friendly assistant for BICI Bike Store. You're responding to a text message from a customer.
+              
+IMPORTANT: This is a continuation of a text conversation. Do NOT send a greeting. The customer has just sent you a message and you need to respond directly to their query.
+
+Customer Name: ${lead.customer_name || 'Unknown'}
+Customer Status: ${lead.status}
+Previous Interest: ${JSON.stringify(lead.bike_interest)}
+
+CONVERSATION CONTEXT:
+${conversationContext}
+
+Previous Summary: ${previousSummary?.summary || 'First interaction'}
+
+Store Info:
+- Address: ${storeInfo.address}
+- Phone: ${storeInfo.phone}
+- Hours: ${getTodaysHours()}
+- Services: Professional bike sales, repairs, and servicing
+
+Instructions:
+- Respond DIRECTLY to their message - no greetings
+- Be helpful and knowledgeable about bikes
+- Keep responses concise for SMS
+- Reference past interactions when relevant
+- If they ask about specific brands like Cannondale, provide helpful information`
+            },
+            first_message: "" // Empty first message to prevent greeting
           }
         }
       };
       
       ws.send(JSON.stringify(initMessage));
+      conversationStarted = true;
       
-      // Send user message
+      // Send user message immediately after init
       setTimeout(() => {
         const userMessage = {
           type: 'user_message',
           text: message
         };
         ws.send(JSON.stringify(userMessage));
-        logger.info('Sent user message to ElevenLabs:', { message: message.substring(0, 50) });
-      }, 1000);
+        logger.info('Sent user message to ElevenLabs:', { 
+          message: message.substring(0, 50),
+          customer_name: lead.customer_name 
+        });
+      }, 500); // Reduced delay
     });
 
     ws.on('message', (data) => {
       try {
         const response = JSON.parse(data.toString());
-        logger.info('ElevenLabs WebSocket response:', { type: response.type });
+        logger.info('ElevenLabs WebSocket response:', { 
+          type: response.type,
+          isFirstResponse,
+          hasAgentResponse: !!response.agent_response_event?.agent_response
+        });
 
+        // Handle agent response
         if (response.type === 'agent_response' && response.agent_response_event?.agent_response) {
+          const aiResponse = response.agent_response_event.agent_response;
+          
+          // Skip the first response if it looks like a greeting
+          if (isFirstResponse) {
+            isFirstResponse = false;
+            const lowerResponse = aiResponse.toLowerCase();
+            if (lowerResponse.includes('hey') || lowerResponse.includes('hello') || 
+                lowerResponse.includes('how can i help') || lowerResponse.includes("i'm mark")) {
+              logger.info('Skipping greeting response, waiting for actual response');
+              return; // Skip this greeting and wait for the real response
+            }
+          }
+          
+          // This is the actual response to the user's message
           responseReceived = true;
           clearTimeout(timeout);
           ws.close();
           
-          const aiResponse = response.agent_response_event.agent_response;
           logger.info('Received ElevenLabs SMS response:', { 
+            response_preview: aiResponse.substring(0, 100),
             response_length: aiResponse.length,
-            lead_id: lead.id 
+            lead_id: lead.id,
+            customer_name: lead.customer_name
           });
           
           resolve(aiResponse);
+        }
+        
+        // Log other message types for debugging
+        if (response.type === 'conversation_initiation_metadata') {
+          logger.info('Conversation initialized successfully');
         }
       } catch (error) {
         logger.error('Error parsing ElevenLabs WebSocket response:', error);
@@ -380,7 +429,7 @@ async function generateElevenLabsTextResponse(
       logger.info('ElevenLabs WebSocket closed');
       clearTimeout(timeout);
       if (!responseReceived) {
-        reject(new Error('WebSocket closed without response'));
+        reject(new Error('WebSocket closed without proper response'));
       }
     });
   });
