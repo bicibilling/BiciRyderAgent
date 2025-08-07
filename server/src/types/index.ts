@@ -99,6 +99,7 @@ export interface ConversationInsights {
   purchaseIntent?: number;
   sentiment?: number;
   customerName?: string;
+  clearCustomerName?: boolean;  // Flag to clear incorrect customer name
   ridingExperience?: string;
   purchaseTimeline?: string;
   budgetRange?: string;

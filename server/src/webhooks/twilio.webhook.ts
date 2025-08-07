@@ -323,7 +323,7 @@ async function generateElevenLabsTextResponse(
         // Pass ALL context through dynamic variables only
         dynamic_variables: {
           // Customer info
-          customer_name: (lead.customer_name && !['Mark', 'mark', 'MARK'].includes(lead.customer_name)) ? lead.customer_name : 'Unknown',
+          customer_name: lead.customer_name || 'Unknown',
           customer_phone: lead.phone_number,
           lead_status: lead.status,
           bike_interest: JSON.stringify(lead.bike_interest),
