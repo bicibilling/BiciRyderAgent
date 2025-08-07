@@ -7,7 +7,7 @@
 ALTER TABLE leads 
   ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20),
   ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'new',
-  ADD COLUMN IF NOT EXISTS sentiment VARCHAR(50) DEFAULT 'neutral',
+  ADD COLUMN IF NOT EXISTS sentiment VARCHAR(50) DEFAULT 'neutral' CHECK (sentiment IN ('positive', 'neutral', 'negative')),
   ADD COLUMN IF NOT EXISTS qualification_data JSONB DEFAULT '{
     "ready_to_buy": false,
     "timeline": null,

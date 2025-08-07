@@ -14,7 +14,7 @@ export class LeadService {
         .from('leads')
         .select('*')
         .eq('organization_id', organizationId)
-        .eq('phone_normalized', normalized)
+        .eq('phone_number_normalized', normalized)
         .single();
       
       if (existingLead && !findError) {
@@ -27,7 +27,7 @@ export class LeadService {
         id: uuidv4(),
         organization_id: organizationId,
         phone_number: phoneNumber,
-        phone_normalized: normalized,
+        phone_number_normalized: normalized,
         status: 'new',
         sentiment: 'neutral',
         created_at: new Date(),

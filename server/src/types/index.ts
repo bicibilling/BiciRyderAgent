@@ -18,7 +18,7 @@ export interface Lead {
   id: string;
   organization_id: string;
   phone_number: string;
-  phone_normalized: string;
+  phone_number_normalized: string;
   customer_name?: string;
   email?: string;
   status: 'new' | 'contacted' | 'qualified' | 'hot' | 'customer' | 'closed';
