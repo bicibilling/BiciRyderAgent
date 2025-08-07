@@ -264,22 +264,46 @@ export async function handlePostCall(req: Request, res: Response) {
       organization_id: session.organization_id,
       lead_id: session.lead_id,
       phone_number: phone_number,
-      summary: analysis?.summary || transcript.substring(0, 500),
-      key_points: insights.keyPoints,
-      next_steps: insights.nextSteps,
-      sentiment_score: insights.sentiment
+      summary: analysis?.call_summary_title || analysis?.transcript_summary || 'Call completed',
+      key_points: insights.keyPoints || [],
+      next_steps: insights.nextSteps || [],
+      sentiment_score: insights.sentiment || 0.5,
+      call_classification: insights.classification || 'general'
     });
     
-    // Store the full conversation
-    await conversationService.storeConversation({
-      organization_id: session.organization_id,
-      lead_id: session.lead_id,
-      phone_number: phone_number,
-      content: transcript,
-      sent_by: 'agent',
-      type: 'voice',
-      classification: insights.classification
-    });
+    // Store individual conversation turns from the transcript array
+    if (Array.isArray(transcript)) {
+      for (const turn of transcript) {
+        if (turn.message && turn.message.trim()) {
+          await conversationService.storeConversation({
+            organization_id: session.organization_id,
+            lead_id: session.lead_id,
+            phone_number_normalized: phone_number.replace(/\D/g, ''),
+            content: turn.message,
+            sent_by: turn.role === 'user' ? 'user' : 'agent',
+            type: 'voice',
+            call_classification: insights.classification || 'general',
+            timestamp: new Date(metadata.start_time_unix_secs * 1000 + (turn.time_in_call_secs || 0) * 1000),
+            metadata: {
+              time_in_call_secs: turn.time_in_call_secs,
+              interrupted: turn.interrupted,
+              llm_usage: turn.llm_usage
+            }
+          });
+        }
+      }
+    } else {
+      // Fallback: store the full transcript as one conversation entry
+      await conversationService.storeConversation({
+        organization_id: session.organization_id,
+        lead_id: session.lead_id,
+        phone_number_normalized: phone_number.replace(/\D/g, ''),
+        content: fullTranscript || 'Call completed - transcript not available',
+        sent_by: 'system',
+        type: 'voice',
+        call_classification: insights.classification || 'general'
+      });
+    }
     
     // Trigger SMS automation if needed
     await smsAutomationService.triggerAutomation(session, insights);

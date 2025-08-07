@@ -82,7 +82,7 @@ export class ConversationService {
         .from('conversations')
         .select('*')
         .eq('organization_id', organizationId)
-        .eq('phone_number', phoneNumber)
+        .eq('phone_number_normalized', phoneNumber.replace(/\D/g, ''))
         .order('timestamp', { ascending: true });
       
       if (error) {
