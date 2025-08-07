@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import Dashboard from './components/Dashboard';
+import { useState, useEffect } from 'react';
 import LeadsList from './components/LeadsList';
 import ConversationPanel from './components/ConversationPanel';
 import StatsBar from './components/StatsBar';

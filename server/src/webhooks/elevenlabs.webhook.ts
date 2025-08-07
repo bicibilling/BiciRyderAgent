@@ -7,7 +7,7 @@ import { CallSessionService } from '../services/callSession.service';
 import { SMSAutomationService } from '../services/sms.service';
 import { broadcastToClients } from '../services/realtime.service';
 import { businessHours, storeInfo } from '../config/elevenlabs.config';
-import { ElevenLabsDynamicVariables, ConversationInsights } from '../types';
+import { ElevenLabsDynamicVariables, ConversationInsights, Lead } from '../types';
 
 const leadService = new LeadService();
 const conversationService = new ConversationService();
