@@ -185,4 +185,19 @@ export class HumanControlService {
   getActiveSessions(): HumanControlSession[] {
     return Array.from(this.activeSessions.values());
   }
+  
+  async clearAllSessions(): Promise<void> {
+    // Clear all sessions from memory
+    const sessions = Array.from(this.activeSessions.values());
+    for (const session of sessions) {
+      try {
+        await this.leaveConversation(session.lead_id);
+      } catch (error) {
+        logger.error('Error clearing session:', error);
+      }
+    }
+    // Force clear the map
+    this.activeSessions.clear();
+    logger.info('All human control sessions cleared from memory');
+  }
 }

@@ -97,6 +97,7 @@ httpServer.listen(PORT, () => {
   logger.info(`📞 ElevenLabs Agent ID: ${process.env.ELEVENLABS_AGENT_ID}`);
   logger.info(`📱 Twilio Phone: ${process.env.TWILIO_PHONE_NUMBER}`);
   logger.info(`🌍 Environment: ${process.env.NODE_ENV}`);
+  logger.info(`🔄 Server restarted at: ${new Date().toISOString()}`);
 });
 
 // Graceful shutdown

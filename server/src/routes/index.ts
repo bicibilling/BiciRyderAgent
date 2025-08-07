@@ -8,6 +8,7 @@ import { SMSAutomationService } from '../services/sms.service';
 import { elevenLabsConfig } from '../config/elevenlabs.config';
 import { logger } from '../utils/logger';
 import { setupDebugRoutes } from './debug.routes';
+import { setupAdminRoutes } from './admin.routes';
 
 const humanControlService = new HumanControlService();
 const leadService = new LeadService();
@@ -262,6 +263,9 @@ export function setupAPIRoutes(app: Express) {
   
   // Setup debug routes
   setupDebugRoutes(app);
+  
+  // Setup admin routes
+  setupAdminRoutes(app);
   
   logger.info('API routes configured');
 }
