@@ -8,6 +8,7 @@ import { SMSAutomationService } from '../services/sms.service';
 import { broadcastToClients } from '../services/realtime.service';
 import { businessHours, storeInfo } from '../config/elevenlabs.config';
 import { ElevenLabsDynamicVariables, ConversationInsights, Lead, CallSession } from '../types';
+import { generateGreetingContext } from '../utils/greeting.helper';
 
 const leadService = new LeadService();
 const conversationService = new ConversationService();
@@ -361,6 +362,9 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     const conversationContext = await buildConversationContext(lead.id);
     const previousSummary = await conversationService.getLatestSummary(lead.id);
     
+    // Generate greeting context for dynamic first message
+    const greetingContext = generateGreetingContext(lead);
+    
     // Generate dynamic variables
     const dynamicVariables: ElevenLabsDynamicVariables = {
       conversation_context: conversationContext,
@@ -373,7 +377,9 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       organization_id: organization.id,
       location_address: storeInfo.address,
       business_hours: getTodaysHours(),
-      has_customer_name: lead.customer_name ? "true" : "false"  // Flag to check if name exists
+      has_customer_name: lead.customer_name ? "true" : "false",  // Flag to check if name exists
+      // Add greeting context for dynamic first message
+      ...greetingContext
     };
     
     logger.info('Dynamic variables for ElevenLabs:', {
