@@ -447,14 +447,19 @@ export async function handlePostCall(req: Request, res: Response) {
     }
     
     // ElevenLabs sends a different structure than expected
-    const { data, analysis } = req.body;
+    // Analysis is actually inside the data object
+    const { data, analysis: rootAnalysis } = req.body;
+    const analysis = rootAnalysis || data?.analysis;
     
     logger.info('Post-call webhook body structure:', {
       has_data: !!data,
       has_analysis: !!analysis,
       body_keys: Object.keys(req.body),
       data_keys: data ? Object.keys(data) : null,
-      analysis_keys: analysis ? Object.keys(analysis) : null
+      analysis_keys: analysis ? Object.keys(analysis) : null,
+      // Check if analysis is actually inside data
+      data_has_analysis: data?.analysis ? Object.keys(data.analysis) : null,
+      full_body_sample: JSON.stringify(req.body).substring(0, 500) + '...'
     });
     
     if (!data) {

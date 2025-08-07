@@ -7,6 +7,7 @@ import { CallSessionService } from '../services/callSession.service';
 import { SMSAutomationService } from '../services/sms.service';
 import { elevenLabsConfig } from '../config/elevenlabs.config';
 import { logger } from '../utils/logger';
+import { setupDebugRoutes } from './debug.routes';
 
 const humanControlService = new HumanControlService();
 const leadService = new LeadService();
@@ -258,6 +259,9 @@ export function setupAPIRoutes(app: Express) {
       res.status(500).json({ error: 'Failed to fetch stats' });
     }
   });
+  
+  // Setup debug routes
+  setupDebugRoutes(app);
   
   logger.info('API routes configured');
 }
