@@ -239,6 +239,41 @@ function getRelationshipDuration(messages: any[]): string {
   return `${Math.floor(diffDays / 365)} years`;
 }
 
+// Helper function to extract customer name from recent conversations
+async function extractRecentCustomerName(leadId: string): Promise<string | null> {
+  try {
+    const recentConversations = await conversationService.getRecentConversations(leadId, 10);
+    
+    // Look for patterns like "this is [Name]" or "I'm [Name]" in user messages
+    for (const conv of recentConversations.filter(c => c.sent_by === 'user')) {
+      const content = conv.content.toLowerCase();
+      
+      // Pattern: "this is [name]" or "i'm [name]"
+      const namePatterns = [
+        /(?:this is|i'm|i am|my name is)\s+([a-z]+)/i,
+        /(?:call me|it's)\s+([a-z]+)/i
+      ];
+      
+      for (const pattern of namePatterns) {
+        const match = content.match(pattern);
+        if (match && match[1]) {
+          const name = match[1].charAt(0).toUpperCase() + match[1].slice(1);
+          // Avoid common false positives
+          if (!['looking', 'for', 'the', 'bike', 'store', 'help', 'call'].includes(name.toLowerCase())) {
+            logger.info('Extracted name from conversation:', name);
+            return name;
+          }
+        }
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    logger.error('Error extracting customer name:', error);
+    return null;
+  }
+}
+
 // Helper function to extract conversation topics
 function extractTopics(messages: any[]): string[] {
   const topics = new Set<string>();
@@ -292,6 +327,13 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     // Use conversation_id or call_sid as fallback
     const sessionId = conversation_id || call_sid;
     
+    logger.info('Conversation IDs:', {
+      conversation_id,
+      call_sid,
+      sessionId,
+      agent_id
+    });
+    
     if (!caller_id || !called_number || !sessionId) {
       logger.error('Missing required fields', { caller_id, called_number, conversation_id, call_sid, agent_id });
       return res.status(400).json({ error: 'Missing required fields' });
@@ -334,6 +376,12 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       has_customer_name: lead.customer_name ? "true" : "false"  // Flag to check if name exists
     };
     
+    logger.info('Dynamic variables for ElevenLabs:', {
+      customer_name: dynamicVariables.customer_name,
+      has_customer_name: dynamicVariables.has_customer_name,
+      lead_status: dynamicVariables.lead_status
+    });
+    
     // Create call session record
     await callSessionService.createSession({
       organization_id: organization.id,
@@ -364,8 +412,8 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       type: 'conversation_initiation_client_data',
       dynamic_variables: {
         ...dynamicVariables,
-        // Add extracted customer name if available
-        customer_name: lead.customer_name || '',
+        // Add extracted customer name if available (check recent conversations for name)
+        customer_name: lead.customer_name || await extractRecentCustomerName(lead.id) || '',
         // Add dynamic context about the customer
         customer_history: previousSummary?.summary || 'New customer',
         last_topic: lead.bike_interest?.type || 'general inquiry',
@@ -415,6 +463,14 @@ export async function handlePostCall(req: Request, res: Response) {
     const sessionId = conversation_id || metadata?.phone_call?.call_sid;
     const phone_number = metadata?.phone_call?.external_number;
     const duration = metadata?.call_duration_secs;
+    
+    logger.info('Post-call session details:', {
+      conversation_id,
+      call_sid: metadata?.phone_call?.call_sid,
+      sessionId,
+      phone_number,
+      duration
+    });
     
     if (!sessionId || !phone_number) {
       logger.error('Missing required fields in post-call', { 
@@ -482,7 +538,12 @@ export async function handlePostCall(req: Request, res: Response) {
       updateData.customer_name = insights.customerName;
     }
     
-    await leadService.updateLead(session.lead_id, updateData);
+    const updatedLead = await leadService.updateLead(session.lead_id, updateData);
+    logger.info('Lead updated with extracted data:', {
+      lead_id: session.lead_id,
+      customer_name: updateData.customer_name,
+      updated_successfully: !!updatedLead
+    });
     
     // Store conversation summary
     await conversationService.createSummary({
@@ -585,24 +646,50 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
   // Extract customer data from ElevenLabs data collection
   // This should be configured in the ElevenLabs dashboard under Analysis > Data Collection
   if (analysis?.data_collection_results) {
-    // Extract customer name if collected
-    if (analysis.data_collection_results.customer_name) {
-      insights.customerName = analysis.data_collection_results.customer_name;
+    logger.info('Data collection results found:', analysis.data_collection_results);
+    
+    // Extract customer name if collected (note: ElevenLabs returns structured data with .value)
+    if (analysis.data_collection_results.customer_name?.value) {
+      insights.customerName = analysis.data_collection_results.customer_name.value;
+      logger.info('Extracted customer name:', insights.customerName);
     }
     
     // Extract bike preferences if collected
-    if (analysis.data_collection_results.bike_type) {
+    if (analysis.data_collection_results.bike_type?.value) {
       insights.bikePreferences = insights.bikePreferences || {};
-      insights.bikePreferences.type = analysis.data_collection_results.bike_type;
+      insights.bikePreferences.type = analysis.data_collection_results.bike_type.value;
+      logger.info('Extracted bike type:', insights.bikePreferences.type);
     }
     
     // Extract purchase intent if collected
-    if (analysis.data_collection_results.purchase_intent) {
-      insights.purchaseIntent = analysis.data_collection_results.purchase_intent;
+    if (analysis.data_collection_results.purchase_intent?.value) {
+      insights.purchaseIntent = analysis.data_collection_results.purchase_intent.value;
     }
     
-    // Extract any other custom data points configured in ElevenLabs
-    logger.info('Data collection results:', analysis.data_collection_results);
+    // Extract riding experience if collected
+    if (analysis.data_collection_results.riding_experience?.value) {
+      insights.ridingExperience = analysis.data_collection_results.riding_experience.value;
+    }
+    
+    // Extract purchase timeline if collected
+    if (analysis.data_collection_results.purchase_timeline?.value) {
+      insights.purchaseTimeline = analysis.data_collection_results.purchase_timeline.value;
+    }
+    
+    // Extract budget range if collected
+    if (analysis.data_collection_results.budget_range?.value) {
+      insights.budgetRange = analysis.data_collection_results.budget_range.value;
+    }
+    
+    logger.info('Final extracted insights:', {
+      customerName: insights.customerName,
+      bikePreferences: insights.bikePreferences,
+      ridingExperience: insights.ridingExperience,
+      purchaseTimeline: insights.purchaseTimeline,
+      budgetRange: insights.budgetRange
+    });
+  } else {
+    logger.warn('No data collection results found in analysis');
   }
   
   // Extract bike preferences

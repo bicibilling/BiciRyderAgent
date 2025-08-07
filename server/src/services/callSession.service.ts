@@ -41,38 +41,44 @@ export class CallSessionService {
     try {
       logger.info('Updating call session with ID:', conversationId);
       
-      // Try to find by elevenlabs_conversation_id first
-      const { data, error } = await supabase
+      // Try multiple approaches to find the session
+      // 1. Direct match by elevenlabs_conversation_id
+      let { data, error } = await supabase
         .from('call_sessions')
         .update(updates)
         .eq('elevenlabs_conversation_id', conversationId)
         .select()
         .single();
       
-      // If not found by conversation_id, try to find by lead and recent time
-      if (error && error.code === 'PGRST116') {
-        logger.warn('No session found by conversation_id, trying phone-based lookup');
-        
-        // Find the most recent session for this phone number (assuming updates.phone_number exists)
-        // For now, just return null and log the issue
-        logger.error('Could not find call session for conversation_id:', conversationId);
-        return null;
-      }
-      
-      if (error && error.code !== 'PGRST116') {
-        handleSupabaseError(error, 'update call session');
-      }
-      
       if (data) {
-        logger.info('Updated call session:', { 
-          id: data.id, 
-          status: updates.status 
-        });
-      } else {
-        logger.warn('No call session data returned after update');
+        logger.info('Found session by elevenlabs_conversation_id:', data.id);
+        return data;
       }
       
-      return data;
+      // 2. Try to find by call_sid (stored in metadata)
+      const { data: sessionsByCallSid, error: callSidError } = await supabase
+        .from('call_sessions')
+        .select('*')
+        .eq('metadata->>call_sid', conversationId);
+      
+      if (sessionsByCallSid && sessionsByCallSid.length > 0) {
+        const session = sessionsByCallSid[0];
+        const { data: updatedSession, error: updateError } = await supabase
+          .from('call_sessions')
+          .update(updates)
+          .eq('id', session.id)
+          .select()
+          .single();
+        
+        if (updatedSession) {
+          logger.info('Found and updated session by call_sid:', updatedSession.id);
+          return updatedSession;
+        }
+      }
+      
+      logger.warn('No session found by conversation_id or call_sid, will try phone-based lookup');
+      return null;
+      
     } catch (error) {
       logger.error('Error updating call session:', error);
       return null;

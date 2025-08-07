@@ -99,4 +99,7 @@ export interface ConversationInsights {
   purchaseIntent?: number;
   sentiment?: number;
   customerName?: string;
+  ridingExperience?: string;
+  purchaseTimeline?: string;
+  budgetRange?: string;
 }
