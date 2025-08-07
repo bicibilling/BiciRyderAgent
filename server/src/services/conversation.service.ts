@@ -81,6 +81,25 @@ export class ConversationService {
     }
   }
   
+  async getConversationCount(leadId: string): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('conversations')
+        .select('*', { count: 'exact', head: true })
+        .eq('lead_id', leadId);
+      
+      if (error) {
+        logger.error('Error getting conversation count:', error);
+        return 0;
+      }
+      
+      return count || 0;
+    } catch (error) {
+      logger.error('Error getting conversation count:', error);
+      return 0;
+    }
+  }
+
   async getConversationHistory(phoneNumber: string, organizationId: string): Promise<Conversation[]> {
     try {
       const { data, error } = await supabase

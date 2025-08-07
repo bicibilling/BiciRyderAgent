@@ -44,6 +44,53 @@ function verifyElevenLabsSignature(req: Request): boolean {
   return isValid;
 }
 
+// Build dynamic prompt based on customer data
+function buildDynamicPrompt(lead: Lead, context: string, previousSummary: any): string {
+  let prompt = `You are speaking with a customer who has called BICI Bike Store.`;
+  
+  if (lead.customer_name) {
+    prompt += ` The customer's name is ${lead.customer_name}.`;
+  }
+  
+  if (lead.bike_interest?.type) {
+    prompt += ` They have previously expressed interest in ${lead.bike_interest.type} bikes.`;
+  }
+  
+  if (lead.qualification_data?.ready_to_buy) {
+    prompt += ` This is a qualified lead who is ready to make a purchase.`;
+  }
+  
+  if (previousSummary?.summary) {
+    prompt += ` Previous interaction summary: ${previousSummary.summary}`;
+  }
+  
+  if (context && context !== "This is the first interaction with this customer.") {
+    prompt += ` Recent conversation context: ${context}`;
+  }
+  
+  prompt += ` Be helpful, friendly, and knowledgeable about bikes. If they mention their name, remember it for future interactions.`;
+  
+  return prompt;
+}
+
+// Generate personalized first message
+function generateFirstMessage(lead: Lead): string {
+  if (lead.customer_name) {
+    const greetings = [
+      `Hi ${lead.customer_name}! Great to hear from you again. How can I help you today?`,
+      `Hey ${lead.customer_name}, welcome back to BICI! What can I do for you?`,
+      `Hello ${lead.customer_name}! Good to have you calling again. How's everything going?`
+    ];
+    return greetings[Math.floor(Math.random() * greetings.length)];
+  }
+  
+  if (lead.last_contact_at) {
+    return `Welcome back to BICI! I see you've been in touch with us before. How can I help you today?`;
+  }
+  
+  return `Hey there, I'm Mark from BICI. How can I help you today?`;
+}
+
 // Get today's business hours
 function getTodaysHours(): string {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -159,10 +206,32 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     
     logger.info('Returning dynamic variables for conversation', { lead_id: lead.id });
     
-    res.json({ 
-      dynamic_variables: dynamicVariables,
-      success: true 
-    });
+    // Build proper response structure for ElevenLabs
+    const response = {
+      type: 'conversation_initiation_client_data',
+      dynamic_variables: {
+        ...dynamicVariables,
+        // Add extracted customer name if available
+        customer_name: lead.customer_name || '',
+        // Add dynamic context about the customer
+        customer_history: previousSummary?.summary || 'New customer',
+        last_topic: lead.bike_interest?.type || 'general inquiry',
+        qualification_status: lead.qualification_data?.ready_to_buy ? 'ready to purchase' : 'exploring options',
+        interaction_count: await conversationService.getConversationCount(lead.id),
+        last_contact: lead.last_contact_at ? new Date(lead.last_contact_at).toLocaleDateString() : 'First contact'
+      },
+      conversation_config_override: {
+        agent: {
+          prompt: {
+            prompt: buildDynamicPrompt(lead, conversationContext, previousSummary)
+          },
+          first_message: generateFirstMessage(lead),
+          language: lead.contact_preferences?.language || 'en'
+        }
+      }
+    };
+    
+    res.json(response);
   } catch (error) {
     logger.error('Error in conversation initiation:', error);
     res.status(500).json({ error: 'Failed to initialize conversation' });
@@ -367,31 +436,39 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
     insights.appointmentScheduled = true;
   }
   
-  // Extract customer name if mentioned (only from user messages)
+  // Extract customer name dynamically from user messages
   const namePatterns = [
-    /(?:i'm|i am|my name is|this is|it's)\s+([A-Z][a-z]+)/i,
+    /(?:i'm|i am|my name is|this is|it's)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
     /(?:call me|name's)\s+([A-Z][a-z]+)/i
   ];
   
-  // Only look for names in user messages, not agent messages
-  const userTranscript = transcript.split('\n')
-    .filter(line => line.toLowerCase().includes('user:') || line.toLowerCase().includes('customer:'))
-    .join(' ');
-  
-  for (const pattern of namePatterns) {
-    const match = userTranscript.match(pattern);
-    if (match && match[1] && match[1] !== 'Mark') { // Exclude agent name
-      insights.customerName = match[1];
-      break;
+  // Process transcript array to find names in user messages
+  if (Array.isArray(analysis?.data?.transcript)) {
+    for (const turn of analysis.data.transcript) {
+      if (turn.role === 'user' && turn.message) {
+        for (const pattern of namePatterns) {
+          const match = turn.message.match(pattern);
+          if (match && match[1] && !['Mark', 'Agent', 'Bici', 'BICI'].includes(match[1])) {
+            insights.customerName = match[1];
+            break;
+          }
+        }
+        if (insights.customerName) break;
+      }
     }
-  }
-  
-  // Check for specific names mentioned by users
-  if (userTranscript.includes('Dev')) {
-    insights.customerName = 'Dev';
-  }
-  if (userTranscript.includes('Didi')) {
-    insights.customerName = 'Didi';
+  } else {
+    // Fallback for string transcript
+    const userTranscript = transcript.split('\n')
+      .filter(line => line.toLowerCase().includes('user:') || line.toLowerCase().includes('customer:'))
+      .join(' ');
+    
+    for (const pattern of namePatterns) {
+      const match = userTranscript.match(pattern);
+      if (match && match[1] && !['Mark', 'Agent', 'Bici', 'BICI'].includes(match[1])) {
+        insights.customerName = match[1];
+        break;
+      }
+    }
   }
   
   // Extract bike preferences
