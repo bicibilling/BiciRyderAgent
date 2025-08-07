@@ -168,6 +168,47 @@ export function setupAPIRoutes(app: Express) {
     }
   });
   
+  // Send context update to ElevenLabs during active call
+  app.post('/api/elevenlabs/context-update', async (req: Request, res: Response) => {
+    try {
+      const { leadId, context, type = 'contextual' } = req.body;
+      
+      // Get active session for the lead
+      const session = await callSessionService.getActiveSession(leadId);
+      if (!session || !session.elevenlabs_conversation_id) {
+        return res.status(404).json({ error: 'No active call session' });
+      }
+      
+      // Send context update to ElevenLabs
+      // This would be sent via WebSocket or their API if they support it
+      logger.info('Context update requested:', { 
+        leadId, 
+        conversationId: session.elevenlabs_conversation_id,
+        type,
+        context 
+      });
+      
+      // Store as system message for tracking
+      await conversationService.storeConversation({
+        organization_id: session.organization_id,
+        lead_id: leadId,
+        phone_number_normalized: '',
+        content: `[Context Update] ${context}`,
+        sent_by: 'system',
+        type: 'text',
+        metadata: {
+          context_type: type,
+          during_call: true
+        }
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error sending context update:', error);
+      res.status(500).json({ error: 'Failed to send context update' });
+    }
+  });
+  
   // Send SMS endpoint
   app.post('/api/sms/send', async (req: Request, res: Response) => {
     try {

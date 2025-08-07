@@ -2,7 +2,8 @@ import { Express } from 'express';
 import { 
   handleConversationInitiation, 
   handlePostCall, 
-  handleConversationEvents 
+  handleConversationEvents,
+  handleClientEvents 
 } from './elevenlabs.webhook';
 import { 
   handleIncomingSMS, 
@@ -17,6 +18,7 @@ export function setupWebhooks(app: Express) {
   app.post('/webhooks/elevenlabs/conversation-initiation', handleConversationInitiation);
   app.post('/webhooks/elevenlabs/post-call', handlePostCall);
   app.post('/webhooks/elevenlabs/conversation-events', handleConversationEvents);
+  app.post('/webhooks/elevenlabs/client-events', handleClientEvents);
   
   // Twilio webhooks
   app.post('/webhooks/twilio/sms', handleIncomingSMS);

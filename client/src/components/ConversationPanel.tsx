@@ -14,6 +14,8 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ lead, onUpdate, r
   const [message, setMessage] = useState('');
   const [isHumanControl, setIsHumanControl] = useState(false);
   const [activeTab, setActiveTab] = useState<'conversation' | 'profile' | 'analytics'>('conversation');
+  const [isCallActive, setIsCallActive] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState<{speaker: string, message: string} | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,6 +31,29 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ lead, onUpdate, r
           realtimeData.type === 'sms_received' ||
           realtimeData.type === 'call_completed') {
         loadConversations();
+      }
+      
+      // Handle live transcript during calls
+      if (realtimeData.type === 'live_transcript') {
+        setLiveTranscript({
+          speaker: realtimeData.speaker,
+          message: realtimeData.message
+        });
+        // Clear after a moment to show it's temporary
+        setTimeout(() => setLiveTranscript(null), 5000);
+      }
+      
+      // Handle call states
+      if (realtimeData.type === 'call_initiated') {
+        setIsCallActive(true);
+      } else if (realtimeData.type === 'call_completed') {
+        setIsCallActive(false);
+        setLiveTranscript(null);
+      }
+      
+      // Handle user speaking indicator
+      if (realtimeData.type === 'user_speaking') {
+        // Could add a speaking indicator UI here
       }
     }
   }, [realtimeData]);
@@ -182,7 +207,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ lead, onUpdate, r
           <div className="flex-1 overflow-y-auto mb-4">
             {loading ? (
               <div className="text-center text-bici-text">Loading conversations...</div>
-            ) : conversations.length === 0 ? (
+            ) : conversations.length === 0 && !liveTranscript ? (
               <div className="text-center text-bici-text">No conversations yet</div>
             ) : (
               <div className="space-y-2">
@@ -201,6 +226,23 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ lead, onUpdate, r
                     <div className="text-sm">{conv.content}</div>
                   </div>
                 ))}
+                {/* Live transcript during active call */}
+                {liveTranscript && (
+                  <div className="p-3 rounded-lg max-w-[80%] bg-yellow-100 animate-pulse">
+                    <div className="text-xs text-gray-500 mb-1">
+                      {liveTranscript.speaker === 'user' ? 'Customer' : 'Agent'}
+                      {' • '}
+                      <span className="text-red-500">LIVE</span>
+                    </div>
+                    <div className="text-sm">{liveTranscript.message}</div>
+                  </div>
+                )}
+                {/* Call active indicator */}
+                {isCallActive && (
+                  <div className="text-center text-sm text-green-600 animate-pulse">
+                    🔴 Call in progress...
+                  </div>
+                )}
                 <div ref={messagesEndRef} />
               </div>
             )}

@@ -415,6 +415,109 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
   return insights;
 }
 
+// Handle client events from ElevenLabs (real-time events during call)
+export async function handleClientEvents(req: Request, res: Response) {
+  try {
+    const { type, data, conversation_id, event_id } = req.body;
+    
+    logger.info(`Client event received: ${type}`, { conversation_id, event_id });
+    
+    // Find session for context
+    const session = await callSessionService.getSessionByConversationId(conversation_id);
+    
+    switch (type) {
+      case 'user_transcript':
+        // Store user's speech in real-time
+        if (data.user_transcript && session) {
+          await conversationService.storeConversation({
+            organization_id: session.organization_id,
+            lead_id: session.lead_id,
+            phone_number_normalized: '',
+            content: data.user_transcript,
+            sent_by: 'user',
+            type: 'voice',
+            call_classification: 'live',
+            metadata: {
+              real_time: true,
+              event_type: 'user_transcript',
+              conversation_id
+            }
+          });
+          
+          // Broadcast to dashboard for real-time display
+          broadcastToClients({
+            type: 'live_transcript',
+            lead_id: session.lead_id,
+            speaker: 'user',
+            message: data.user_transcript,
+            timestamp: new Date().toISOString()
+          });
+        }
+        break;
+        
+      case 'agent_response':
+        // Store agent's response in real-time
+        if (data.agent_response && session) {
+          await conversationService.storeConversation({
+            organization_id: session.organization_id,
+            lead_id: session.lead_id,
+            phone_number_normalized: '',
+            content: data.agent_response,
+            sent_by: 'agent',
+            type: 'voice',
+            call_classification: 'live',
+            metadata: {
+              real_time: true,
+              event_type: 'agent_response',
+              conversation_id
+            }
+          });
+          
+          // Broadcast to dashboard
+          broadcastToClients({
+            type: 'live_transcript',
+            lead_id: session.lead_id,
+            speaker: 'agent',
+            message: data.agent_response,
+            timestamp: new Date().toISOString()
+          });
+        }
+        break;
+        
+      case 'vad_score':
+        // Voice Activity Detection - user is speaking
+        if (data.vad_score > 0.8 && session) {
+          broadcastToClients({
+            type: 'user_speaking',
+            lead_id: session.lead_id,
+            vad_score: data.vad_score,
+            timestamp: new Date().toISOString()
+          });
+        }
+        break;
+        
+      case 'client_tool_call':
+        // Agent requested a tool/function call
+        logger.info('Client tool call requested:', data);
+        if (session) {
+          broadcastToClients({
+            type: 'tool_call',
+            lead_id: session.lead_id,
+            tool_name: data.tool_name,
+            parameters: data.parameters,
+            timestamp: new Date().toISOString()
+          });
+        }
+        break;
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('Error handling client event:', error);
+    res.status(500).json({ error: 'Failed to process event' });
+  }
+}
+
 // Handle conversation events (optional real-time events during call)
 export async function handleConversationEvents(req: Request, res: Response) {
   try {
