@@ -317,24 +317,25 @@ async function generateElevenLabsTextResponse(
     ws.on('open', () => {
       logger.info('ElevenLabs WebSocket connected for SMS');
       
-      // Send conversation initialization with context BUT suppress first message
+      // Send conversation initialization with dynamic variables
       const initMessage = {
         type: 'conversation_initiation_client_data',
         conversation_config_override: {
           agent: {
             prompt: {
-              prompt: `You are Mark, a friendly assistant for BICI Bike Store. You're responding to a text message from a customer.
-              
-IMPORTANT: This is a continuation of a text conversation. Do NOT send a greeting. The customer has just sent you a message and you need to respond directly to their query.
+              prompt: `You are Mark, a friendly assistant for BICI Bike Store responding to an SMS text message.
+
+CRITICAL INSTRUCTIONS FOR SMS:
+1. The customer just sent you a text message - respond DIRECTLY to their query
+2. Do NOT send a greeting like "Hey there" or "How can I help"
+3. Jump straight into answering their question
+4. Keep responses concise and helpful (SMS format)
+5. If they ask about Cannondale or other specific brands, provide helpful information
+6. Reference past interactions when relevant
 
 Customer Name: ${lead.customer_name || 'Unknown'}
 Customer Status: ${lead.status}
 Previous Interest: ${JSON.stringify(lead.bike_interest)}
-
-CONVERSATION CONTEXT:
-${conversationContext}
-
-Previous Summary: ${previousSummary?.summary || 'First interaction'}
 
 Store Info:
 - Address: ${storeInfo.address}
@@ -342,15 +343,22 @@ Store Info:
 - Hours: ${getTodaysHours()}
 - Services: Professional bike sales, repairs, and servicing
 
-Instructions:
-- Respond DIRECTLY to their message - no greetings
-- Be helpful and knowledgeable about bikes
-- Keep responses concise for SMS
-- Reference past interactions when relevant
-- If they ask about specific brands like Cannondale, provide helpful information`
-            },
-            first_message: "" // Empty first message to prevent greeting
+CONVERSATION CONTEXT:
+${conversationContext}
+
+Previous Summary: ${previousSummary?.summary || 'First interaction'}
+
+Remember: This is SMS - be direct, helpful, and skip the pleasantries.`
+            }
           }
+        },
+        // Pass conversation context as dynamic variables
+        dynamic_variables: {
+          customer_name: lead.customer_name || '',
+          customer_phone: lead.phone_number,
+          lead_status: lead.status,
+          previous_summary: previousSummary?.summary || 'First interaction',
+          conversation_mode: 'sms_text_only'
         }
       };
       
@@ -377,8 +385,18 @@ Instructions:
         logger.info('ElevenLabs WebSocket response:', { 
           type: response.type,
           isFirstResponse,
-          hasAgentResponse: !!response.agent_response_event?.agent_response
+          hasAgentResponse: !!response.agent_response_event?.agent_response,
+          hasError: !!response.error
         });
+
+        // Check for errors
+        if (response.error) {
+          logger.error('ElevenLabs error:', response.error);
+          clearTimeout(timeout);
+          ws.close();
+          reject(new Error(response.error.message || 'ElevenLabs error'));
+          return;
+        }
 
         // Handle agent response
         if (response.type === 'agent_response' && response.agent_response_event?.agent_response) {
@@ -389,7 +407,8 @@ Instructions:
             isFirstResponse = false;
             const lowerResponse = aiResponse.toLowerCase();
             if (lowerResponse.includes('hey') || lowerResponse.includes('hello') || 
-                lowerResponse.includes('how can i help') || lowerResponse.includes("i'm mark")) {
+                lowerResponse.includes('how can i help') || lowerResponse.includes("i'm mark") ||
+                lowerResponse.includes('bici') && lowerResponse.includes('help')) {
               logger.info('Skipping greeting response, waiting for actual response');
               return; // Skip this greeting and wait for the real response
             }
