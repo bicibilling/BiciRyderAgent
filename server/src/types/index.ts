@@ -46,10 +46,12 @@ export interface Conversation {
   organization_id: string;
   lead_id: string;
   phone_number: string;
+  phone_number_normalized?: string;
   content: string;
   sent_by: 'user' | 'agent' | 'human_agent' | 'system';
   type: 'text' | 'voice' | 'sms';
   classification?: 'sales' | 'support' | 'service' | 'general';
+  call_classification?: 'sales' | 'support' | 'service' | 'general' | 'live';
   timestamp: Date;
   metadata?: Record<string, any>;
 }

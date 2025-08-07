@@ -429,39 +429,27 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
     insights.appointmentScheduled = true;
   }
   
-  // Extract customer name dynamically from user messages
-  const namePatterns = [
-    /(?:i'm|i am|my name is|this is|it's)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i,
-    /(?:call me|name's)\s+([A-Z][a-z]+)/i
-  ];
-  
-  // Process transcript array to find names in user messages
-  if (Array.isArray(analysis?.data?.transcript)) {
-    for (const turn of analysis.data.transcript) {
-      if (turn.role === 'user' && turn.message) {
-        for (const pattern of namePatterns) {
-          const match = turn.message.match(pattern);
-          if (match && match[1] && !['Mark', 'Agent', 'Bici', 'BICI'].includes(match[1])) {
-            insights.customerName = match[1];
-            break;
-          }
-        }
-        if (insights.customerName) break;
-      }
+  // Extract customer data from ElevenLabs data collection
+  // This should be configured in the ElevenLabs dashboard under Analysis > Data Collection
+  if (analysis?.data_collection_results) {
+    // Extract customer name if collected
+    if (analysis.data_collection_results.customer_name) {
+      insights.customerName = analysis.data_collection_results.customer_name;
     }
-  } else {
-    // Fallback for string transcript
-    const userTranscript = transcript.split('\n')
-      .filter(line => line.toLowerCase().includes('user:') || line.toLowerCase().includes('customer:'))
-      .join(' ');
     
-    for (const pattern of namePatterns) {
-      const match = userTranscript.match(pattern);
-      if (match && match[1] && !['Mark', 'Agent', 'Bici', 'BICI'].includes(match[1])) {
-        insights.customerName = match[1];
-        break;
-      }
+    // Extract bike preferences if collected
+    if (analysis.data_collection_results.bike_type) {
+      insights.bikePreferences = insights.bikePreferences || {};
+      insights.bikePreferences.type = analysis.data_collection_results.bike_type;
     }
+    
+    // Extract purchase intent if collected
+    if (analysis.data_collection_results.purchase_intent) {
+      insights.purchaseIntent = analysis.data_collection_results.purchase_intent;
+    }
+    
+    // Extract any other custom data points configured in ElevenLabs
+    logger.info('Data collection results:', analysis.data_collection_results);
   }
   
   // Extract bike preferences
