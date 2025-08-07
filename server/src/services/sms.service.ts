@@ -60,8 +60,8 @@ export class SMSAutomationService {
       const conversation = await conversationService.storeConversation({
         organization_id: organizationId,
         lead_id: lead?.id, // This was missing!
+        phone_number: to, // Required field
         phone_number_normalized: to.replace(/\D/g, ''),
-        phone_number: to, // Also include original format
         content: message,
         sent_by: 'agent',
         type: 'sms',
