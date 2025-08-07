@@ -507,8 +507,8 @@ export async function handlePostCall(req: Request, res: Response) {
     
     // Find the most recent call session for this phone number instead of by conversation_id
     // since ElevenLabs sends different IDs in initiation vs post-call
-    const sessionUpdateData = {
-      status: 'completed',
+    const sessionUpdateData: Partial<CallSession> = {
+      status: 'completed' as const,  // Use const assertion for literal type
       ended_at: new Date(),
       duration_seconds: duration,
       metadata: {
@@ -540,9 +540,10 @@ export async function handlePostCall(req: Request, res: Response) {
           id: sessionId,
           organization_id: organizationId,
           lead_id: lead.id,
-          status: 'completed',
+          status: 'completed' as const,
+          started_at: new Date(metadata?.start_time_unix_secs * 1000 || Date.now()),
           metadata: sessionUpdateData.metadata
-        };
+        } as CallSession;
         logger.info('Created minimal session for SMS conversation:', { 
           lead_id: lead.id, 
           phone: phone_number 
@@ -610,8 +611,8 @@ export async function handlePostCall(req: Request, res: Response) {
       key_points: insights.keyPoints || [],
       next_steps: insights.nextSteps || [],
       sentiment_score: insights.sentiment || 0.5,
-      call_classification: insights.classification || 'general',
-      conversation_type: metadata?.phone_call ? 'voice' : 'sms' // Track conversation type
+      call_classification: insights.classification || 'general'
+      // Note: conversation_type field doesn't exist in DB, using call_classification instead
     });
     
     // Store individual conversation turns from the transcript array
