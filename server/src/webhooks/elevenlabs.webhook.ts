@@ -140,7 +140,7 @@ async function buildConversationContext(leadId: string): Promise<string> {
   
   // 2. CONVERSATION STATISTICS & PATTERNS
   const voiceConversations = allHistory.filter(msg => msg.type === 'voice');
-  const smsConversations = allHistory.filter(msg => msg.type === 'sms' || msg.type === 'text');
+  const smsConversations = allHistory.filter(msg => msg.type === 'sms');
   const customerMessages = allHistory.filter(msg => msg.sent_by === 'user');
   
   context += `CUSTOMER ENGAGEMENT OVERVIEW:\n`;

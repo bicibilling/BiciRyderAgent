@@ -65,7 +65,7 @@ export class HumanControlService {
         phone_number_normalized: '',
         content: `${agentName} has joined the conversation`,
         sent_by: 'system',
-        type: 'text'
+        type: 'sms'  // Use 'sms' instead of 'text' to match database constraint
       });
       
       logger.info('Human control session started:', { 
@@ -103,7 +103,7 @@ export class HumanControlService {
         phone_number_normalized: '',
         content: 'AI assistant has resumed control',
         sent_by: 'system',
-        type: 'text'
+        type: 'sms'  // Use 'sms' instead of 'text' to match database constraint
       });
       
       // Remove from memory

@@ -214,7 +214,7 @@ export class ConversationService {
       
       // Group by type
       const voiceCalls = conversations.filter(c => c.type === 'voice');
-      const smsMessages = conversations.filter(c => c.type === 'sms' || c.type === 'text');
+      const smsMessages = conversations.filter(c => c.type === 'sms');
       
       if (voiceCalls.length > 0) {
         comprehensiveSummary += `Voice Calls: ${voiceCalls.length} calls\n`;

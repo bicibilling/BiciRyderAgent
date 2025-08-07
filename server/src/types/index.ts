@@ -49,7 +49,7 @@ export interface Conversation {
   phone_number_normalized?: string;
   content: string;
   sent_by: 'user' | 'agent' | 'human_agent' | 'system';
-  type: 'text' | 'voice' | 'sms';
+  type: 'voice' | 'sms';  // Database only allows 'voice' or 'sms', not 'text'
   classification?: 'sales' | 'support' | 'service' | 'general';
   call_classification?: 'sales' | 'support' | 'service' | 'general' | 'live';
   timestamp?: Date; // Make optional since it's auto-generated
