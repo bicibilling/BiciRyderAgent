@@ -365,7 +365,7 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     const dynamicVariables: ElevenLabsDynamicVariables = {
       conversation_context: conversationContext,
       previous_summary: previousSummary?.summary || "First time caller - no previous interactions",
-      customer_name: lead.customer_name || "",  // Empty string if no name
+      customer_name: (lead.customer_name && !['Mark', 'mark', 'MARK'].includes(lead.customer_name)) ? lead.customer_name : "",  // Filter out agent names
       customer_phone: caller_id,
       lead_status: lead.status,
       bike_interest: JSON.stringify(lead.bike_interest),
@@ -373,7 +373,7 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       organization_id: organization.id,
       location_address: storeInfo.address,
       business_hours: getTodaysHours(),
-      has_customer_name: lead.customer_name ? "true" : "false"  // Flag to check if name exists
+      has_customer_name: (lead.customer_name && !['Mark', 'mark', 'MARK'].includes(lead.customer_name)) ? "true" : "false"  // Flag to check if real customer name exists
     };
     
     logger.info('Dynamic variables for ElevenLabs:', {
@@ -413,7 +413,7 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       dynamic_variables: {
         ...dynamicVariables,
         // Add extracted customer name if available (check recent conversations for name)
-        customer_name: lead.customer_name || await extractRecentCustomerName(lead.id) || '',
+        customer_name: (lead.customer_name && !['Mark', 'mark', 'MARK'].includes(lead.customer_name)) ? lead.customer_name : await extractRecentCustomerName(lead.id) || '',
         // Add dynamic context about the customer
         customer_history: previousSummary?.summary || 'New customer',
         last_topic: lead.bike_interest?.type || 'general inquiry',
@@ -708,8 +708,16 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
     
     // Extract customer name if collected (note: ElevenLabs returns structured data with .value)
     if (analysis.data_collection_results.customer_name?.value) {
-      insights.customerName = analysis.data_collection_results.customer_name.value;
-      logger.info('Extracted customer name:', insights.customerName);
+      const extractedName = analysis.data_collection_results.customer_name.value;
+      
+      // Filter out agent names that might be incorrectly extracted
+      const agentNames = ['Mark', 'mark', 'MARK', 'Agent', 'agent'];
+      if (!agentNames.includes(extractedName)) {
+        insights.customerName = extractedName;
+        logger.info('Extracted customer name:', insights.customerName);
+      } else {
+        logger.warn('Ignoring agent name incorrectly extracted as customer name:', extractedName);
+      }
     }
     
     // Extract bike preferences if collected
