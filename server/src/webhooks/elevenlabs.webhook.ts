@@ -358,6 +358,14 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     // Get or create lead
     const lead = await leadService.findOrCreateLead(caller_id, organization.id);
     
+    logger.info('Lead data retrieved:', {
+      lead_id: lead.id,
+      has_name: !!lead.customer_name,
+      customer_name: lead.customer_name || 'not set',
+      phone: lead.phone_number,
+      status: lead.status
+    });
+    
     // Build conversation context
     const conversationContext = await buildConversationContext(lead.id);
     const previousSummary = await conversationService.getLatestSummary(lead.id);
@@ -710,7 +718,26 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
   
   // Use ElevenLabs triggers if available, otherwise fallback
   if (analysis?.data_collection_results?.customer_triggers?.value) {
-    insights.triggers = analysis.data_collection_results.customer_triggers.value;
+    // ElevenLabs returns triggers as a string, we need to parse it
+    const triggerString = analysis.data_collection_results.customer_triggers.value;
+    if (typeof triggerString === 'string') {
+      // Parse comma-separated triggers and map to our expected format
+      const triggerMap: Record<string, string> = {
+        'asked about store hours': 'asked_hours',
+        'asked for directions/location': 'asked_directions',
+        'inquired about prices': 'asked_price',
+        'wants to schedule appointment': 'appointment_request',
+        'interested in test ride': 'test_ride_interest',
+        'has a complaint': 'has_complaint',
+        'needs general help': 'needs_help'
+      };
+      
+      insights.triggers = triggerString.split(',').map(t => t.trim())
+        .map(t => triggerMap[t] || t)
+        .filter(Boolean);
+    } else {
+      insights.triggers = analysis.data_collection_results.customer_triggers.value;
+    }
     logger.info('Using ElevenLabs customer triggers:', insights.triggers);
   } else {
     // Fallback trigger detection
