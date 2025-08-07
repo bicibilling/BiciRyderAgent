@@ -63,11 +63,8 @@ export interface CallSession {
   started_at: Date;
   ended_at?: Date;
   duration_seconds?: number;
-  transcript?: string;
-  summary?: string;
-  classification?: string;
-  escalated_to_human: boolean;
-  escalation_reason?: string;
+  call_type?: 'inbound' | 'outbound';
+  metadata?: Record<string, any>;
 }
 
 export interface ElevenLabsDynamicVariables {

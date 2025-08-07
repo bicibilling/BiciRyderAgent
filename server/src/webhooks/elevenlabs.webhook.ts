@@ -196,8 +196,10 @@ export async function handlePostCall(req: Request, res: Response) {
       status: 'completed',
       ended_at: new Date(),
       duration_seconds: duration,
-      transcript: transcript,
-      summary: analysis?.summary
+      metadata: {
+        transcript: transcript,
+        summary: analysis?.summary
+      }
     });
     
     if (!session) {

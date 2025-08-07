@@ -9,8 +9,7 @@ export class CallSessionService {
       const session = {
         id: uuidv4(),
         ...sessionData,
-        started_at: new Date(),
-        escalated_to_human: false
+        started_at: new Date()
       };
       
       const { data, error } = await supabase
