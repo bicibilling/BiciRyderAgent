@@ -517,8 +517,15 @@ export async function handlePostCall(req: Request, res: Response) {
       return res.status(404).json({ error: 'Session not found' });
     }
     
-    // Process transcript for insights (pass the raw transcript array)
-    const insights = await processTranscript(fullTranscript, { ...analysis, data: { transcript } });
+    // Process transcript for insights (pass the analysis properly)
+    // Note: Don't override the data property which contains data_collection_results
+    logger.info('Analysis structure for processTranscript:', {
+      has_data_collection_results: !!analysis?.data_collection_results,
+      analysis_keys: Object.keys(analysis || {}),
+      data_collection_keys: analysis?.data_collection_results ? Object.keys(analysis.data_collection_results) : null
+    });
+    
+    const insights = await processTranscript(fullTranscript, analysis);
     
     // Update lead with extracted data
     const updateData: any = {
@@ -542,8 +549,19 @@ export async function handlePostCall(req: Request, res: Response) {
     logger.info('Lead updated with extracted data:', {
       lead_id: session.lead_id,
       customer_name: updateData.customer_name,
+      has_customer_name: !!updateData.customer_name,
       updated_successfully: !!updatedLead
     });
+    
+    // Broadcast the lead update to all connected clients so frontend updates immediately
+    if (updateData.customer_name) {
+      broadcastToClients({
+        type: 'lead_updated',
+        lead_id: session.lead_id,
+        customer_name: updateData.customer_name,
+        updates: updateData
+      });
+    }
     
     // Store conversation summary
     await conversationService.createSummary({
