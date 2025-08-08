@@ -19,9 +19,15 @@ export class EnhancedSMSAutomationService {
   private smartTemplates: SMSTemplate[] = [
     // Store Hours Template
     {
-      condition: (insights) => 
-        insights.triggers.includes('asked_hours') || 
-        insights.triggers.includes('when_open'),
+      condition: (insights) => {
+        const triggers = Array.isArray(insights.triggers) ? insights.triggers : 
+                        typeof insights.triggers === 'string' ? [insights.triggers] : [];
+        return triggers.some(t => 
+          t.includes('asked_hours') || 
+          t.includes('when_open') || 
+          t.includes('store hours')
+        );
+      },
       message: () => {
         const hours = this.getTodaysHours();
         const isOpen = this.isStoreOpen();
@@ -35,10 +41,16 @@ export class EnhancedSMSAutomationService {
 
     // Directions Template with Maps Integration
     {
-      condition: (insights) => 
-        insights.triggers.includes('asked_directions') || 
-        insights.triggers.includes('where_located') ||
-        insights.triggers.includes('how_to_get'),
+      condition: (insights) => {
+        const triggers = Array.isArray(insights.triggers) ? insights.triggers : 
+                        typeof insights.triggers === 'string' ? [insights.triggers] : [];
+        return triggers.some(t => 
+          t.includes('asked_directions') || 
+          t.includes('where_located') ||
+          t.includes('how_to_get') ||
+          t.includes('directions/location')
+        );
+      },
       message: () => {
         const encodedAddress = encodeURIComponent(storeInfo.address);
         return `📍 BICI Bike Store\n${storeInfo.address}\n\n` +
@@ -119,9 +131,15 @@ export class EnhancedSMSAutomationService {
 
     // Price Quote Follow-up
     {
-      condition: (insights) => 
-        insights.triggers.includes('asked_price') || 
-        insights.triggers.includes('budget_mentioned'),
+      condition: (insights) => {
+        const triggers = Array.isArray(insights.triggers) ? insights.triggers : 
+                        typeof insights.triggers === 'string' ? [insights.triggers] : [];
+        return triggers.some(t => 
+          t.includes('asked_price') || 
+          t.includes('budget_mentioned') ||
+          t.includes('price')
+        );
+      },
       message: (insights) => {
         const budget = insights.budgetRange || 'your budget';
         return `💰 BICI Price Match Guarantee!\n\n` +
@@ -186,6 +204,14 @@ export class EnhancedSMSAutomationService {
         return;
       }
 
+      logger.info('SMS Automation Debug:', {
+        followUpNeeded: insights.followUpNeeded,
+        triggers: insights.triggers,
+        triggersType: typeof insights.triggers,
+        triggersLength: insights.triggers?.length,
+        classification: insights.classification
+      });
+
       const scheduledMessages: Array<{message: string, delay: number}> = [];
 
       // First, check if ElevenLabs has recommended a specific follow-up
@@ -221,7 +247,11 @@ export class EnhancedSMSAutomationService {
       
       // If no ElevenLabs recommendation or we want additional messages, use template matching
       // Also use this when ElevenLabs says "no follow-up needed" but we have triggers
-      if (scheduledMessages.length === 0 && insights.triggers && insights.triggers.length > 0) {
+      const hasTriggers = insights.triggers && 
+                         (Array.isArray(insights.triggers) ? insights.triggers.length > 0 : 
+                          typeof insights.triggers === 'string' ? insights.triggers.length > 0 : false);
+      
+      if (scheduledMessages.length === 0 && hasTriggers) {
         logger.info('Using trigger-based templates since no ElevenLabs recommendation but triggers exist:', insights.triggers);
         
         // Sort templates by priority
