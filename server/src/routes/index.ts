@@ -120,53 +120,134 @@ export function setupAPIRoutes(app: Express) {
       const { phoneNumber, leadId } = req.body;
       const organizationId = req.headers['x-organization-id'] as string || 'b0c1b1c1-0000-0000-0000-000000000001';
       
-      // Get lead data
-      const lead = await leadService.getLead(leadId);
-      if (!lead) {
-        return res.status(404).json({ error: 'Lead not found' });
+      if (!phoneNumber) {
+        return res.status(400).json({ error: 'phoneNumber is required' });
       }
       
-      // Build context
-      const conversationContext = await conversationService.generateComprehensiveSummary(leadId);
+      logger.info('🚀 Initiating outbound call to:', phoneNumber, 'for lead:', leadId);
       
-      // Make call via ElevenLabs
-      const response = await fetch(`${elevenLabsConfig.endpoints.phoneCall}`, {
+      // Check required environment variables
+      if (!elevenLabsConfig.apiKey || !elevenLabsConfig.agentId || !elevenLabsConfig.phoneNumberId) {
+        logger.error('❌ ElevenLabs configuration missing');
+        return res.status(500).json({ 
+          error: 'ElevenLabs not properly configured',
+          missing: {
+            apiKey: !elevenLabsConfig.apiKey,
+            agentId: !elevenLabsConfig.agentId,
+            phoneNumberId: !elevenLabsConfig.phoneNumberId
+          }
+        });
+      }
+      
+      // Get lead data if leadId provided
+      let lead = null;
+      let conversationContext = '';
+      
+      if (leadId) {
+        lead = await leadService.getLead(leadId);
+        if (lead) {
+          conversationContext = await conversationService.generateComprehensiveSummary(leadId);
+        }
+      }
+      
+      // Build client data that will be passed to the conversation initiation webhook
+      const clientData = {
+        lead_id: leadId,
+        customer_phone: phoneNumber,
+        initiated_by: 'agent',
+        timestamp: new Date().toISOString()
+      };
+      
+      // Use the correct Twilio outbound call endpoint
+      const callPayload = {
+        agent_id: elevenLabsConfig.agentId,
+        agent_phone_number_id: elevenLabsConfig.phoneNumberId,
+        to_number: phoneNumber,
+        conversation_initiation_client_data: clientData
+      };
+      
+      logger.info('📞 Making ElevenLabs API call with payload:', {
+        agent_id: callPayload.agent_id,
+        agent_phone_number_id: callPayload.agent_phone_number_id,
+        to_number: callPayload.to_number,
+        has_client_data: !!callPayload.conversation_initiation_client_data
+      });
+      
+      // Use the Twilio outbound endpoint
+      const response = await fetch('https://api.elevenlabs.io/v1/convai/twilio/outbound-call', {
         method: 'POST',
         headers: {
-          'xi-api-key': elevenLabsConfig.apiKey,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'xi-api-key': elevenLabsConfig.apiKey
         },
-        body: JSON.stringify({
-          agent_id: elevenLabsConfig.agentId,
-          agent_phone_number_id: elevenLabsConfig.phoneNumberId,
-          to_number: phoneNumber,
-          conversation_initiation_client_data: {
-            dynamic_variables: {
-              conversation_context: conversationContext,
-              customer_name: lead.customer_name || 'valued customer',
-              customer_phone: phoneNumber,
-              lead_status: lead.status,
-              organization_name: 'BICI Bike Store',
-              organization_id: organizationId
-            }
-          }
-        })
+        body: JSON.stringify(callPayload)
       });
       
-      const result = await response.json() as any;
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        logger.error('❌ Failed to parse ElevenLabs response:', parseError);
+        const responseText = await response.text();
+        return res.status(500).json({ 
+          error: 'Invalid response from ElevenLabs',
+          response_text: responseText.substring(0, 500)
+        });
+      }
       
-      // Create call session
-      await callSessionService.createSession({
-        organization_id: organizationId,
-        lead_id: leadId,
-        elevenlabs_conversation_id: result.conversation_id,
-        status: 'initiated'
+      logger.info('📡 ElevenLabs API response status:', response.status);
+      logger.info('📡 ElevenLabs API response:', result);
+      
+      if (!response.ok) {
+        logger.error('❌ ElevenLabs API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          response: result
+        });
+        
+        let errorMessage = 'Failed to initiate call';
+        if (response.status === 401) {
+          errorMessage = 'Invalid ElevenLabs API key';
+        } else if (response.status === 400) {
+          errorMessage = 'Invalid request parameters';
+        } else if (response.status === 404) {
+          errorMessage = 'Agent or phone number not found';
+        }
+        
+        return res.status(response.status).json({ 
+          error: errorMessage,
+          details: result
+        });
+      }
+      
+      // Create call session if we have a lead
+      if (leadId && result.conversation_id) {
+        try {
+          await callSessionService.createSession({
+            organization_id: organizationId,
+            lead_id: leadId,
+            elevenlabs_conversation_id: result.conversation_id,
+            status: 'initiated',
+            call_type: 'outbound'
+          });
+        } catch (sessionError) {
+          logger.error('Failed to create call session:', sessionError);
+          // Don't fail the request, call was still initiated
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        conversation_id: result.conversation_id,
+        call_sid: result.call_sid,
+        message: `Call initiated to ${phoneNumber}`
       });
-      
-      res.json({ success: true, conversation_id: result.conversation_id });
     } catch (error) {
       logger.error('Error initiating outbound call:', error);
-      res.status(500).json({ error: 'Failed to initiate call' });
+      res.status(500).json({ 
+        error: 'Failed to initiate call',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
   
