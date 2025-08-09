@@ -84,6 +84,9 @@ export interface ElevenLabsDynamicVariables {
   call_reason?: string;
   last_interaction_date?: string;
   last_interaction_summary?: string;
+  greeting_opener?: string;
+  greeting_variation?: string;
+  [key: string]: any; // Allow additional properties from spread operator
 }
 
 export interface ConversationInsights {

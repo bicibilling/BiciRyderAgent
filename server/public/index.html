@@ -300,9 +300,28 @@
         }
       };
       
-      // Start voice call
+      // Start voice call with UI feedback
       const handleStartCall = async () => {
         if (!selectedLead) return;
+        
+        // Show immediate feedback
+        setIsCallActive(true);
+        
+        // Create notification element
+        const showNotification = (message, type = 'info') => {
+          const notification = document.createElement('div');
+          notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+          } text-white`;
+          notification.textContent = message;
+          document.body.appendChild(notification);
+          
+          setTimeout(() => {
+            notification.remove();
+          }, 5000);
+        };
+        
+        showNotification('📞 Initiating call...', 'info');
         
         try {
           const response = await fetch('/api/elevenlabs/outbound-call', {
@@ -317,11 +336,19 @@
             })
           });
           
+          const result = await response.json();
+          
           if (response.ok) {
-            setIsCallActive(true);
+            showNotification(`✅ Call initiated to ${selectedLead.phone_number}`, 'success');
+            // Keep call active state
+          } else {
+            showNotification(`❌ Failed to initiate call: ${result.error || 'Unknown error'}`, 'error');
+            setIsCallActive(false);
           }
         } catch (error) {
           console.error('Error starting call:', error);
+          showNotification('❌ Network error - could not start call', 'error');
+          setIsCallActive(false);
         }
       };
       
@@ -464,9 +491,9 @@
                       <button
                         onClick={handleStartCall}
                         disabled={isCallActive}
-                        className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
-                        📞 Start Call
+                        {isCallActive ? '📞 Calling...' : '📞 Start Call'}
                       </button>
                       <button
                         onClick={isHumanControl ? handleLeaveControl : handleJoinControl}

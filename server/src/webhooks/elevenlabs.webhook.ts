@@ -315,7 +315,7 @@ function extractTopics(messages: any[]): string[] {
   return Array.from(topics).slice(0, 8); // Limit to top 8 topics
 }
 
-// Handle conversation initiation (for inbound calls)
+// Handle conversation initiation (for both inbound and outbound calls)
 export async function handleConversationInitiation(req: Request, res: Response) {
   try {
     logger.info('ElevenLabs conversation initiation webhook received', {
@@ -323,7 +323,11 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       headers: req.headers
     });
     
-    const { caller_id, called_number, conversation_id, call_sid, agent_id } = req.body;
+    const { caller_id, called_number, conversation_id, call_sid, agent_id, conversation_initiation_client_data } = req.body;
+    
+    // Detect if this is an outbound call
+    const isOutbound = conversation_initiation_client_data?.initiated_by === 'agent';
+    logger.info('Call direction detected:', { isOutbound, initiated_by: conversation_initiation_client_data?.initiated_by });
     
     // Use conversation_id or call_sid as fallback
     const sessionId = conversation_id || call_sid;
@@ -342,21 +346,39 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     
     logger.info('Processing conversation with ID:', sessionId);
     
-    // Get organization from called number
-    logger.info('Looking up organization for phone:', called_number);
-    const organization = await leadService.getOrganizationByPhone(called_number);
+    // For outbound calls, the customer phone is in client_data or reversed (we're calling them)
+    const customerPhone = isOutbound 
+      ? (conversation_initiation_client_data?.customer_phone || called_number)
+      : caller_id;
+    
+    // For outbound calls, our number is the caller_id; for inbound, it's the called_number
+    const ourPhoneNumber = isOutbound ? caller_id : called_number;
+    
+    logger.info('Phone number detection:', { 
+      customerPhone, 
+      ourPhoneNumber, 
+      isOutbound,
+      raw_caller_id: caller_id,
+      raw_called_number: called_number 
+    });
+    
+    // Get organization from our phone number
+    logger.info('Looking up organization for phone:', ourPhoneNumber);
+    const organization = await leadService.getOrganizationByPhone(ourPhoneNumber);
     if (!organization) {
       logger.error('No organization found for phone:', {
-        called_number,
+        ourPhoneNumber,
         available_orgs: 'Check database for organizations table'
       });
-      return res.status(404).json({ error: 'Organization not found for phone: ' + called_number });
+      return res.status(404).json({ error: 'Organization not found for phone: ' + ourPhoneNumber });
     }
     
     logger.info('Found organization:', { id: organization.id, name: organization.name });
     
-    // Get or create lead
-    const lead = await leadService.findOrCreateLead(caller_id, organization.id);
+    // Get or create lead - use customer phone
+    const lead = conversation_initiation_client_data?.lead_id 
+      ? await leadService.getLead(conversation_initiation_client_data.lead_id)
+      : await leadService.findOrCreateLead(customerPhone, organization.id);
     
     logger.info('Lead data retrieved:', {
       lead_id: lead.id,
@@ -401,13 +423,14 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       organization_id: organization.id,
       lead_id: lead.id,
       elevenlabs_conversation_id: sessionId,
-      call_type: 'inbound',
+      call_type: isOutbound ? 'outbound' : 'inbound',
       status: 'initiated',
       metadata: {
         call_sid: call_sid || sessionId,
         agent_id: agent_id,
         caller_id: caller_id,
-        called_number: called_number
+        called_number: called_number,
+        initiated_by: conversation_initiation_client_data?.initiated_by
       }
     });
     
@@ -433,7 +456,10 @@ export async function handleConversationInitiation(req: Request, res: Response) 
         last_topic: lead.bike_interest?.type || 'general inquiry',
         qualification_status: lead.qualification_data?.ready_to_buy ? 'ready to purchase' : 'exploring options',
         interaction_count: await conversationService.getConversationCount(lead.id),
-        last_contact: lead.last_contact_at ? new Date(lead.last_contact_at).toLocaleDateString() : 'First contact'
+        last_contact: lead.last_contact_at ? new Date(lead.last_contact_at).toLocaleDateString() : 'First contact',
+        // CRITICAL: Add greeting variables for outbound calls
+        greeting_opener: dynamicVariables.greeting_opener || (lead.customer_name ? `Hey ${lead.customer_name}!` : "Hey there!"),
+        greeting_variation: dynamicVariables.greeting_variation || "How can I help you"
       }
       // Removed conversation_config_override as first_message is not allowed
       // The agent configuration should be done in ElevenLabs dashboard

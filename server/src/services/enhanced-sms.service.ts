@@ -249,7 +249,7 @@ export class EnhancedSMSAutomationService {
       // Also use this when ElevenLabs says "no follow-up needed" but we have triggers
       const hasTriggers = insights.triggers && 
                          (Array.isArray(insights.triggers) ? insights.triggers.length > 0 : 
-                          typeof insights.triggers === 'string' ? insights.triggers.length > 0 : false);
+                          typeof insights.triggers === 'string' ? (insights.triggers as string).length > 0 : false);
       
       if (scheduledMessages.length === 0 && hasTriggers) {
         logger.info('Using trigger-based templates since no ElevenLabs recommendation but triggers exist:', insights.triggers);
