@@ -106,7 +106,7 @@ function getTodaysHours(): string {
 }
 
 // Build comprehensive conversation context with summaries and recent messages
-async function buildConversationContext(leadId: string): Promise<string> {
+export async function buildConversationContext(leadId: string): Promise<string> {
   // Run queries in parallel to reduce latency
   const [previousSummaries, allHistory, recentMessages] = await Promise.all([
     conversationService.getAllSummaries(leadId),

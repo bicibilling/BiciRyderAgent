@@ -142,11 +142,18 @@ export function setupAPIRoutes(app: Express) {
       // Get lead data if leadId provided
       let lead = null;
       let conversationContext = '';
+      let previousSummary = null;
       
       if (leadId) {
         lead = await leadService.getLead(leadId);
         if (lead) {
-          conversationContext = await conversationService.generateComprehensiveSummary(leadId);
+          // Import the buildConversationContext function to get proper context
+          const { buildConversationContext } = await import('../webhooks/elevenlabs.webhook');
+          conversationContext = await buildConversationContext(leadId);
+          
+          // Also get the most recent summary for a brief overview
+          const summaries = await conversationService.getAllSummaries(leadId);
+          previousSummary = summaries && summaries.length > 0 ? summaries[0].summary : 'No previous interactions';
         }
       }
       
@@ -163,8 +170,14 @@ export function setupAPIRoutes(app: Express) {
           customer_name: lead?.customer_name || '',
           customer_phone: phoneNumber,
           lead_status: lead?.status || 'new',
-          conversation_context: conversationContext || 'New conversation',
-          previous_summary: lead?.previous_summary || 'No previous interactions'
+          conversation_context: conversationContext || 'This is the first interaction with this customer.',
+          previous_summary: previousSummary || 'No previous interactions',
+          bike_interest: JSON.stringify(lead?.bike_interest || {}),
+          organization_name: 'BICI Bike Store',
+          organization_id: organizationId,
+          location_address: '1497 Adanac Street, Vancouver, BC',
+          business_hours: 'Today: 09:00 - 16:30',
+          has_customer_name: lead?.customer_name ? 'true' : 'false'
         }
       };
       

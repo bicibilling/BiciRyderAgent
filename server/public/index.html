@@ -81,7 +81,7 @@
   <div id="root"></div>
   
   <script type="text/babel">
-    const { useState, useEffect, useRef, useCallback } = React;
+    const { useState, useEffect, useRef, useCallback, useReducer } = React;
     
     // BICI Dashboard Component
     function BICIDashboard() {
@@ -98,6 +98,7 @@
       const [messageInput, setMessageInput] = useState('');
       const [isCallActive, setIsCallActive] = useState(false);
       const [connectionStatus, setConnectionStatus] = useState('disconnected');
+      const [, forceUpdate] = useReducer(x => x + 1, 0);
       
       const conversationEndRef = useRef(null);
       const eventSourceRef = useRef(null);
@@ -302,26 +303,34 @@
       
       // Start voice call with UI feedback
       const handleStartCall = async () => {
-        if (!selectedLead) return;
+        if (!selectedLead || isCallActive) return;
         
-        // Show immediate feedback
+        // Show immediate feedback by updating state
         setIsCallActive(true);
+        // Force a re-render
+        forceUpdate();
         
-        // Create notification element
+        // Create notification element with better styling
         const showNotification = (message, type = 'info') => {
+          // Remove any existing notifications
+          document.querySelectorAll('.notification').forEach(n => n.remove());
+          
           const notification = document.createElement('div');
-          notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+          notification.className = `notification fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
             type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-          } text-white`;
+          } text-white animate-pulse`;
+          notification.style.animation = 'fadeIn 0.3s ease-in';
           notification.textContent = message;
           document.body.appendChild(notification);
           
           setTimeout(() => {
-            notification.remove();
+            notification.style.animation = 'fadeOut 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
           }, 5000);
         };
         
         showNotification('📞 Initiating call...', 'info');
+        console.log('Starting call to:', selectedLead.phone_number);
         
         try {
           const response = await fetch('/api/elevenlabs/outbound-call', {
