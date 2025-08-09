@@ -200,8 +200,21 @@ export function setupAPIRoutes(app: Express) {
       // Import greeting helper for outbound-specific greetings
       const { generateGreetingContext } = await import('../utils/greeting.helper');
       
+      // Log the summary object for debugging
+      logger.info('Generating outbound greeting with summary:', {
+        hasSummary: !!previousSummaryObj,
+        classification: previousSummaryObj?.call_classification,
+        summaryText: previousSummaryObj?.summary?.substring(0, 100)
+      });
+      
       // Generate outbound-specific greeting context
       const greetingContext = generateGreetingContext(lead, true, previousSummaryObj);
+      
+      // Log the generated greeting
+      logger.info('Generated outbound greeting:', {
+        greeting_opener: greetingContext.greeting_opener,
+        greeting_variation: greetingContext.greeting_variation
+      });
       
       // Build client data that will be passed to the conversation initiation webhook
       const clientData = {

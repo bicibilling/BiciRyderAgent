@@ -117,34 +117,51 @@ export function generateGreetingContext(lead?: any, isOutbound: boolean = false,
   
   // For outbound calls, create continuation greetings
   if (isOutbound) {
-    // Different variations for outbound calls that continue the conversation
+    // Default variations for outbound calls
     const outboundVariations = [
-      "I wanted to follow up on our conversation",
+      "I wanted to follow up with you",
       "Just calling to check in with you", 
       "I'm following up from our earlier chat",
       "Wanted to continue where we left off",
       "Just giving you a quick call back"
     ];
     
-    // If we have a previous summary, make it more specific
+    // Start with a random default
     let variation = outboundVariations[Math.floor(Math.random() * outboundVariations.length)];
     
+    // If we have a previous summary, make it more specific based on classification
     if (previousSummary?.call_classification) {
-      switch (previousSummary.call_classification) {
-        case 'sales':
+      const classification = previousSummary.call_classification.toLowerCase();
+      
+      // Also check the summary text for additional context
+      const summaryText = previousSummary.summary?.toLowerCase() || '';
+      
+      if (classification === 'sales' || summaryText.includes('bike') || summaryText.includes('price')) {
+        // Check if we know specific bike type from summary
+        if (summaryText.includes('road bike')) {
+          variation = "I'm calling about the road bike you were interested in";
+        } else if (summaryText.includes('mountain bike')) {
+          variation = "I'm calling about the mountain bike you were interested in";
+        } else if (summaryText.includes('availability')) {
+          variation = "I'm following up about the bike availability we discussed";
+        } else {
           variation = "I'm calling about the bike you were interested in";
-          break;
-        case 'service':
-          variation = "I'm calling about your service appointment";
-          break;
-        case 'support':
-          variation = "I wanted to follow up on the issue you mentioned";
-          break;
-        case 'inquiry':
-          variation = "I'm following up on your questions from earlier";
-          break;
-        default:
-          variation = "I wanted to follow up on our conversation";
+        }
+      } else if (classification === 'service' || summaryText.includes('service') || summaryText.includes('repair')) {
+        variation = "I'm calling about your service appointment";
+      } else if (classification === 'support' || summaryText.includes('issue') || summaryText.includes('problem')) {
+        variation = "I wanted to follow up on the issue you mentioned";
+      } else if (classification === 'inquiry' || summaryText.includes('question')) {
+        variation = "I'm following up on your questions from earlier";
+      } else if (summaryText.includes('test ride')) {
+        variation = "I'm calling about scheduling your test ride";
+      } else if (summaryText.includes('return') || summaryText.includes('policy')) {
+        variation = "I wanted to follow up on our discussion about our policies";
+      } else {
+        // For 'general' or unmatched, try to be more specific based on summary
+        if (summaryText.length > 10) {
+          variation = "I wanted to continue our conversation from earlier";
+        }
       }
     }
     
