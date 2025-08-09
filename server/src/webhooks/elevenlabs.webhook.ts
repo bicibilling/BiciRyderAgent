@@ -702,37 +702,44 @@ export async function handlePostCall(req: Request, res: Response) {
     });
     
     // Store individual conversation turns from the transcript array
-    if (Array.isArray(transcript)) {
-      for (const turn of transcript) {
-        if (turn.message && turn.message.trim()) {
-          await conversationService.storeConversation({
-            organization_id: session.organization_id,
-            lead_id: session.lead_id,
-            phone_number_normalized: phone_number.replace(/\D/g, ''),
-            content: turn.message,
-            sent_by: turn.role === 'user' ? 'user' : 'agent',
-            type: 'voice',
-            call_classification: insights.classification || 'general',
-            timestamp: new Date(metadata.start_time_unix_secs * 1000 + (turn.time_in_call_secs || 0) * 1000),
-            metadata: {
-              time_in_call_secs: turn.time_in_call_secs,
-              interrupted: turn.interrupted,
-              llm_usage: turn.llm_usage
-            }
-          });
+    // IMPORTANT: Only store transcript for voice calls, not SMS (SMS messages are already stored in real-time)
+    const isVoiceCall = !!metadata?.phone_call;
+    
+    if (isVoiceCall) {
+      if (Array.isArray(transcript)) {
+        for (const turn of transcript) {
+          if (turn.message && turn.message.trim()) {
+            await conversationService.storeConversation({
+              organization_id: session.organization_id,
+              lead_id: session.lead_id,
+              phone_number_normalized: phone_number.replace(/\D/g, ''),
+              content: turn.message,
+              sent_by: turn.role === 'user' ? 'user' : 'agent',
+              type: 'voice',
+              call_classification: insights.classification || 'general',
+              timestamp: new Date(metadata.start_time_unix_secs * 1000 + (turn.time_in_call_secs || 0) * 1000),
+              metadata: {
+                time_in_call_secs: turn.time_in_call_secs,
+                interrupted: turn.interrupted,
+                llm_usage: turn.llm_usage
+              }
+            });
+          }
         }
+      } else {
+        // Fallback: store the full transcript as one conversation entry
+        await conversationService.storeConversation({
+          organization_id: session.organization_id,
+          lead_id: session.lead_id,
+          phone_number_normalized: phone_number.replace(/\D/g, ''),
+          content: fullTranscript || 'Call completed - transcript not available',
+          sent_by: 'system',
+          type: 'voice',
+          call_classification: insights.classification || 'general'
+        });
       }
     } else {
-      // Fallback: store the full transcript as one conversation entry
-      await conversationService.storeConversation({
-        organization_id: session.organization_id,
-        lead_id: session.lead_id,
-        phone_number_normalized: phone_number.replace(/\D/g, ''),
-        content: fullTranscript || 'Call completed - transcript not available',
-        sent_by: 'system',
-        type: 'voice',
-        call_classification: insights.classification || 'general'
-      });
+      logger.info('Skipping transcript storage for SMS conversation - already stored in real-time');
     }
     
     // Trigger enhanced SMS automation using ElevenLabs data
