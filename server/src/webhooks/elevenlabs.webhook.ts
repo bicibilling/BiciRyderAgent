@@ -92,17 +92,51 @@ function generateFirstMessage(lead: Lead): string {
   return `Hey there, I'm Mark from BICI. How can I help you today?`;
 }
 
-// Get today's business hours
+// Get current Pacific time
+function getCurrentPacificTime(): { date: Date, timeString: string, hourMinute: string } {
+  // Create date in Pacific timezone
+  const now = new Date();
+  const pacificTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  
+  const hours = pacificTime.getHours();
+  const minutes = pacificTime.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  
+  const timeString = `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+  const hourMinute = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  
+  return { date: pacificTime, timeString, hourMinute };
+}
+
+// Get today's business hours with current time awareness
 function getTodaysHours(): string {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const today = days[new Date().getDay()];
+  const { date: pacificTime, timeString } = getCurrentPacificTime();
+  const today = days[pacificTime.getDay()];
   const hours = businessHours[today as keyof typeof businessHours];
   
   if (hours.open === 'closed') {
     return `Closed today. We're open Monday-Friday 9am-6pm (Thu-Fri until 8pm), Saturday 10am-5pm`;
   }
   
-  return `Today: ${hours.open} - ${hours.close}`;
+  // Check if currently open
+  const currentHour = pacificTime.getHours();
+  const currentMinute = pacificTime.getMinutes();
+  const currentTime = currentHour * 100 + currentMinute;
+  
+  const [openHour, openMinute] = hours.open.split(':').map(Number);
+  const [closeHour, closeMinute] = hours.close.split(':').map(Number);
+  const openTime = openHour * 100 + openMinute;
+  const closeTime = closeHour * 100 + closeMinute;
+  
+  if (currentTime >= openTime && currentTime < closeTime) {
+    return `Open now until ${hours.close} (current time: ${timeString} PT)`;
+  } else if (currentTime < openTime) {
+    return `Opens at ${hours.open} today (current time: ${timeString} PT)`;
+  } else {
+    return `Closed for today. Opens tomorrow (current time: ${timeString} PT)`;
+  }
 }
 
 // Build comprehensive conversation context with summaries and recent messages
@@ -394,6 +428,10 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     const greetingContext = generateGreetingContext(lead);
     
     // Generate dynamic variables
+    // Get current Pacific time info
+    const { timeString: currentTime, date: pacificDate } = getCurrentPacificTime();
+    const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][pacificDate.getDay()];
+    
     const dynamicVariables: ElevenLabsDynamicVariables = {
       conversation_context: conversationContext,
       previous_summary: previousSummary?.summary || "First time caller - no previous interactions",
@@ -405,6 +443,9 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       organization_id: organization.id,
       location_address: storeInfo.address,
       business_hours: getTodaysHours(),
+      current_time: currentTime,
+      current_day: dayOfWeek,
+      current_datetime: `${dayOfWeek} ${currentTime} Pacific Time`,
       has_customer_name: lead.customer_name ? "true" : "false",  // Flag to check if name exists
       // Add greeting context for dynamic first message
       ...greetingContext

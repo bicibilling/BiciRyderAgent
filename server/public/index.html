@@ -163,7 +163,7 @@
         }
       };
       
-      // Setup SSE connection
+      // Setup SSE connection with auto-reconnect
       const setupSSE = () => {
         if (eventSourceRef.current) {
           eventSourceRef.current.close();
@@ -186,9 +186,15 @@
           }
         };
         
-        eventSource.onerror = () => {
+        eventSource.onerror = (error) => {
           setConnectionStatus('disconnected');
-          console.error('SSE connection error');
+          console.error('SSE connection error, reconnecting...', error);
+          
+          // Auto-reconnect after 3 seconds
+          setTimeout(() => {
+            console.log('Attempting to reconnect SSE...');
+            setupSSE();
+          }, 3000);
         };
         
         eventSourceRef.current = eventSource;
@@ -400,16 +406,19 @@
       return (
         <div className="flex h-screen bg-gray-50">
           {/* Notifications */}
-          <div className="fixed top-4 right-4 z-50 space-y-2">
+          <div className="fixed top-4 right-4 z-50 space-y-2" style={{ zIndex: 9999 }}>
             {notifications.map(notification => (
               <div
                 key={notification.id}
-                className={`p-4 rounded-lg shadow-lg text-white animate-pulse transition-all ${
+                className={`p-4 rounded-lg shadow-lg text-white transition-all ${
                   notification.type === 'success' ? 'bg-green-500' :
                   notification.type === 'error' ? 'bg-red-500' :
                   'bg-blue-500'
                 }`}
-                style={{ animation: 'slideIn 0.3s ease-out' }}
+                style={{ 
+                  animation: 'slideIn 0.3s ease-out',
+                  minWidth: '300px'
+                }}
               >
                 {notification.message}
               </div>

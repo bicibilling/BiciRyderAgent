@@ -157,6 +157,40 @@ export function setupAPIRoutes(app: Express) {
         }
       }
       
+      // Get current Pacific time for the agent
+      const getCurrentPacificTime = () => {
+        const now = new Date();
+        const pacificTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+        const hours = pacificTime.getHours();
+        const minutes = pacificTime.getMinutes();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours % 12 || 12;
+        const timeString = `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+        const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][pacificTime.getDay()];
+        return { timeString, dayOfWeek, pacificTime };
+      };
+      
+      const { timeString: currentTime, dayOfWeek, pacificTime } = getCurrentPacificTime();
+      
+      // Dynamic business hours based on current time
+      const getBusinessHoursMessage = () => {
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const today = days[pacificTime.getDay()];
+        const hours = { open: '09:00', close: '18:00' }; // Default hours
+        
+        const currentHour = pacificTime.getHours();
+        const currentMinute = pacificTime.getMinutes();
+        const currentTimeNum = currentHour * 100 + currentMinute;
+        
+        if (currentTimeNum >= 900 && currentTimeNum < 1800) {
+          return `Open now until 6:00 PM (current time: ${currentTime} PT)`;
+        } else if (currentTimeNum < 900) {
+          return `Opens at 9:00 AM today (current time: ${currentTime} PT)`;
+        } else {
+          return `Closed for today. Opens tomorrow at 9:00 AM (current time: ${currentTime} PT)`;
+        }
+      };
+      
       // Build client data that will be passed to the conversation initiation webhook
       const clientData = {
         lead_id: leadId,
@@ -176,7 +210,10 @@ export function setupAPIRoutes(app: Express) {
           organization_name: 'BICI Bike Store',
           organization_id: organizationId,
           location_address: '1497 Adanac Street, Vancouver, BC',
-          business_hours: 'Today: 09:00 - 16:30',
+          business_hours: getBusinessHoursMessage(),
+          current_time: currentTime,
+          current_day: dayOfWeek,
+          current_datetime: `${dayOfWeek} ${currentTime} Pacific Time`,
           has_customer_name: lead?.customer_name ? 'true' : 'false'
         }
       };
