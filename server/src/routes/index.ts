@@ -155,7 +155,17 @@ export function setupAPIRoutes(app: Express) {
         lead_id: leadId,
         customer_phone: phoneNumber,
         initiated_by: 'agent',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        // Add dynamic variables directly since webhook won't be called for outbound
+        dynamic_variables: {
+          greeting_opener: lead?.customer_name ? `Hey ${lead.customer_name}!` : "Hey there!",
+          greeting_variation: "How can I help you today",
+          customer_name: lead?.customer_name || '',
+          customer_phone: phoneNumber,
+          lead_status: lead?.status || 'new',
+          conversation_context: conversationContext || 'New conversation',
+          previous_summary: lead?.previous_summary || 'No previous interactions'
+        }
       };
       
       // Use the correct Twilio outbound call endpoint

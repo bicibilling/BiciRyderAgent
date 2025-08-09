@@ -107,14 +107,12 @@ function getTodaysHours(): string {
 
 // Build comprehensive conversation context with summaries and recent messages
 async function buildConversationContext(leadId: string): Promise<string> {
-  // Get previous conversation summaries for comprehensive context
-  const previousSummaries = await conversationService.getAllSummaries(leadId);
-  
-  // Get all conversation history for analysis
-  const allHistory = await conversationService.getRecentConversations(leadId, 50);
-  
-  // Get the most recent 6 messages for immediate context
-  const recentMessages = await conversationService.getRecentConversations(leadId, 6);
+  // Run queries in parallel to reduce latency
+  const [previousSummaries, allHistory, recentMessages] = await Promise.all([
+    conversationService.getAllSummaries(leadId),
+    conversationService.getRecentConversations(leadId, 20), // Reduced from 50 for performance
+    conversationService.getRecentConversations(leadId, 6)
+  ]);
   
   if (!allHistory || allHistory.length === 0) {
     return "This is the first interaction with this customer.";
