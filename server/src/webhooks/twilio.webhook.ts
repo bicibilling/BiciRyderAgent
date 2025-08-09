@@ -9,6 +9,7 @@ import { broadcastToClients } from '../services/realtime.service';
 import { normalizePhoneNumber } from '../config/twilio.config';
 import { storeInfo, businessHours } from '../config/elevenlabs.config';
 import { generateGreetingContext } from '../utils/greeting.helper';
+import { buildConversationContext } from '../webhooks/elevenlabs.webhook';
 import WebSocket from 'ws';
 
 const leadService = new LeadService();
@@ -128,128 +129,6 @@ export async function handleSMSStatus(req: Request, res: Response) {
   }
 }
 
-// Build comprehensive conversation context for SMS (reuse from voice calls)
-async function buildConversationContext(leadId: string): Promise<string> {
-  // Get previous conversation summaries for comprehensive context
-  const previousSummaries = await conversationService.getAllSummaries(leadId);
-  
-  // Get all conversation history for analysis
-  const allHistory = await conversationService.getRecentConversations(leadId, 50);
-  
-  // Get the most recent 6 messages for immediate context
-  const recentMessages = await conversationService.getRecentConversations(leadId, 6);
-  
-  if (!allHistory || allHistory.length === 0) {
-    return "This is the first interaction with this customer.";
-  }
-  
-  let context = `=== COMPREHENSIVE CUSTOMER CONTEXT ===\n\n`;
-  
-  // 1. PREVIOUS CONVERSATION SUMMARIES (for historical context)
-  if (previousSummaries && previousSummaries.length > 0) {
-    context += `PREVIOUS CONVERSATION SUMMARIES:\n`;
-    previousSummaries.forEach((summary, index) => {
-      const timeAgo = getTimeAgo(summary.created_at);
-      context += `${index + 1}. ${summary.call_classification?.toUpperCase() || 'GENERAL'} (${timeAgo}):\n`;
-      context += `   Summary: ${summary.summary}\n`;
-      if (summary.key_points && summary.key_points.length > 0) {
-        context += `   Key Points: ${summary.key_points.join(', ')}\n`;
-      }
-      if (summary.next_steps && summary.next_steps.length > 0) {
-        context += `   Follow-ups: ${summary.next_steps.join(', ')}\n`;
-      }
-      context += `   Sentiment: ${getSentimentLabel(summary.sentiment_score)}\n\n`;
-    });
-  }
-  
-  // 2. CONVERSATION STATISTICS & PATTERNS
-  const voiceConversations = allHistory.filter(msg => msg.type === 'voice');
-  const smsConversations = allHistory.filter(msg => msg.type === 'sms');
-  const customerMessages = allHistory.filter(msg => msg.sent_by === 'user');
-  
-  context += `CUSTOMER ENGAGEMENT OVERVIEW:\n`;
-  context += `- Total interactions: ${allHistory.length} messages\n`;
-  context += `- Voice calls: ${voiceConversations.length} messages\n`;
-  context += `- SMS/Text: ${smsConversations.length} messages\n`;
-  context += `- Customer messages: ${customerMessages.length}\n`;
-  context += `- Communication style: ${getCustomerStyle(customerMessages)}\n`;
-  context += `- Relationship duration: ${getRelationshipDuration(allHistory)}\n`;
-  context += `- Last contact: ${getTimeAgo(allHistory[allHistory.length - 1]?.timestamp)}\n\n`;
-  
-  // 3. RECENT CONVERSATION FLOW (last 6 messages for immediate context)
-  context += `IMMEDIATE CONVERSATION CONTEXT (Last ${recentMessages.length} Messages):\n`;
-  context += `--- This is what we were just talking about ---\n`;
-  
-  recentMessages.forEach((msg, index) => {
-    const speaker = msg.sent_by === 'user' ? 'CUSTOMER' : 
-                   msg.sent_by === 'human_agent' ? 'HUMAN AGENT' : 'AI AGENT';
-    const timeAgo = getTimeAgo(msg.timestamp);
-    const channel = msg.type === 'voice' ? ' 🎤' : ' 📱';
-    
-    context += `${index + 1}. ${speaker}${channel} (${timeAgo}):\n`;
-    context += `   "${msg.content}"\n\n`;
-  });
-  
-  // 4. CRITICAL INSTRUCTIONS FOR NATURAL SMS CONVERSATION
-  context += `=== CRITICAL SMS CONVERSATION INSTRUCTIONS ===\n`;
-  context += `🔥 IMMEDIATE PRIORITY: Continue naturally from the last message above\n`;
-  context += `🧠 CONTEXT AWARENESS: Reference previous conversations when relevant\n`;
-  context += `🎯 NO REPETITION: Don't ask questions already answered in history\n`;
-  context += `💬 MATCH ENERGY: Use customer's communication style (${getCustomerStyle(customerMessages)})\n`;
-  context += `🤝 BE HUMAN: Sound natural, not robotic - use conversation summaries to show you remember\n`;
-  context += `⚡ FOCUS: Address what they were just talking about in the recent messages\n`;
-  context += `📱 SMS SPECIFIC: Keep responses concise but helpful - this is a text message\n`;
-  
-  return context;
-}
-
-// Helper functions for SMS context building
-function getTimeAgo(timestamp: Date): string {
-  const now = new Date();
-  const diff = now.getTime() - new Date(timestamp).getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-  
-  if (days > 0) return `${days}d ago`;
-  if (hours > 0) return `${hours}h ago`;
-  if (minutes > 0) return `${minutes}m ago`;
-  return 'just now';
-}
-
-function getCustomerStyle(messages: any[]): string {
-  if (!messages || messages.length === 0) return 'unknown';
-  
-  const totalLength = messages.reduce((sum, msg) => sum + msg.content.length, 0);
-  const avgLength = totalLength / messages.length;
-  
-  if (avgLength > 100) return 'detailed/chatty';
-  if (avgLength > 50) return 'conversational';
-  return 'brief/direct';
-}
-
-function getSentimentLabel(score: number): string {
-  if (score >= 0.7) return 'Very Positive';
-  if (score >= 0.5) return 'Positive';
-  if (score >= 0.3) return 'Neutral';
-  if (score >= 0.1) return 'Negative';
-  return 'Very Negative';
-}
-
-function getRelationshipDuration(messages: any[]): string {
-  if (!messages || messages.length === 0) return 'New customer';
-  
-  const oldest = new Date(messages[0].timestamp);
-  const newest = new Date(messages[messages.length - 1].timestamp);
-  const diffDays = Math.floor((newest.getTime() - oldest.getTime()) / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) return 'Same day';
-  if (diffDays === 1) return '1 day';
-  if (diffDays < 7) return `${diffDays} days`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months`;
-  return `${Math.floor(diffDays / 365)} years`;
-}
 
 // Get today's business hours
 function getTodaysHours(): string {

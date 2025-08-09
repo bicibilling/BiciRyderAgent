@@ -98,6 +98,7 @@
       const [messageInput, setMessageInput] = useState('');
       const [isCallActive, setIsCallActive] = useState(false);
       const [connectionStatus, setConnectionStatus] = useState('disconnected');
+      const [notifications, setNotifications] = useState([]);
       const [, forceUpdate] = useReducer(x => x + 1, 0);
       
       const conversationEndRef = useRef(null);
@@ -106,6 +107,18 @@
       // Scroll to bottom of conversation
       const scrollToBottom = () => {
         conversationEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      };
+      
+      // Show notification
+      const showNotification = (message, type = 'info') => {
+        const id = Date.now();
+        const notification = { id, message, type };
+        setNotifications(prev => [...prev, notification]);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+          setNotifications(prev => prev.filter(n => n.id !== id));
+        }, 5000);
       };
       
       // Fetch leads
@@ -307,28 +320,8 @@
         
         // Show immediate feedback by updating state
         setIsCallActive(true);
-        // Force a re-render
-        forceUpdate();
         
-        // Create notification element with better styling
-        const showNotification = (message, type = 'info') => {
-          // Remove any existing notifications
-          document.querySelectorAll('.notification').forEach(n => n.remove());
-          
-          const notification = document.createElement('div');
-          notification.className = `notification fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-            type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-          } text-white animate-pulse`;
-          notification.style.animation = 'fadeIn 0.3s ease-in';
-          notification.textContent = message;
-          document.body.appendChild(notification);
-          
-          setTimeout(() => {
-            notification.style.animation = 'fadeOut 0.3s ease-out';
-            setTimeout(() => notification.remove(), 300);
-          }, 5000);
-        };
-        
+        // Show notification
         showNotification('📞 Initiating call...', 'info');
         console.log('Starting call to:', selectedLead.phone_number);
         
@@ -406,6 +399,23 @@
       
       return (
         <div className="flex h-screen bg-gray-50">
+          {/* Notifications */}
+          <div className="fixed top-4 right-4 z-50 space-y-2">
+            {notifications.map(notification => (
+              <div
+                key={notification.id}
+                className={`p-4 rounded-lg shadow-lg text-white animate-pulse transition-all ${
+                  notification.type === 'success' ? 'bg-green-500' :
+                  notification.type === 'error' ? 'bg-red-500' :
+                  'bg-blue-500'
+                }`}
+                style={{ animation: 'slideIn 0.3s ease-out' }}
+              >
+                {notification.message}
+              </div>
+            ))}
+          </div>
+          
           {/* Sidebar */}
           <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
             {/* Header */}
