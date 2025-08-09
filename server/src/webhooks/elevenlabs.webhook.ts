@@ -425,7 +425,8 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     const previousSummary = await conversationService.getLatestSummary(lead.id);
     
     // Generate greeting context for dynamic first message
-    const greetingContext = generateGreetingContext(lead);
+    // For outbound calls, pass the isOutbound flag and previous summary
+    const greetingContext = generateGreetingContext(lead, isOutbound, previousSummary);
     
     // Generate dynamic variables
     // Get current Pacific time info

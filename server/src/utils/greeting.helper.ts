@@ -107,11 +107,61 @@ export function getCustomerGreeting(customerName?: string, lastVisit?: Date | st
 
 /**
  * Generate a complete dynamic greeting context
+ * @param lead - Lead information
+ * @param isOutbound - Whether this is an outbound call (agent-initiated)
+ * @param previousSummary - Previous conversation summary for context
  */
-export function generateGreetingContext(lead?: any): Record<string, string> {
+export function generateGreetingContext(lead?: any, isOutbound: boolean = false, previousSummary?: any): Record<string, string> {
   const hasName = !!lead?.customer_name;
   const customerName = lead?.customer_name || "";
   
+  // For outbound calls, create continuation greetings
+  if (isOutbound) {
+    // Different variations for outbound calls that continue the conversation
+    const outboundVariations = [
+      "I wanted to follow up on our conversation",
+      "Just calling to check in with you", 
+      "I'm following up from our earlier chat",
+      "Wanted to continue where we left off",
+      "Just giving you a quick call back"
+    ];
+    
+    // If we have a previous summary, make it more specific
+    let variation = outboundVariations[Math.floor(Math.random() * outboundVariations.length)];
+    
+    if (previousSummary?.call_classification) {
+      switch (previousSummary.call_classification) {
+        case 'sales':
+          variation = "I'm calling about the bike you were interested in";
+          break;
+        case 'service':
+          variation = "I'm calling about your service appointment";
+          break;
+        case 'support':
+          variation = "I wanted to follow up on the issue you mentioned";
+          break;
+        case 'inquiry':
+          variation = "I'm following up on your questions from earlier";
+          break;
+        default:
+          variation = "I wanted to follow up on our conversation";
+      }
+    }
+    
+    return {
+      time_greeting: getTimeBasedGreeting(),
+      day_context: getDayContext(),
+      weather_context: getWeatherGreeting(),
+      customer_greeting: getCustomerGreeting(lead?.customer_name, lead?.last_contact_at),
+      customer_name: customerName,
+      greeting_opener: hasName ? `Hey ${customerName}!` : "Hey!",
+      greeting_variation: variation,
+      is_outbound: "true",
+      call_type: "outbound_followup"
+    };
+  }
+  
+  // Inbound call greetings (original behavior)
   return {
     time_greeting: getTimeBasedGreeting(),
     day_context: getDayContext(),
@@ -119,6 +169,8 @@ export function generateGreetingContext(lead?: any): Record<string, string> {
     customer_greeting: getCustomerGreeting(lead?.customer_name, lead?.last_contact_at),
     customer_name: customerName,  // Just the name: "Dev" or empty
     greeting_opener: hasName ? `Hey ${customerName}!` : "Hey there!",  // "Hey Dev!" or "Hey there!"
-    greeting_variation: Math.random() > 0.5 ? "What can I help you with" : "How can I help you"
+    greeting_variation: Math.random() > 0.5 ? "What can I help you with" : "How can I help you",
+    is_outbound: "false",
+    call_type: "inbound"
   };
 }

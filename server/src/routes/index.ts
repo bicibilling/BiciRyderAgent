@@ -143,6 +143,7 @@ export function setupAPIRoutes(app: Express) {
       let lead = null;
       let conversationContext = '';
       let previousSummary = null;
+      let previousSummaryObj = null;
       
       if (leadId) {
         lead = await leadService.getLead(leadId);
@@ -153,7 +154,12 @@ export function setupAPIRoutes(app: Express) {
           
           // Also get the most recent summary for a brief overview
           const summaries = await conversationService.getAllSummaries(leadId);
-          previousSummary = summaries && summaries.length > 0 ? summaries[0].summary : 'No previous interactions';
+          if (summaries && summaries.length > 0) {
+            previousSummaryObj = summaries[0];
+            previousSummary = summaries[0].summary;
+          } else {
+            previousSummary = 'No previous interactions';
+          }
         }
       }
       
@@ -191,6 +197,12 @@ export function setupAPIRoutes(app: Express) {
         }
       };
       
+      // Import greeting helper for outbound-specific greetings
+      const { generateGreetingContext } = await import('../utils/greeting.helper');
+      
+      // Generate outbound-specific greeting context
+      const greetingContext = generateGreetingContext(lead, true, previousSummaryObj);
+      
       // Build client data that will be passed to the conversation initiation webhook
       const clientData = {
         lead_id: leadId,
@@ -199,8 +211,6 @@ export function setupAPIRoutes(app: Express) {
         timestamp: new Date().toISOString(),
         // Add dynamic variables directly since webhook won't be called for outbound
         dynamic_variables: {
-          greeting_opener: lead?.customer_name ? `Hey ${lead.customer_name}!` : "Hey there!",
-          greeting_variation: "How can I help you today",
           customer_name: lead?.customer_name || '',
           customer_phone: phoneNumber,
           lead_status: lead?.status || 'new',
@@ -214,7 +224,9 @@ export function setupAPIRoutes(app: Express) {
           current_time: currentTime,
           current_day: dayOfWeek,
           current_datetime: `${dayOfWeek} ${currentTime} Pacific Time`,
-          has_customer_name: lead?.customer_name ? 'true' : 'false'
+          has_customer_name: lead?.customer_name ? 'true' : 'false',
+          // Add all greeting context variables for outbound calls
+          ...greetingContext
         }
       };
       
