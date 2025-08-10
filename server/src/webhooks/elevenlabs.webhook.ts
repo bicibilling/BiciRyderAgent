@@ -742,8 +742,13 @@ export async function handlePostCall(req: Request, res: Response) {
       logger.info('Skipping transcript storage for SMS conversation - already stored in real-time');
     }
     
-    // Trigger enhanced SMS automation using ElevenLabs data
-    await enhancedSMSService.triggerSmartAutomation(session, insights, fullTranscript);
+    // Trigger enhanced SMS automation ONLY for voice calls, not SMS conversations
+    if (isVoiceCall) {
+      logger.info('Triggering SMS follow-up for voice call');
+      await enhancedSMSService.triggerSmartAutomation(session, insights, fullTranscript);
+    } else {
+      logger.info('Skipping SMS automation for SMS conversation - not needed');
+    }
     
     // Broadcast to dashboard
     broadcastToClients({

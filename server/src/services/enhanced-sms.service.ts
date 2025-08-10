@@ -114,11 +114,20 @@ export class EnhancedSMSAutomationService {
       priority: 11
     },
 
-    // Bike Recommendations Based on Interest
+    // Bike Recommendations ONLY if explicitly asked for recommendations or models
     {
-      condition: (insights) => 
-        insights.classification === 'sales' && 
-        insights.bikePreferences?.type,
+      condition: (insights) => {
+        const triggers = Array.isArray(insights.triggers) ? insights.triggers : 
+                        typeof insights.triggers === 'string' ? [insights.triggers] : [];
+        return insights.classification === 'sales' && 
+               insights.bikePreferences?.type &&
+               triggers.some(t => 
+                 t.includes('recommendation') || 
+                 t.includes('suggest') ||
+                 t.includes('which bike') ||
+                 t.includes('what models')
+               );
+      },
       message: (insights) => {
         const bikeType = insights.bikePreferences?.type || 'bike';
         const recommendations = this.getBikeRecommendations(bikeType);
@@ -155,36 +164,24 @@ export class EnhancedSMSAutomationService {
       priority: 7
     },
 
-    // Weather-based Suggestion
+
+    // Only send thank you if customer expressed strong interest and needs follow-up
     {
       condition: (insights) => 
         insights.classification === 'sales' && 
-        this.isGoodBikingWeather(),
-      message: () => 
-        `☀️ Perfect biking weather today!\n\n` +
-        `Come test ride your dream bike while the weather's great.\n` +
-        `We're open until ${this.getClosingTime()}.\n\n` +
-        `Don't forget: Helmet fitting is always free! 🪖`,
-      delay: 10 * 60 * 1000, // 10 minutes
-      priority: 3
-    },
-
-    // General Thank You
-    {
-      condition: (insights) => 
-        insights.classification !== null && 
-        insights.sentiment && 
-        insights.sentiment > 0.5,
+        insights.purchaseIntent && 
+        insights.purchaseIntent > 0.5 &&
+        insights.purchaseIntent <= 0.7 && // Mid-level interest (high intent already handled above)
+        !insights.appointmentScheduled,
       message: (insights) => {
         const name = insights.customerName || 'there';
-        return `Thanks for calling BICI, ${name}! 🚴\n\n` +
-               `We're here to help:\n` +
+        return `Thanks for your interest, ${name}! 🚴\n\n` +
+               `Feel free to reach out with any questions:\n` +
                `📞 ${storeInfo.phone}\n` +
-               `📧 ${storeInfo.email}\n` +
-               `🌐 ${storeInfo.website}\n\n` +
-               `Happy cycling! 🌟`;
+               `📧 ${storeInfo.email}\n\n` +
+               `We're here to help find your perfect bike!`;
       },
-      delay: 15 * 60 * 1000, // 15 minutes
+      delay: 10 * 60 * 1000, // 10 minutes
       priority: 1
     }
   ];
@@ -214,10 +211,13 @@ export class EnhancedSMSAutomationService {
 
       const scheduledMessages: Array<{message: string, delay: number}> = [];
 
+      // Only send automated SMS if there's a specific reason to do so
       // First, check if ElevenLabs has recommended a specific follow-up
       if (insights.followUpNeeded && 
           insights.followUpNeeded !== 'none' && 
-          insights.followUpNeeded !== 'no follow-up needed') {
+          insights.followUpNeeded !== 'no follow-up needed' &&
+          insights.followUpNeeded !== 'no' &&
+          insights.followUpNeeded !== 'false') {
         logger.info('ElevenLabs recommended follow-up:', insights.followUpNeeded);
         
         // Map ElevenLabs recommendations to specific messages
@@ -245,30 +245,45 @@ export class EnhancedSMSAutomationService {
         }
       }
       
-      // If no ElevenLabs recommendation or we want additional messages, use template matching
-      // Also use this when ElevenLabs says "no follow-up needed" but we have triggers
+      // Only use trigger-based templates if we have specific action triggers
+      // Don't send generic follow-ups just because conversation happened
       const hasTriggers = insights.triggers && 
                          (Array.isArray(insights.triggers) ? insights.triggers.length > 0 : 
                           typeof insights.triggers === 'string' ? (insights.triggers as string).length > 0 : false);
       
+      // Only check for specific actionable triggers - hours, directions, appointments
+      const actionableTriggers = ['asked_hours', 'asked_directions', 'where_located', 'store hours', 
+                                  'when_open', 'how_to_get', 'appointment', 'asked_price'];
+      
       if (scheduledMessages.length === 0 && hasTriggers) {
-        logger.info('Using trigger-based templates since no ElevenLabs recommendation but triggers exist:', insights.triggers);
+        const triggersArray = Array.isArray(insights.triggers) ? insights.triggers : 
+                             typeof insights.triggers === 'string' ? [insights.triggers] : [];
         
-        // Sort templates by priority
-        const sortedTemplates = [...this.smartTemplates].sort((a, b) => b.priority - a.priority);
+        const hasActionableTrigger = triggersArray.some(trigger => 
+          actionableTriggers.some(actionable => trigger.includes(actionable))
+        );
         
-        // Check each template condition and schedule messages
-        for (const template of sortedTemplates) {
-          if (template.condition(insights, transcript)) {
-            const message = template.message(insights);
-            scheduledMessages.push({
-              message,
-              delay: template.delay || 0
-            });
-            
-            // Only send top 2 messages when using fallback
-            if (scheduledMessages.length >= 2) break;
+        if (hasActionableTrigger) {
+          logger.info('Found actionable triggers, checking templates:', insights.triggers);
+          
+          // Sort templates by priority
+          const sortedTemplates = [...this.smartTemplates].sort((a, b) => b.priority - a.priority);
+          
+          // Check each template condition and schedule messages
+          for (const template of sortedTemplates) {
+            if (template.condition(insights, transcript)) {
+              const message = template.message(insights);
+              scheduledMessages.push({
+                message,
+                delay: template.delay || 0
+              });
+              
+              // Only send ONE message for actionable triggers
+              break;
+            }
           }
+        } else {
+          logger.info('No actionable triggers found, skipping automated SMS');
         }
       }
 
