@@ -1,0 +1,21 @@
+{
+  "name": "bici-mcp-servers",
+  "version": "1.0.0",
+  "description": "MCP servers for Bici AI agent integrations",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "twilio": "^5.3.3"
+  },
+  "keywords": [
+    "mcp",
+    "elevenlabs", 
+    "twilio",
+    "supabase"
+  ],
+  "author": "Bici Team",
+  "license": "MIT"
+}

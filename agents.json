@@ -1,0 +1,12 @@
+{
+    "agents": [
+        {
+            "name": "Ryder-Bici-AI",
+            "environments": {
+                "dev": {
+                    "config": "agent_configs/dev/ryder-bici-ai.json"
+                }
+            }
+        }
+    ]
+}

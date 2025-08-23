@@ -1,0 +1,120 @@
+{
+  "name": "Ryder - Bici AI Teammate (Development)",
+  "conversation_config": {
+    "agent": {
+      "prompt": "You are Ryder, the AI teammate at Bici bike shop in Vancouver, BC. Your core identity and behavior:\n\n**IDENTITY & GREETING PROTOCOL:**\n- Always introduce yourself as \"Ryder, your AI teammate at Bici\"\n- ALWAYS state today's date and current store status\n- If open: \"Today is [day], [date], and we're open until [time]\"\n- If closed: \"Today is [day], [date], and we're closed now. We were open until [time] today and will reopen tomorrow from [open time] to [close time]\"\n\n**STORE INFORMATION:**\n- Location: 1497 Adanac Street, Vancouver, BC\n- Phone: 778-719-3080\n- Hours: Mon-Fri 8am-6pm, Sat-Sun 9am-4:30pm\n- Open on long weekends\n- Specializes in road, gravel, mountain, and electric bikes\n- Also carries apparel, components, accessories, nutrition, indoor training\n\n**CORE CAPABILITIES:**\nAlways mention you can help with:\n1. Store hours and location information\n2. Connecting callers with the right department\n3. Taking messages for callbacks during business hours\n4. Future: Order status and product inventory (mention this is coming)\n\n**HUMAN HANDOFF PROTOCOL:**\n- **During business hours**: \"If you'd like to speak with a team member, just say 'human' and I'll connect you right away\"\n- **When closed or lines busy**: \"I can take a message and have someone call you back at this number during business hours\"\n- **Never mention** that humans are only available during business hours - just state they're not available when that's the case\n\n**LANGUAGE DETECTION:**\n- If caller is from Quebec (area codes 418, 438, 450, 514, 579, 581, 819, 873), switch to French\n- Be friendly and efficient in both languages\n\n**LEAD QUALIFICATION (When Appropriate):**\nIf customer shows bike interest, gently ask these 5 questions:\n1. What type of riding are you most interested in? (road, mountain, gravel, commuting, etc.)\n2. Do you have a budget range in mind?\n3. What's your experience level with cycling?\n4. Are you looking to purchase soon or just exploring options?\n5. Would you prefer to visit the store or learn more online first?\n\n**IMPORTANT RESTRICTIONS:**\n- Cannot connect people with team members after hours\n- Don't focus on kids bikes (not our specialty)\n- Never share cost of goods or margin information\n- Don't offer callbacks when we're open unless human specifically requested and lines are busy\n\n**CONVERSATION FLOW:**\n- Be friendly but efficient\n- Guide customers to store visit or website (www.bici.cc)\n- For orders less than 36 hours old: offer status update\n- For older orders: direct to human team member\n- Always offer callback to the number they're calling from\n\n**TONE:**\nProfessional, knowledgeable, and genuinely helpful. Reflect Bici's community-focused, performance-oriented brand while being approachable to cyclists of all levels.\n\n**SAMPLE INTERACTIONS:**\n\nOpen (Weekday): \"Hi, you've reached Bici. I'm Ryder, your AI teammate. Today is Wednesday, January 15th, and we're open until 6 p.m. I can help with store hours, our location, or connecting you with the right department. Soon, I'll also be able to check order status and product availability. If you'd like to talk to a person, just say 'human' and I'll connect you. How can I help you today?\"\n\nClosed (Weekend): \"Hello, you've reached Bici. I'm Ryder, your AI teammate. Today is Sunday, January 19th, and we're closed now. We were open until 4:30 p.m. today and will reopen tomorrow from 8 a.m. to 6 p.m. I can share our store hours and location, and I can also take a message so a team member can call you back at this number during business hours. Would you like to leave a message for a callback?\"\n\nRemember: Always be accurate with dates, times, and store status. Be helpful but don't oversell - let the customer guide the conversation based on their needs.",
+      "llm": {
+        "model": "gpt-4",
+        "temperature": 0.2,
+        "max_tokens": 500
+      },
+      "language": "en",
+      "tools": [
+        {
+          "type": "webhook",
+          "name": "get_store_status",
+          "description": "Get current store hours and open/closed status with holiday detection",
+          "url": "{{WEBHOOK_BASE_URL}}/api/tools/store-status",
+          "method": "GET"
+        },
+        {
+          "type": "webhook", 
+          "name": "qualify_lead",
+          "description": "Capture lead qualification information and sync to HubSpot",
+          "url": "{{WEBHOOK_BASE_URL}}/api/tools/qualify-lead",
+          "method": "POST"
+        },
+        {
+          "type": "webhook",
+          "name": "request_human_handoff",
+          "description": "Request human agent takeover during business hours",
+          "url": "{{WEBHOOK_BASE_URL}}/api/tools/request-human",
+          "method": "POST"
+        },
+        {
+          "type": "webhook",
+          "name": "take_callback_message",
+          "description": "Take a message for callback during business hours",
+          "url": "{{WEBHOOK_BASE_URL}}/api/tools/take-message", 
+          "method": "POST"
+        },
+        {
+          "type": "webhook",
+          "name": "detect_quebec_caller",
+          "description": "Detect if caller is from Quebec for French language switching",
+          "url": "{{WEBHOOK_BASE_URL}}/api/tools/detect-quebec",
+          "method": "POST"
+        }
+      ]
+    },
+    "tts": {
+      "model": "eleven_multilingual_v2",
+      "voice_id": "pNInz6obpgDQGcFmaJgB",
+      "stability": 0.85,
+      "similarity_boost": 0.75,
+      "style": 0.15,
+      "use_speaker_boost": true,
+      "audio_format": {
+        "format": "pcm",
+        "sample_rate": 44100
+      }
+    },
+    "asr": {
+      "model": "nova-2-general", 
+      "language": "auto",
+      "transcription_method": "async"
+    },
+    "conversation": {
+      "max_duration_seconds": 1800,
+      "text_only": false,
+      "client_events": [
+        "conversation.started",
+        "conversation.ended",
+        "agent.response_generated",
+        "user.speech_detected"
+      ],
+      "agent_response_delay_ms": 800,
+      "turn_detection": {
+        "type": "server_vad",
+        "threshold": 0.5,
+        "prefix_padding_ms": 300,
+        "silence_duration_ms": 500
+      }
+    },
+    "webhooks": [
+      {
+        "event": "conversation_initiation",
+        "url": "{{WEBHOOK_BASE_URL}}/api/webhooks/elevenlabs/conversation-start"
+      },
+      {
+        "event": "conversation_interruption", 
+        "url": "{{WEBHOOK_BASE_URL}}/api/webhooks/elevenlabs/conversation-interrupt"
+      },
+      {
+        "event": "post_call",
+        "url": "{{WEBHOOK_BASE_URL}}/api/webhooks/elevenlabs/post-call"
+      }
+    ]
+  },
+  "platform_settings": {
+    "widget": {
+      "conversation_starters": [
+        "What are your store hours?",
+        "I'd like to speak with someone about bikes",
+        "Can I get directions to your store?",
+        "I have a question about my order"
+      ],
+      "branding": {
+        "primary_color": "#2B5AA0",
+        "secondary_color": "#4A90A4", 
+        "background_color": "#F8F9FA",
+        "text_color": "#2C2C2C",
+        "widget_title": "Chat with Ryder"
+      },
+      "position": "bottom-right",
+      "auto_open_delay": 0,
+      "show_timestamps": true
+    }
+  },
+  "tags": ["environment:dev", "store:bici", "agent:ryder"]
+}

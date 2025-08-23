@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: bici-ryder-server
+    runtime: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_AGENT_ID
+        sync: false
+      - key: ELEVENLABS_PHONE_NUMBER_ID
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: STORE_TIMEZONE
+        value: America/Vancouver
+      - key: STORE_NAME
+        value: Bici
+      - key: STORE_ADDRESS
+        value: "1497 Adanac Street, Vancouver, BC, Canada"
+      - key: STORE_PHONE
+        value: "+17787193080"
+      - key: STORE_WEBSITE
+        value: "https://www.bici.cc"
+    
+  - type: static
+    name: bici-ryder-dashboard
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: ./client/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

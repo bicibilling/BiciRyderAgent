@@ -1,0 +1,194 @@
+{
+  "name": "Ryder AI Agent Core Test Suite",
+  "description": "10 fundamental test prompts to validate Ryder's core behaviors and responses",
+  "store_info": {
+    "name": "Bici",
+    "phone": "+1 (604) 670-0262",
+    "address": "1497 Adanac Street, Vancouver, BC",
+    "hours": {
+      "monday_friday": "8:00 AM - 6:00 PM",
+      "weekend": "9:00 AM - 4:30 PM"
+    }
+  },
+  "test_prompts": [
+    {
+      "id": 1,
+      "category": "store_hours_weekday_open",
+      "prompt": "What are your store hours?",
+      "expected_behaviors": [
+        "Introduces self as 'Ryder, your AI teammate at Bici'",
+        "States current date and store status",
+        "Provides complete store hours",
+        "Mentions location",
+        "Offers additional help"
+      ],
+      "success_criteria": [
+        "Contains 'Ryder' and 'Bici'",
+        "Mentions current date",
+        "States open/closed status",
+        "Includes hours information"
+      ]
+    },
+    {
+      "id": 2,
+      "category": "store_hours_weekend_open",
+      "prompt": "Are you open today?",
+      "expected_behaviors": [
+        "Identifies day of week",
+        "States current open/closed status",
+        "Provides today's specific hours",
+        "Clear and direct response"
+      ],
+      "success_criteria": [
+        "Mentions current day",
+        "States if open or closed",
+        "Provides hours for today"
+      ]
+    },
+    {
+      "id": 3,
+      "category": "store_hours_weekday_closed",
+      "prompt": "What time do you open tomorrow?",
+      "expected_behaviors": [
+        "States current closed status",
+        "Provides tomorrow's opening hours",
+        "Mentions when store closed today",
+        "Professional and helpful tone"
+      ],
+      "success_criteria": [
+        "Mentions tomorrow's hours",
+        "States current closed status",
+        "Professional tone"
+      ]
+    },
+    {
+      "id": 4,
+      "category": "store_hours_weekend_closed",
+      "prompt": "When will you be open again?",
+      "expected_behaviors": [
+        "States current closed status",
+        "Provides next opening time",
+        "Clear about when store closed today",
+        "Offers to take message if appropriate"
+      ],
+      "success_criteria": [
+        "States next opening time",
+        "Clear closed status",
+        "Helpful tone"
+      ]
+    },
+    {
+      "id": 5,
+      "category": "holiday_special_hours",
+      "prompt": "Are you open on holidays?",
+      "expected_behaviors": [
+        "States general holiday policy (open on long weekends)",
+        "May direct to website for specific dates",
+        "Professional response"
+      ],
+      "success_criteria": [
+        "Mentions long weekends policy",
+        "Professional response"
+      ]
+    },
+    {
+      "id": 6,
+      "category": "human_handoff_business_hours",
+      "prompt": "I want to speak to a human",
+      "expected_behaviors": [
+        "Acknowledges request",
+        "States 'just say human and I'll connect you' if open",
+        "Initiates transfer process if open",
+        "Offers message taking if closed"
+      ],
+      "success_criteria": [
+        "Acknowledges human request",
+        "Appropriate response based on store hours",
+        "Professional handling"
+      ]
+    },
+    {
+      "id": 7,
+      "category": "human_handoff_after_hours",
+      "prompt": "Can I talk to someone there?",
+      "expected_behaviors": [
+        "States no agents available (when closed)",
+        "Offers to take message",
+        "Mentions callback during business hours",
+        "Asks for phone number confirmation"
+      ],
+      "success_criteria": [
+        "Appropriate closed-hours response",
+        "Offers callback service",
+        "Professional tone"
+      ]
+    },
+    {
+      "id": 8,
+      "category": "message_taking_after_hours",
+      "prompt": "Can you have someone call me back?",
+      "expected_behaviors": [
+        "Confirms will take message",
+        "Asks for name and phone number",
+        "States callback during business hours",
+        "Professional message-taking process"
+      ],
+      "success_criteria": [
+        "Offers to take message",
+        "Asks for contact details",
+        "States callback timing"
+      ]
+    },
+    {
+      "id": 9,
+      "category": "quebec_french_detection",
+      "prompt": "Bonjour, êtes-vous ouverts?",
+      "phone_number": "+15148881234",
+      "expected_behaviors": [
+        "Responds in French",
+        "Provides store status in French",
+        "Maintains professional tone",
+        "May offer to continue in English"
+      ],
+      "success_criteria": [
+        "Responds in French",
+        "Professional French greeting",
+        "Provides store information"
+      ]
+    },
+    {
+      "id": 10,
+      "category": "lead_qualification_bike_interest",
+      "prompt": "I'm interested in buying an electric bike",
+      "expected_behaviors": [
+        "Shows enthusiasm for bike interest",
+        "Asks qualifying questions about type, budget, experience",
+        "Mentions store specializes in electric bikes",
+        "Offers to connect with human or visit store",
+        "Professional and knowledgeable"
+      ],
+      "success_criteria": [
+        "Acknowledges bike interest",
+        "Asks qualifying questions",
+        "Mentions store expertise",
+        "Offers next steps"
+      ]
+    }
+  ],
+  "testing_instructions": {
+    "manual_testing": "Run each prompt through the Agent Tester in the dashboard",
+    "automated_testing": "Use the test endpoint: POST /api/agent/test with each prompt",
+    "evaluation_criteria": [
+      "All success criteria must be met",
+      "Response time should be under 2 seconds",
+      "Professional and friendly tone",
+      "Accurate information",
+      "No errors or confusion"
+    ]
+  },
+  "pass_criteria": {
+    "minimum_score": "8/10 prompts must pass all success criteria",
+    "response_time": "Average under 2 seconds",
+    "no_critical_failures": "No incorrect store hours, wrong phone numbers, or unprofessional responses"
+  }
+}
