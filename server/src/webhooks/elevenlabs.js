@@ -199,7 +199,7 @@ router.post('/post-call', verifyWebhookSignature, async (req, res) => {
       duration_seconds: duration_seconds || 0,
       summary: call_summary_title || 'General inquiry',
       transcript: transcript,
-      transcript_summary: this.generateTranscriptSummary(transcript),
+      transcript_summary: generateTranscriptSummary(transcript),
       outcome: call_successful === 'success' ? 'successful' : 'incomplete',
       end_reason: end_reason,
       agent_id: agent_id
@@ -215,7 +215,7 @@ router.post('/post-call', verifyWebhookSignature, async (req, res) => {
     });
 
     // Extract lead information for CRM
-    if (transcript) {
+    if (transcript && typeof transcript === 'string') {
       const hasLeadInfo = transcript.toLowerCase().includes('interested in') || 
                          transcript.toLowerCase().includes('looking for') ||
                          transcript.toLowerCase().includes('want to buy');
