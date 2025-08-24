@@ -310,59 +310,111 @@ class CustomerMemoryService {
   }
 
   // ASYNC REDIS OPERATIONS (no latency impact on conversation start)
-  async loadFromRedisAsync(customerId) {
+  // Background Redis operations with retry logic (zero latency impact)
+  loadFromRedisAsync(customerId) {
     // Background task - loads customer from Redis if available
     if (!this.redisClient) return;
     
-    try {
-      // This runs in background - no impact on conversation start
-      setTimeout(async () => {
-        try {
-          const redisData = await this.redisClient.get(`customer:${customerId}`);
-          if (redisData) {
-            const profile = JSON.parse(redisData);
-            this.customerProfiles.set(customerId, profile);
-            this.updateAccessOrder(customerId);
-            console.log('🔄 Background loaded customer from Redis:', customerId);
-          }
-        } catch (error) {
-          console.log('⚠️ Redis background load failed:', error.message);
-        }
-      }, 0); // Immediate async execution
-    } catch (error) {
-      // Silent fail - don't impact conversation
-    }
-  }
-
-  async saveToRedisAsync(customerId, profile) {
-    // Background save - no latency impact
-    if (!this.redisClient) return;
-    
+    // Immediate async execution - no conversation latency
     setTimeout(async () => {
       try {
-        await this.redisClient.setex(`customer:${customerId}`, 86400 * 90, JSON.stringify(profile)); // 90 day TTL
-        console.log('💾 Background saved customer to Redis:', customerId);
+        const profile = await this.getRedisDataWithRetry(`customer:${customerId}`);
+        if (profile) {
+          this.customerProfiles.set(customerId, profile);
+          this.updateAccessOrder(customerId);
+          console.log('🔄 Background loaded customer from Redis:', customerId);
+        }
       } catch (error) {
-        console.log('⚠️ Redis background save failed:', error.message);
+        console.log('⚠️ Redis background load failed:', error.message);
       }
     }, 0);
   }
 
-  // Initialize Redis (optional - graceful degradation)
-  initializeRedis() {
+  saveToRedisAsync(customerId, profile) {
+    // Background save with retry logic - no latency impact
+    if (!this.redisClient) return;
+    
+    setTimeout(async () => {
+      const success = await this.setRedisDataWithRetry(`customer:${customerId}`, profile);
+      if (success) {
+        console.log('💾 Background saved customer to Redis:', customerId);
+      }
+    }, 0);
+  }
+
+  // Initialize Redis following ElevenLabs best practices (graceful degradation)
+  async initializeRedis() {
     try {
-      const redis = require('redis');
+      const { createClient } = require('redis');
+      
       if (process.env.REDIS_URL) {
-        this.redisClient = redis.createClient({ url: process.env.REDIS_URL });
+        this.redisClient = createClient({
+          url: process.env.REDIS_URL,
+          socket: {
+            connectTimeout: 5000,
+            commandTimeout: 5000
+          }
+        });
+        
         this.redisClient.on('error', (err) => {
           console.log('⚠️ Redis connection error (graceful degradation):', err.message);
           this.redisClient = null; // Disable Redis if connection fails
         });
-        console.log('📦 Redis initialized for persistent memory');
+        
+        this.redisClient.on('connect', () => {
+          console.log('📦 Redis connected for persistent customer memory');
+        });
+        
+        // Connect to Redis
+        await this.redisClient.connect();
+        
+        console.log('🚀 Redis initialized successfully for zero-latency persistence');
+      } else {
+        console.log('📦 REDIS_URL not provided - using memory-only mode (data lost on restart)');
       }
     } catch (error) {
-      console.log('📦 Redis not available - using memory-only mode');
+      console.log('📦 Redis initialization failed - using memory-only mode:', error.message);
+      this.redisClient = null;
     }
+  }
+
+  // Redis operations with retry logic (following ElevenLabs pattern)
+  async getRedisDataWithRetry(key, maxRetries = 3) {
+    if (!this.redisClient) return null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const data = await this.redisClient.get(key);
+        return data ? JSON.parse(data) : null;
+      } catch (error) {
+        if (attempt === maxRetries) {
+          console.log('⚠️ Redis get failed after retries:', error.message);
+          return null;
+        }
+        console.log(`📦 Redis get attempt ${attempt} failed, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 100 * attempt)); // Exponential backoff
+      }
+    }
+    return null;
+  }
+
+  async setRedisDataWithRetry(key, data, ttl = 86400 * 90, maxRetries = 3) {
+    if (!this.redisClient) return false;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.redisClient.setEx(key, ttl, JSON.stringify(data));
+        return true;
+      } catch (error) {
+        if (attempt === maxRetries) {
+          console.log('⚠️ Redis set failed after retries:', error.message);
+          return false;
+        }
+        console.log(`📦 Redis set attempt ${attempt} failed, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+      }
+    }
+    return false;
   }
 
   // Enhanced store method with LRU management

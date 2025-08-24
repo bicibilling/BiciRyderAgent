@@ -2,27 +2,60 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 
-// Webhook signature verification for ElevenLabs
-function verifyWebhookSignature(req, res, next) {
-  const signature = req.headers['elevenlabs-signature'];
+// Enhanced webhook signature verification following ElevenLabs best practices
+async function verifyWebhookSignature(req, res, next) {
+  const signatureHeader = req.headers['elevenlabs-signature'];
   const secret = process.env.ELEVENLABS_WEBHOOK_SECRET;
   
-  if (!signature || !secret) {
-    console.log('Missing signature or secret');
+  if (!signatureHeader || !secret) {
+    console.log('⚠️ Missing signature or secret - allowing in development');
     return next(); // Skip verification in development
   }
 
-  const body = JSON.stringify(req.body);
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(body)
-    .digest('hex');
+  try {
+    // Get raw body for signature verification
+    const body = req.rawBody || JSON.stringify(req.body);
+    
+    // Construct webhook event using ElevenLabs method (if available)
+    try {
+      const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
+      const elevenlabs = new ElevenLabsClient();
+      
+      const { event, error } = await elevenlabs.webhooks.constructEvent(
+        body,
+        signatureHeader,
+        secret
+      );
+      
+      if (error) {
+        console.log('🔒 Webhook signature verification failed:', error);
+        return res.status(401).json({ error: 'Invalid webhook signature' });
+      }
+      
+      // Store verified event data for use in route handlers
+      req.verifiedEvent = event;
+      console.log('✅ Webhook signature verified');
+      
+    } catch (libError) {
+      // Fallback to manual verification if ElevenLabs SDK not available
+      const expectedSignature = crypto
+        .createHmac('sha256', secret)
+        .update(body)
+        .digest('hex');
 
-  if (signature !== expectedSignature) {
-    return res.status(401).json({ error: 'Invalid webhook signature' });
+      if (signatureHeader !== expectedSignature) {
+        console.log('🔒 Manual signature verification failed');
+        return res.status(401).json({ error: 'Invalid webhook signature' });
+      }
+      
+      console.log('✅ Manual webhook signature verified');
+    }
+
+    next();
+  } catch (error) {
+    console.error('🔒 Webhook verification error:', error);
+    return res.status(401).json({ error: 'Webhook verification failed' });
   }
-
-  next();
 }
 
 // Conversation initiation webhook - ZERO LATENCY CONTEXT INJECTION

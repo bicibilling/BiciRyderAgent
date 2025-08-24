@@ -46,11 +46,19 @@ app.use('*', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🤖 Ryder AI Server running on port ${PORT}`);
   console.log(`📞 Twilio phone number: ${process.env.TWILIO_PHONE_NUMBER}`);
   console.log(`🎯 ElevenLabs Agent ID: ${process.env.ELEVENLABS_AGENT_ID}`);
   console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+  
+  // Initialize Redis for zero-latency customer memory (following ElevenLabs best practices)
+  try {
+    const customerMemory = require('./services/customerMemory');
+    await customerMemory.initializeRedis();
+  } catch (error) {
+    console.log('📦 Redis initialization skipped:', error.message);
+  }
 });
 
 module.exports = app;
