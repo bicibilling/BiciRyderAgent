@@ -74,17 +74,38 @@ router.get('/conversations', async (req, res) => {
       const conversations = response.data.conversations || [];
       
       // Enhance conversation data with readable format
-      const enhancedConversations = conversations.map(conv => ({
-        conversation_id: conv.conversation_id,
-        caller_number: conv.caller_phone || 'Unknown Caller',
-        created_at: new Date(conv.start_time_unix_secs * 1000).toISOString(),
-        duration_seconds: conv.call_duration_secs || 0,
-        status: conv.status || 'unknown',
-        summary: conv.call_summary_title || 'No summary',
-        message_count: conv.message_count || 0,
-        transcript: conv.transcript || null,
-        successful: conv.call_successful === 'success',
-        direction: conv.direction || 'inbound'
+      const enhancedConversations = await Promise.all(conversations.map(async (conv) => {
+        let transcript = null;
+        
+        // Try to get detailed transcript if available
+        try {
+          const detailResponse = await axios.get(`https://api.elevenlabs.io/v1/convai/conversations/${conv.conversation_id}`, {
+            headers: { 'xi-api-key': apiKey }
+          });
+          
+          if (detailResponse.data.transcript && Array.isArray(detailResponse.data.transcript)) {
+            transcript = detailResponse.data.transcript.map(turn => ({
+              speaker: turn.role === 'user' ? 'Customer' : 'Ryder',
+              message: turn.message,
+              time: turn.time_in_call_secs || 0
+            }));
+          }
+        } catch (e) {
+          console.log('Could not fetch transcript for conversation:', conv.conversation_id);
+        }
+
+        return {
+          conversation_id: conv.conversation_id,
+          caller_number: conv.caller_phone || conv.from || 'Unknown Caller',
+          created_at: new Date(conv.start_time_unix_secs * 1000).toISOString(),
+          duration_seconds: conv.call_duration_secs || 0,
+          status: conv.status || 'unknown',
+          summary: conv.call_summary_title || conv.transcript_summary || 'No summary',
+          message_count: conv.message_count || 0,
+          transcript: transcript,
+          successful: conv.call_successful === 'success',
+          direction: conv.direction || 'inbound'
+        };
       }));
       
       res.json({
