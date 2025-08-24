@@ -14,7 +14,7 @@ Go to https://dashboard.render.com and create a **Web Service**:
 - **Git Repository**: `https://github.com/divhit/bici-cli-agent`
 - **Branch**: `main`
 - **Runtime**: `Node`
-- **Region**: `Oregon (US West)` or closest to Vancouver
+- **Region**: `Oregon (US West)` or closest to Vancouverå
 
 ### Build & Deploy Settings
 - **Build Command**: `cd server && npm install`
