@@ -60,51 +60,50 @@ router.get('/conversations', async (req, res) => {
     const apiKey = process.env.ELEVENLABS_API_KEY;
     const limit = req.query.limit || 10;
     
-    // First check our local conversation store
-    const conversationStore = require('../services/conversationStore');
-    const localConversations = conversationStore.getAllConversations().slice(0, limit);
-    
-    if (localConversations.length > 0) {
-      return res.json({
-        success: true,
-        conversations: localConversations,
-        total: localConversations.length,
-        source: 'local_store'
-      });
-    }
-    
-    // If no local conversations, try ElevenLabs API
+    // Get real conversations from ElevenLabs API
     try {
-      let response;
-      try {
-        response = await axios.get(`https://api.elevenlabs.io/v1/convai/conversations`, {
-          headers: { 'xi-api-key': apiKey },
-          params: { agent_id: agentId, limit }
-        });
-      } catch (e) {
-        response = await axios.get(`https://api.elevenlabs.io/v1/convai/agents/${agentId}/conversations`, {
-          headers: { 'xi-api-key': apiKey },
-          params: { limit }
-        });
-      }
+      const response = await axios.get(`https://api.elevenlabs.io/v1/convai/conversations`, {
+        headers: { 'xi-api-key': apiKey },
+        params: { 
+          agent_id: agentId, 
+          limit: limit,
+          include_transcript: true
+        }
+      });
 
-      const conversations = response.data.conversations || response.data || [];
+      const conversations = response.data.conversations || [];
+      
+      // Enhance conversation data with readable format
+      const enhancedConversations = conversations.map(conv => ({
+        conversation_id: conv.conversation_id,
+        caller_number: conv.caller_phone || 'Unknown Caller',
+        created_at: new Date(conv.start_time_unix_secs * 1000).toISOString(),
+        duration_seconds: conv.call_duration_secs || 0,
+        status: conv.status || 'unknown',
+        summary: conv.call_summary_title || 'No summary',
+        message_count: conv.message_count || 0,
+        transcript: conv.transcript || null,
+        successful: conv.call_successful === 'success',
+        direction: conv.direction || 'inbound'
+      }));
       
       res.json({
         success: true,
-        conversations: conversations,
-        total: conversations.length,
-        source: 'elevenlabs_api',
-        message: conversations.length === 0 ? 'No conversations yet - call +1 (604) 670-0262 to start!' : undefined
+        conversations: enhancedConversations,
+        total: enhancedConversations.length,
+        source: 'elevenlabs_api_real'
       });
     } catch (apiError) {
-      // Return empty with helpful message
+      console.error('ElevenLabs conversations API error:', apiError.response?.status, apiError.message);
+      
+      // Fallback: return empty with helpful message
       res.json({
         success: true,
         conversations: [],
         total: 0,
-        source: 'none',
-        message: 'No conversations yet - call +1 (604) 670-0262 to start testing Ryder!'
+        source: 'api_error',
+        message: 'Could not load conversations. Call +1 (604) 670-0262 to start testing Ryder!',
+        error: apiError.response?.status === 404 ? 'No conversations found' : 'API error'
       });
     }
   } catch (error) {

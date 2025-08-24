@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, Bot, User, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Send, Bot, User, Clock, CheckCircle, AlertTriangle, Phone } from 'lucide-react';
 
 const AgentTester = ({ agentStatus, onTest }) => {
   const [message, setMessage] = useState('');
