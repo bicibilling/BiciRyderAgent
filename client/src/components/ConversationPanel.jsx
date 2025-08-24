@@ -75,7 +75,7 @@ const ConversationPanel = ({ conversations, onRefresh }) => {
             <div
               key={conversation.conversation_id || conversation.id}
               className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                selectedConversation?.id === conversation.id
+                selectedConversation?.conversation_id === conversation.conversation_id
                   ? 'border-primary-200 bg-primary-50'
                   : 'border-neutral-200 hover:border-neutral-300'
               }`}
