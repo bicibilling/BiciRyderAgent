@@ -3,29 +3,17 @@ const moment = require('moment-timezone');
 
 class CustomerMemoryService {
   constructor() {
-    // SCALABLE ZERO-LATENCY ARCHITECTURE
-    // Primary: LRU Cache (0ms access) - keeps 1000 most recent customers
-    this.customerProfiles = new Map(); // LRU cache for hot customers
+    // In production, this would be a database (Supabase/PostgreSQL)
+    // For now, using in-memory storage for demo
+    this.customerProfiles = new Map();
     this.conversationHistory = new Map();
-    
-    // Configuration
-    this.maxCacheSize = 1000; // Keep 1000 customers in memory
-    this.accessOrder = []; // Track access order for LRU eviction
-    
-    // Redis will be added for persistence (async only - no latency impact)
-    this.redisClient = null; // Will be initialized if Redis available
-    
-    console.log('🧠 CustomerMemory initialized with LRU cache (max:', this.maxCacheSize, 'customers)');
   }
 
-  // Store conversation summary with LRU management (post-call webhook)
+  // Store conversation summary after call ends (post-call webhook)
   storeConversationSummary(callerPhone, conversationData) {
     const customerId = this.normalizePhoneNumber(callerPhone);
     
-    // Update LRU access order (0ms operation)
-    this.updateAccessOrder(customerId);
-    
-    // Get or create profile (existing logic - don't break!)
+    // Update customer profile
     const profile = this.customerProfiles.get(customerId) || {
       phone: callerPhone,
       first_seen: new Date().toISOString(),
@@ -39,10 +27,10 @@ class CustomerMemoryService {
     profile.conversation_count += 1;
     profile.last_interaction = new Date().toISOString();
     
-    // Extract customer insights from conversation (existing logic)
+    // Extract customer insights from conversation
     const insights = this.extractInsights(conversationData);
     
-    // Update preferences based on conversation (existing logic)
+    // Update preferences based on conversation
     if (insights.bike_interest) {
       profile.preferences.bike_type = insights.bike_interest;
     }
@@ -56,14 +44,14 @@ class CustomerMemoryService {
       profile.preferences.communication_style = insights.communication_style;
     }
 
-    // Track sentiment over time (existing logic)
+    // Track sentiment over time
     profile.sentiment_history.push({
       sentiment: insights.sentiment,
       date: new Date().toISOString(),
       conversation_id: conversationData.conversation_id
     });
 
-    // Store conversation summary (existing logic)
+    // Store conversation summary
     this.conversationHistory.set(conversationData.conversation_id, {
       customer_id: customerId,
       conversation_id: conversationData.conversation_id,
@@ -75,30 +63,16 @@ class CustomerMemoryService {
       transcript_summary: conversationData.transcript_summary
     });
 
-    // Update memory cache
     this.customerProfiles.set(customerId, profile);
     
-    // Background save to Redis (async - no latency)
-    this.saveToRedisAsync(customerId, profile);
-    
-    console.log('📝 Customer profile updated in LRU cache:', customerId, profile.conversation_count, 'conversations');
+    console.log('📝 Customer profile updated:', customerId, profile.conversation_count, 'conversations');
     return profile;
   }
 
-  // ZERO-LATENCY customer context retrieval with LRU management
+  // Get customer context for new conversation (conversation initiation webhook)
   getCustomerContext(callerPhone) {
     const customerId = this.normalizePhoneNumber(callerPhone);
-    
-    // UPDATE LRU ACCESS ORDER (0ms impact)
-    this.updateAccessOrder(customerId);
-    
     const profile = this.customerProfiles.get(customerId);
-    
-    // CACHE MISS - still zero latency!
-    if (!profile) {
-      // Background task: try to load from Redis (no latency impact)
-      this.loadFromRedisAsync(customerId);
-    }
     
     if (!profile) {
       // First-time caller
@@ -283,153 +257,6 @@ class CustomerMemoryService {
       customer_id: id,
       ...profile
     }));
-  }
-
-  // LRU CACHE MANAGEMENT (zero latency)
-  updateAccessOrder(customerId) {
-    // Remove from current position
-    const index = this.accessOrder.indexOf(customerId);
-    if (index > -1) {
-      this.accessOrder.splice(index, 1);
-    }
-    // Add to front (most recently used)
-    this.accessOrder.unshift(customerId);
-    
-    // Evict least recently used if cache is full
-    if (this.accessOrder.length > this.maxCacheSize) {
-      const evictId = this.accessOrder.pop();
-      const evictedProfile = this.customerProfiles.get(evictId);
-      
-      // Save to Redis before evicting (async - no latency)
-      if (evictedProfile) {
-        this.saveToRedisAsync(evictId, evictedProfile);
-        this.customerProfiles.delete(evictId);
-        console.log('💾 LRU evicted customer to Redis:', evictId);
-      }
-    }
-  }
-
-  // ASYNC REDIS OPERATIONS (no latency impact on conversation start)
-  async loadFromRedisAsync(customerId) {
-    // Background task - loads customer from Redis if available
-    if (!this.redisClient) return;
-    
-    try {
-      // This runs in background - no impact on conversation start
-      setTimeout(async () => {
-        try {
-          const redisData = await this.redisClient.get(`customer:${customerId}`);
-          if (redisData) {
-            const profile = JSON.parse(redisData);
-            this.customerProfiles.set(customerId, profile);
-            this.updateAccessOrder(customerId);
-            console.log('🔄 Background loaded customer from Redis:', customerId);
-          }
-        } catch (error) {
-          console.log('⚠️ Redis background load failed:', error.message);
-        }
-      }, 0); // Immediate async execution
-    } catch (error) {
-      // Silent fail - don't impact conversation
-    }
-  }
-
-  async saveToRedisAsync(customerId, profile) {
-    // Background save - no latency impact
-    if (!this.redisClient) return;
-    
-    setTimeout(async () => {
-      try {
-        await this.redisClient.setex(`customer:${customerId}`, 86400 * 90, JSON.stringify(profile)); // 90 day TTL
-        console.log('💾 Background saved customer to Redis:', customerId);
-      } catch (error) {
-        console.log('⚠️ Redis background save failed:', error.message);
-      }
-    }, 0);
-  }
-
-  // Initialize Redis (optional - graceful degradation)
-  initializeRedis() {
-    try {
-      const redis = require('redis');
-      if (process.env.REDIS_URL) {
-        this.redisClient = redis.createClient({ url: process.env.REDIS_URL });
-        this.redisClient.on('error', (err) => {
-          console.log('⚠️ Redis connection error (graceful degradation):', err.message);
-          this.redisClient = null; // Disable Redis if connection fails
-        });
-        console.log('📦 Redis initialized for persistent memory');
-      }
-    } catch (error) {
-      console.log('📦 Redis not available - using memory-only mode');
-    }
-  }
-
-  // Enhanced store method with LRU management
-  storeConversationSummary(callerPhone, conversationData) {
-    const customerId = this.normalizePhoneNumber(callerPhone);
-    
-    // Update LRU access order
-    this.updateAccessOrder(customerId);
-    
-    // Get or create profile (existing logic - don't break!)
-    const profile = this.customerProfiles.get(customerId) || {
-      phone: callerPhone,
-      first_seen: new Date().toISOString(),
-      conversation_count: 0,
-      preferences: {},
-      purchase_history: [],
-      sentiment_history: [],
-      last_interaction: null
-    };
-
-    profile.conversation_count += 1;
-    profile.last_interaction = new Date().toISOString();
-    
-    // Extract customer insights from conversation (existing logic)
-    const insights = this.extractInsights(conversationData);
-    
-    // Update preferences based on conversation (existing logic)
-    if (insights.bike_interest) {
-      profile.preferences.bike_type = insights.bike_interest;
-    }
-    if (insights.budget) {
-      profile.preferences.budget_range = insights.budget;
-    }
-    if (insights.experience_level) {
-      profile.preferences.experience = insights.experience_level;
-    }
-    if (insights.communication_style) {
-      profile.preferences.communication_style = insights.communication_style;
-    }
-
-    // Track sentiment over time (existing logic)
-    profile.sentiment_history.push({
-      sentiment: insights.sentiment,
-      date: new Date().toISOString(),
-      conversation_id: conversationData.conversation_id
-    });
-
-    // Store conversation summary (existing logic)
-    this.conversationHistory.set(conversationData.conversation_id, {
-      customer_id: customerId,
-      conversation_id: conversationData.conversation_id,
-      date: new Date().toISOString(),
-      duration_seconds: conversationData.duration_seconds,
-      summary: conversationData.summary,
-      outcome: conversationData.outcome,
-      next_actions: insights.suggested_actions || [],
-      transcript_summary: conversationData.transcript_summary
-    });
-
-    // Update memory cache
-    this.customerProfiles.set(customerId, profile);
-    
-    // Background save to Redis (async - no latency)
-    this.saveToRedisAsync(customerId, profile);
-    
-    console.log('📝 Customer profile updated in LRU cache:', customerId, profile.conversation_count, 'conversations');
-    return profile;
   }
 
   // Clear old data (privacy compliance)

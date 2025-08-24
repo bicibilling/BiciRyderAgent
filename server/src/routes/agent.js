@@ -118,10 +118,45 @@ router.get('/conversations', async (req, res) => {
         };
       }));
       
+      // Group conversations by customer phone number
+      const customerGroups = {};
+      enhancedConversations.forEach(conv => {
+        const phone = conv.caller_number;
+        if (!customerGroups[phone]) {
+          customerGroups[phone] = {
+            customer_phone: phone,
+            conversation_count: 0,
+            conversations: [],
+            latest_summary: '',
+            total_duration: 0,
+            first_call: null,
+            last_call: null
+          };
+        }
+        
+        customerGroups[phone].conversations.push(conv);
+        customerGroups[phone].conversation_count += 1;
+        customerGroups[phone].total_duration += conv.duration_seconds;
+        customerGroups[phone].latest_summary = conv.summary;
+        
+        if (!customerGroups[phone].first_call || conv.created_at < customerGroups[phone].first_call) {
+          customerGroups[phone].first_call = conv.created_at;
+        }
+        if (!customerGroups[phone].last_call || conv.created_at > customerGroups[phone].last_call) {
+          customerGroups[phone].last_call = conv.created_at;
+        }
+      });
+
+      const groupedCustomers = Object.values(customerGroups).sort((a, b) => 
+        new Date(b.last_call) - new Date(a.last_call)
+      );
+
       res.json({
         success: true,
-        conversations: enhancedConversations,
+        conversations: enhancedConversations, // Keep original for backward compatibility
+        customers: groupedCustomers, // New grouped format
         total: enhancedConversations.length,
+        unique_customers: groupedCustomers.length,
         source: 'elevenlabs_api_real'
       });
     } catch (apiError) {
