@@ -112,46 +112,98 @@ router.post('/conversation-start', verifyWebhookSignature, async (req, res) => {
   }
 });
 
-// Conversation interruption webhook (for human handoff)
+// Conversation interruption webhook (for human handoff with FULL CONTEXT)
 router.post('/conversation-interrupt', verifyWebhookSignature, async (req, res) => {
   try {
-    const { conversation_id, agent_id, reason, metadata } = req.body;
+    const { conversation_id, agent_id, reason, metadata, transcript } = req.body;
+    const callerPhone = metadata?.caller_phone || metadata?.from;
     
-    console.log('⚠️ Conversation interrupted:', {
+    console.log('⚠️ Human handoff requested with full context:', {
       conversation_id,
-      agent_id,
+      caller_phone: callerPhone,
       reason,
-      timestamp: new Date().toISOString(),
-      metadata
+      timestamp: new Date().toISOString()
     });
 
-    // Handle human handoff logic here
-    // 1. Check if human agents are available
-    // 2. Queue the conversation for human takeover
-    // 3. Notify human agents
-    // 4. Prepare handoff context
+    // Get FULL customer context including ALL previous conversations
+    const customerMemory = require('../services/customerMemory');
+    const customerContext = customerMemory.getCustomerContext(callerPhone);
+    
+    // Get current conversation transcript from ElevenLabs
+    let currentTranscript = [];
+    try {
+      const axios = require('axios');
+      const apiKey = process.env.ELEVENLABS_API_KEY;
+      
+      const response = await axios.get(`https://api.elevenlabs.io/v1/convai/conversations/${conversation_id}`, {
+        headers: { 'xi-api-key': apiKey }
+      });
+      
+      if (response.data.transcript && Array.isArray(response.data.transcript)) {
+        currentTranscript = response.data.transcript.map(turn => ({
+          speaker: turn.role === 'user' ? 'Customer' : 'Ryder',
+          message: turn.message,
+          time: turn.time_in_call_secs || 0
+        }));
+      }
+    } catch (e) {
+      console.log('Could not fetch current conversation transcript');
+    }
+
+    // BUILD COMPREHENSIVE HANDOFF CONTEXT
+    const handoffContext = {
+      conversation_id,
+      caller_phone: callerPhone,
+      customer_tier: customerContext.customer_tier,
+      total_previous_calls: customerContext.conversation_count,
+      previous_context: customerContext.previous_context,
+      bike_interest: customerContext.bike_interest,
+      last_conversation_summary: customerContext.last_conversation,
+      customer_sentiment: customerContext.customer_sentiment,
+      
+      // Current conversation context
+      current_transcript: currentTranscript,
+      transfer_reason: reason,
+      conversation_duration: currentTranscript.length > 0 ? 
+        currentTranscript[currentTranscript.length - 1].time : 0,
+      
+      // Suggested approach for human agent
+      suggested_approach: customerContext.suggested_approach,
+      recommended_actions: [
+        customerContext.bike_interest !== 'unknown' ? `Customer interested in ${customerContext.bike_interest} bikes` : 'Explore customer needs',
+        customerContext.conversation_count > 1 ? 'Returning customer - acknowledge previous interactions' : 'New customer - provide comprehensive assistance',
+        reason === 'customer_request' ? 'Customer specifically asked for human help' : 'Agent determined human assistance needed'
+      ],
+      
+      handoff_timestamp: new Date().toISOString()
+    };
+
+    // Store handoff context for human agent dashboard
+    const conversationStore = require('../services/conversationStore');
+    conversationStore.storeConversation(conversation_id, {
+      ...conversationStore.getConversation(conversation_id),
+      human_handoff_context: handoffContext,
+      status: 'pending_human_takeover'
+    });
 
     const storeHours = require('../services/storeHours');
     const status = storeHours.getCurrentStatus();
 
     if (status.isOpen) {
-      // Store is open - can hand off to human
+      console.log('👤 Human agent context prepared with full customer history');
+      
       res.status(200).json({
         success: true,
         action: 'transfer_to_human',
-        message: 'Transferring to human agent',
-        context: {
-          customer_phone: metadata?.phone_number,
-          conversation_summary: metadata?.conversation_context,
-          transfer_reason: reason
-        }
+        message: 'Transferring to human agent with full customer context',
+        handoff_context: handoffContext
       });
     } else {
-      // Store is closed - offer callback
       res.status(200).json({
         success: true,
         action: 'offer_callback',
         message: 'No agents available, offering callback',
+        handoff_context: handoffContext,
         next_available: status.nextOpen
       });
     }
