@@ -3,7 +3,7 @@
     "render": {
       "url": "https://mcp.render.com/mcp",
       "headers": {
-        "Authorization": "Bearer ${RENDER_API_KEY}"
+        "Authorization": "Bearer rnd_UeQzXrSTtWX46ZlCVGBE0umfXnhU"
       }
     },
     "supabase": {
@@ -22,12 +22,12 @@
       }
     },
     "twilio": {
-      "command": "node", 
-      "args": ["/Users/divhit/Desktop/bici-cli-agent/mcp-servers/twilio-server.js"],
-      "env": {
-        "TWILIO_ACCOUNT_SID": "${TWILIO_ACCOUNT_SID}",
-        "TWILIO_AUTH_TOKEN": "${TWILIO_AUTH_TOKEN}"
-      }
+      "command": "npx",
+      "args": [
+        "-y",
+        "@twilio-alpha/mcp",
+        "ACa474c6d23cca243aea12953c9dc0970c/SK1759a3e4e55b2c03aa0e1e81005564a5:sA8JlkEvf51w2ISVF4SNlwyEPQxeqpka"
+      ]
     }
   }
 }

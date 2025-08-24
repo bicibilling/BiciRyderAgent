@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, Bot, Users, BarChart3, Settings, AlertCircle, CheckCircle, Clock, MapPin, Edit3 } from 'lucide-react';
+import { Phone, Bot, Users, BarChart3, Settings, AlertCircle, CheckCircle, Clock, MapPin, Edit3, Headphones } from 'lucide-react';
 import { agentAPI, storeAPI, healthAPI } from './services/api';
 
 // Components
@@ -9,6 +9,7 @@ import ConversationPanel from './components/ConversationPanel';
 import AgentTester from './components/AgentTester';
 import Analytics from './components/Analytics';
 import PromptEditor from './components/PromptEditor';
+import HumanControlPanel from './components/HumanControlPanel';
 
 function App() {
   const [agentStatus, setAgentStatus] = useState(null);
@@ -17,7 +18,9 @@ function App() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('activeTab') || 'overview';
+  });
 
   // Fetch initial data
   useEffect(() => {
@@ -85,6 +88,7 @@ function App() {
   const tabs = [
     { id: 'overview', name: 'Overview', icon: BarChart3 },
     { id: 'conversations', name: 'Conversations', icon: Users },
+    { id: 'human-control', name: 'Human Handoff', icon: Headphones },
     { id: 'testing', name: 'Voice Testing', icon: Bot },
     { id: 'prompt-editor', name: 'Prompt Editor', icon: Edit3 },
     { id: 'analytics', name: 'Analytics', icon: BarChart3 },
@@ -108,7 +112,10 @@ function App() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    localStorage.setItem('activeTab', tab.id);
+                  }}
                   className={`flex items-center py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === tab.id
                       ? 'border-primary-500 text-primary-600'
@@ -191,6 +198,10 @@ function App() {
             conversations={conversations}
             onRefresh={fetchAllData}
           />
+        )}
+
+        {activeTab === 'human-control' && (
+          <HumanControlPanel />
         )}
 
         {activeTab === 'testing' && (

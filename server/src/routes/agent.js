@@ -60,8 +60,21 @@ router.get('/conversations', async (req, res) => {
     const apiKey = process.env.ELEVENLABS_API_KEY;
     const limit = req.query.limit || 10;
     
+    // First check our local conversation store
+    const conversationStore = require('../services/conversationStore');
+    const localConversations = conversationStore.getAllConversations().slice(0, limit);
+    
+    if (localConversations.length > 0) {
+      return res.json({
+        success: true,
+        conversations: localConversations,
+        total: localConversations.length,
+        source: 'local_store'
+      });
+    }
+    
+    // If no local conversations, try ElevenLabs API
     try {
-      // Try multiple possible endpoints for conversations
       let response;
       try {
         response = await axios.get(`https://api.elevenlabs.io/v1/convai/conversations`, {
@@ -81,20 +94,18 @@ router.get('/conversations', async (req, res) => {
         success: true,
         conversations: conversations,
         total: conversations.length,
+        source: 'elevenlabs_api',
         message: conversations.length === 0 ? 'No conversations yet - call +1 (604) 670-0262 to start!' : undefined
       });
     } catch (apiError) {
-      // Handle 404 - no conversations yet
-      if (apiError.response?.status === 404) {
-        res.json({
-          success: true,
-          conversations: [],
-          total: 0,
-          message: 'No conversations yet - call +1 (604) 670-0262 to start testing Ryder!'
-        });
-      } else {
-        throw apiError;
-      }
+      // Return empty with helpful message
+      res.json({
+        success: true,
+        conversations: [],
+        total: 0,
+        source: 'none',
+        message: 'No conversations yet - call +1 (604) 670-0262 to start testing Ryder!'
+      });
     }
   } catch (error) {
     console.error('Conversations error:', error);
