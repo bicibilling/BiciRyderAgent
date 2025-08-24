@@ -15,6 +15,7 @@ function App() {
   const [agentStatus, setAgentStatus] = useState(null);
   const [storeStatus, setStoreStatus] = useState(null);
   const [conversations, setConversations] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -47,6 +48,7 @@ function App() {
       setAgentStatus(agentRes.data);
       setStoreStatus(storeRes.data);
       setConversations(conversationsRes.data.conversations || []);
+      setCustomers(conversationsRes.data.customers || []);
       setAnalytics(analyticsRes.data.analytics);
     } catch (err) {
       console.error('Failed to fetch data:', err);
@@ -196,6 +198,7 @@ function App() {
         {activeTab === 'conversations' && (
           <ConversationPanel 
             conversations={conversations}
+            customers={customers}
             onRefresh={fetchAllData}
           />
         )}

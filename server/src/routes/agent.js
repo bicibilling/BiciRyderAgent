@@ -233,22 +233,67 @@ router.post('/test', async (req, res) => {
 
         const dynamicVars = contextResponse.data.dynamic_variables || {};
         
-        // Use real agent logic with dynamic variables
-        let agentResponse = `Hi! I'm Ryder, your AI teammate at Bici. ${dynamicVars.store_greeting || 'How can I help you today?'}`;
+        // INTELLIGENT RESPONSE GENERATION based on question type
+        const messageText = message.toLowerCase();
+        let agentResponse = '';
         
+        // Base greeting with customer awareness
         if (dynamicVars.customer_tier && dynamicVars.customer_tier !== 'new') {
           agentResponse = `Hi, welcome back to Bici! I'm Ryder, your AI teammate. ${dynamicVars.previous_context || 'I remember you called before.'}`;
+        } else {
+          agentResponse = `Hi! I'm Ryder, your AI teammate at Bici.`;
         }
         
-        if (message.toLowerCase().includes('hours')) {
-          agentResponse += ` Our hours are Mon-Fri 8am-6pm, Sat-Sun 9am-4:30pm.`;
-        } else if (message.toLowerCase().includes('location')) {
-          agentResponse += ` We're located at 1497 Adanac Street, Vancouver, BC.`;
-        } else if (message.toLowerCase().includes('bike')) {
-          agentResponse += ` I can help with ${dynamicVars.bike_interest || 'bike'} recommendations.`;
+        // SPECIFIC RESPONSES based on question content
+        if (messageText.includes('hours') || messageText.includes('open') || messageText.includes('close')) {
+          agentResponse += ` ${dynamicVars.store_greeting}. Our regular hours are Monday to Friday 8am to 6pm, and weekends 9am to 4:30pm.`;
+          
+        } else if (messageText.includes('location') || messageText.includes('address') || messageText.includes('where')) {
+          agentResponse += ` We're located at 1497 Adanac Street in Vancouver, BC. ${dynamicVars.store_greeting}. We're easy to find and have bike parking available!`;
+          
+        } else if (messageText.includes('bike') || messageText.includes('bicycle')) {
+          agentResponse += ` I'd love to help with bikes! We specialize in road, mountain, gravel, and electric bikes.`;
+          if (dynamicVars.bike_interest && dynamicVars.bike_interest !== 'unknown') {
+            agentResponse += ` I see you've been interested in ${dynamicVars.bike_interest} bikes before.`;
+          }
+          agentResponse += ` What type of riding are you planning to do?`;
+          
+        } else if (messageText.includes('human') || messageText.includes('person') || messageText.includes('talk')) {
+          const storeStatus = require('../services/storeHours').getCurrentStatus();
+          if (storeStatus.isOpen) {
+            agentResponse += ` Of course! I can connect you with one of our team members right away. Just say 'human' and I'll transfer you to someone who can help.`;
+          } else {
+            agentResponse += ` I'd be happy to have someone call you back! ${dynamicVars.store_greeting}. I can take your information and have a team member call you during business hours.`;
+          }
+          
+        } else if (messageText.includes('price') || messageText.includes('cost') || messageText.includes('budget')) {
+          agentResponse += ` I can help you find something within your budget! Our bikes range from entry-level to professional grade.`;
+          if (dynamicVars.bike_interest && dynamicVars.bike_interest !== 'unknown') {
+            agentResponse += ` For ${dynamicVars.bike_interest} bikes, we have great options.`;
+          }
+          agentResponse += ` What's your budget range?`;
+          
+        } else if (messageText.includes('electric') || messageText.includes('e-bike')) {
+          agentResponse += ` Electric bikes are fantastic! We carry high-quality e-bikes perfect for Vancouver's hills and commuting. Are you looking for commuting, recreational riding, or mountain trails?`;
+          
+        } else if (messageText.includes('mountain') || messageText.includes('mtb')) {
+          agentResponse += ` Mountain biking around Vancouver is incredible! We have mountain bikes for all skill levels, from beginner-friendly to advanced trail bikes. What's your experience level?`;
+          
+        } else if (messageText.includes('road') || messageText.includes('racing')) {
+          agentResponse += ` Road cycling is amazing for fitness and speed! We carry high-performance road bikes for everything from casual rides to competitive racing. Are you training for anything specific?`;
+          
+        } else if (messageText.includes('repair') || messageText.includes('service') || messageText.includes('fix')) {
+          agentResponse += ` Our service department can help! ${dynamicVars.store_greeting}. We offer comprehensive bike repairs and maintenance. What kind of issue are you having?`;
+          
+        } else {
+          // General inquiry
+          agentResponse += ` ${dynamicVars.store_greeting}. I can help with store hours, our location, bike recommendations, or connect you with the right department.`;
         }
         
-        agentResponse += ` How can I help you today?`;
+        // Always end with helpful offer
+        if (!messageText.includes('human')) {
+          agentResponse += ` How can I help you today?`;
+        }
 
         res.json({
           success: true,
