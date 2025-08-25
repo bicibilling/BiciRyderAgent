@@ -3,6 +3,104 @@ const router = express.Router();
 const conversationStore = require('../services/conversationStore');
 const twilio = require('twilio');
 
+// Store for current transfer number (in production, use Redis or database)
+let currentTransferNumber = null;
+let transferNumberSetAt = null;
+
+// Export function to get current transfer data
+function getCurrentTransferData() {
+  return {
+    phone_number: currentTransferNumber,
+    set_at: transferNumberSetAt,
+    is_active: currentTransferNumber !== null
+  };
+}
+
+module.exports.getCurrentTransferData = getCurrentTransferData;
+
+// Set transfer number for human agent
+router.post('/transfer-number', async (req, res) => {
+  try {
+    const { phone_number, agent_name } = req.body;
+    
+    if (!phone_number) {
+      return res.status(400).json({
+        error: 'Phone number is required'
+      });
+    }
+
+    // Validate E.164 format
+    const phoneRegex = /^\+[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(phone_number)) {
+      return res.status(400).json({
+        error: 'Invalid phone number format. Use E.164 format: +1234567890'
+      });
+    }
+
+    currentTransferNumber = phone_number;
+    transferNumberSetAt = new Date().toISOString();
+    
+    console.log('📞 Transfer number set:', {
+      phone_number,
+      agent_name,
+      set_at: transferNumberSetAt
+    });
+
+    res.json({
+      success: true,
+      message: 'Transfer number updated',
+      phone_number: currentTransferNumber,
+      agent_name,
+      set_at: transferNumberSetAt
+    });
+  } catch (error) {
+    console.error('Transfer number error:', error);
+    res.status(500).json({
+      error: 'Failed to set transfer number',
+      message: error.message
+    });
+  }
+});
+
+// Get current transfer number
+router.get('/transfer-number', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      phone_number: currentTransferNumber,
+      set_at: transferNumberSetAt,
+      is_active: currentTransferNumber !== null
+    });
+  } catch (error) {
+    console.error('Get transfer number error:', error);
+    res.status(500).json({
+      error: 'Failed to get transfer number',
+      message: error.message
+    });
+  }
+});
+
+// Clear transfer number (agent going offline)
+router.delete('/transfer-number', async (req, res) => {
+  try {
+    currentTransferNumber = null;
+    transferNumberSetAt = null;
+    
+    console.log('📞 Transfer number cleared');
+
+    res.json({
+      success: true,
+      message: 'Transfer number cleared'
+    });
+  } catch (error) {
+    console.error('Clear transfer number error:', error);
+    res.status(500).json({
+      error: 'Failed to clear transfer number',
+      message: error.message
+    });
+  }
+});
+
 // Get conversation summary for human agent
 router.get('/summary/:conversationId', async (req, res) => {
   try {
@@ -224,4 +322,42 @@ router.post('/transcript/:conversationId', async (req, res) => {
   }
 });
 
+// Handle transfer_to_number client tool requests
+router.post('/transfer-tool-request', async (req, res) => {
+  try {
+    const { phone_number, reason, conversation_id } = req.body;
+    
+    console.log('🔄 Transfer tool request:', {
+      phone_number,
+      reason,
+      conversation_id,
+      timestamp: new Date().toISOString()
+    });
+
+    // Log the transfer attempt
+    if (conversation_id) {
+      conversationStore.addTranscript(conversation_id, 'system', 
+        `Transfer initiated to ${phone_number} - Reason: ${reason}`, 
+        new Date().toISOString()
+      );
+    }
+
+    // Return success - ElevenLabs will handle the actual transfer
+    res.json({
+      success: true,
+      message: 'Transfer initiated successfully',
+      phone_number,
+      reason,
+      conversation_id
+    });
+  } catch (error) {
+    console.error('Transfer tool request error:', error);
+    res.status(500).json({
+      error: 'Failed to process transfer request',
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;
+module.exports.getCurrentTransferData = getCurrentTransferData;

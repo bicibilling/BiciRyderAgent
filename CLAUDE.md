@@ -20,26 +20,33 @@ The project follows a monorepo structure with separate client and server applica
 
 ```
 bici-cli-agent/
-├── client/          # React dashboard (Vite + TypeScript)
-├── server/          # Express.js API server (TypeScript)
-├── database/        # SQL migrations and schema
-└── knowledge-base/  # Store information for AI agent
+├── client/             # React dashboard (Vite + JSX, port 3000/5173)
+├── server/             # Express.js API server (Node.js, port 3002)
+├── mcp-servers/        # Model Context Protocol integrations
+├── agent_configs/      # ElevenLabs agent configurations (dev/prod/staging)
+├── test-*.js          # Comprehensive test suite files
+├── run-tests.js       # Main test runner
+└── tools.json         # Agent tool definitions
 ```
 
 ### Key Components
 
 **Server (`server/src/`):**
-- `app.ts` - Main Express application with WebSocket setup
-- `routes/` - API endpoints for leads, conversations, human control
-- `services/` - Business logic (leads, conversations, call sessions, human control)
-- `webhooks/` - ElevenLabs and Twilio webhook handlers
-- `config/` - Configuration for external services (Supabase, ElevenLabs, Twilio)
+- `app.js` - Main Express application with CORS, body parsing, and route setup
+- `routes/` - API endpoints (agent.js, humanControl.js, tools.js)
+- `services/` - Business logic (conversationStore.js, customerMemory.js, storeHours.js)
+- `webhooks/` - ElevenLabs and Twilio webhook handlers (elevenlabs.js, twilio.js)
 
 **Client (`client/src/`):**
-- `App.tsx` - Main dashboard component with SSE connection
-- `components/` - LeadsList, ConversationPanel, Dashboard, StatsBar, HumanControlPanel
-- `services/api.ts` - API client for backend communication
-- Real-time human takeover interface
+- `App.jsx` - Main dashboard component with React hooks
+- `components/` - AgentTester.jsx, Analytics.jsx, ConversationPanel.jsx, Header.jsx, HumanControlPanel.jsx, PromptEditor.jsx, StatusCard.jsx
+- `services/api.js` - Axios-based API client for backend communication
+- Tailwind CSS styling with professional Bici branding
+
+**MCP Servers (`mcp-servers/`):**
+- `elevenlabs-server.js` - ElevenLabs integration MCP server (CommonJS, needs ES module conversion)
+- `twilio-server.js` - Twilio integration MCP server (CommonJS, needs ES module conversion)
+- `package.json` - MCP dependencies including @modelcontextprotocol/sdk v0.6.0
 
 ### Critical Services for Human-in-the-Loop
 
@@ -90,23 +97,46 @@ npm run dev
 
 ### Individual Components
 ```bash
-# Server development (port 3001)
+# Server development (port 3002 - Express.js with nodemon)
 npm run server:dev
+cd server && npm run dev
 
-# Client development (port 3000 or 5173)
+# Client development (port 3000 or 5173 - Vite React)
 npm run client:dev
+cd client && npm run dev
 ```
 
 ### Building and Testing
 ```bash
 # Build for production
 npm run build
+cd client && npm run build
 
 # Start production server
 npm start
+cd server && npm start
+
+# Run comprehensive test suite
+npm run test
+node run-tests.js
 
 # Run server tests
 cd server && npm test
+
+# Client linting
+cd client && npm run lint
+```
+
+### Agent Management (ElevenLabs CLI)
+```bash
+# View current agent status
+convai status --env dev
+
+# Deploy agent configuration changes
+convai sync --env dev
+
+# Test agent with widget
+convai widget "Ryder - Bici AI Teammate" --env dev
 ```
 
 ## Key Integrations
@@ -305,3 +335,88 @@ cd server && npx tsx scripts/test-transfer-webhooks.ts
 - Monitor context building performance
 - Check WebSocket connection limits
 - Validate database query optimization
+
+## Production Deployment & Hosting
+
+### Current Deployment Setup (Render)
+- **Dashboard**: https://bici-ryder-dashboard.onrender.com (React SPA)
+- **API**: Needs deployment as `bici-ryder-api` service on Render
+- **Phone Number**: +1 (604) 670-0262 (Twilio-purchased, configured)
+
+### Render Deployment Configuration
+**API Service (server/):**
+- Build Command: `cd server && npm install`  
+- Start Command: `cd server && npm start`
+- Port: 10000 (Render standard)
+- Environment: Production NODE_ENV
+
+**Dashboard Service (client/):**
+- Build Command: `cd client && npm run build`
+- Publish Directory: `client/dist`  
+- Environment Variable: `VITE_API_URL=https://bici-ryder-api.onrender.com/api`
+
+### Required Environment Variables for Production
+```env
+# Server Environment
+NODE_ENV=production
+PORT=10000
+ELEVENLABS_API_KEY=sk_5f1308f7b35eca383dab400080c7513674edec42310a86a8
+ELEVENLABS_AGENT_ID=agent_3101k3ap505kenp8yzwet9p4f99h  
+ELEVENLABS_PHONE_NUMBER_ID=phnum_8601k3aqzvzree7858ftsv7m5cdz
+TWILIO_ACCOUNT_SID=ACa474c6d23cca243aea12953c9dc0970c
+TWILIO_AUTH_TOKEN=77db43d9c4426b747e12fae079fc19ec
+TWILIO_PHONE_NUMBER=+16046700262
+STORE_TIMEZONE=America/Vancouver
+STORE_NAME=Bici
+STORE_ADDRESS=1497 Adanac Street, Vancouver, BC, Canada
+STORE_PHONE=+17787193080
+QUEBEC_AREA_CODES=418,438,450,514,579,581,819,873
+```
+
+### Webhook URLs (Production)
+Update these in Twilio and ElevenLabs dashboards after API deployment:
+- **Twilio Voice**: `https://bici-ryder-api.onrender.com/api/webhooks/twilio/voice`
+- **Twilio SMS**: `https://bici-ryder-api.onrender.com/api/webhooks/twilio/sms` 
+- **ElevenLabs Conversation Start**: `https://bici-ryder-api.onrender.com/api/webhooks/elevenlabs/conversation-start`
+- **ElevenLabs Post Call**: `https://bici-ryder-api.onrender.com/api/webhooks/elevenlabs/post-call`
+- **ElevenLabs Conversation Interrupt**: `https://bici-ryder-api.onrender.com/api/webhooks/elevenlabs/conversation-interrupt`
+
+## MCP Server Configuration & Fixes
+
+### Current MCP Servers Status
+- **Render MCP**: ✅ Configured in claude_desktop_config.json
+- **Supabase MCP**: ✅ Configured via npm package
+- **ElevenLabs MCP**: ❌ Module compatibility issue (CommonJS vs ES modules)
+- **Twilio MCP**: ❌ Module compatibility issue (CommonJS vs ES modules)
+
+### MCP Server Fix Required
+Both custom MCP servers need conversion from CommonJS to ES modules:
+
+**Current (Broken):**
+```javascript
+const { Server } = require('@modelcontextprotocol/sdk/server');
+```
+
+**Fixed (Working):**
+```javascript
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+```
+
+**Steps to Fix:**
+1. Rename `.js` files to `.mjs` OR add `"type": "module"` to mcp-servers/package.json
+2. Convert all `require()` to `import` statements
+3. Update MCP SDK import paths to include `/index.js` suffix
+4. Test MCP servers with: `npx @modelcontextprotocol/cli test <server-file>`
+
+## Testing & Quality Assurance
+
+### Comprehensive Test Suite
+- **Main Test Runner**: `node run-tests.js` 
+- **Test Categories**: Store hours, human handoff, message taking, French language, lead qualification
+- **Success Criteria**: 8/10 tests must pass with 80% score, <2s response time
+- **Test Files**: test-agent-interaction.js, test-complete-system.js, test-dashboard.js, test-production.js
+
+### Agent Configuration Testing  
+- **Interactive Dashboard**: Agent Testing tab at http://localhost:3000
+- **CLI Testing**: `convai widget "Ryder - Bici AI Teammate" --env dev`
+- **Manual Phone Testing**: Call +1 (604) 670-0262 to test full voice flow

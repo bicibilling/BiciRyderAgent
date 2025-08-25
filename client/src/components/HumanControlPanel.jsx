@@ -9,10 +9,16 @@ const HumanControlPanel = () => {
   const [agentPhone, setAgentPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [voiceSummaryScript, setVoiceSummaryScript] = useState('');
+  const [transferActive, setTransferActive] = useState(false);
+  const [transferSetAt, setTransferSetAt] = useState(null);
 
   useEffect(() => {
     loadConversationQueue();
-    const interval = setInterval(loadConversationQueue, 5000); // Refresh every 5 seconds
+    loadTransferStatus();
+    const interval = setInterval(() => {
+      loadConversationQueue();
+      loadTransferStatus();
+    }, 5000); // Refresh every 5 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -22,6 +28,58 @@ const HumanControlPanel = () => {
       setConversationQueue(response.data.queue || []);
     } catch (error) {
       console.error('Failed to load conversation queue:', error);
+    }
+  };
+
+  const loadTransferStatus = async () => {
+    try {
+      const response = await axios.get('/api/human-control/transfer-number');
+      setTransferActive(response.data.is_active);
+      setTransferSetAt(response.data.set_at);
+      if (response.data.phone_number && response.data.phone_number !== agentPhone) {
+        setAgentPhone(response.data.phone_number);
+      }
+    } catch (error) {
+      console.error('Failed to load transfer status:', error);
+    }
+  };
+
+  const setTransferNumber = async () => {
+    if (!agentPhone) {
+      alert('Please enter your phone number first');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await axios.post('/api/human-control/transfer-number', {
+        phone_number: agentPhone,
+        agent_name: agentName || 'Human Agent'
+      });
+
+      setTransferActive(true);
+      setTransferSetAt(response.data.set_at);
+      alert('Transfer number activated! Customers can now be transferred to your phone.');
+    } catch (error) {
+      console.error('Failed to set transfer number:', error);
+      alert(error.response?.data?.error || 'Failed to set transfer number');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const clearTransferNumber = async () => {
+    setIsLoading(true);
+    try {
+      await axios.delete('/api/human-control/transfer-number');
+      setTransferActive(false);
+      setTransferSetAt(null);
+      alert('Transfer number cleared. You are now offline.');
+    } catch (error) {
+      console.error('Failed to clear transfer number:', error);
+      alert('Failed to clear transfer number');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -93,6 +151,12 @@ const HumanControlPanel = () => {
             <Users className="h-5 w-5 mr-2" />
             Human Agent Control
           </h2>
+          {transferActive && (
+            <span className="text-sm text-green-600 flex items-center">
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Transfer Active
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -111,22 +175,54 @@ const HumanControlPanel = () => {
           
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Your Phone (for voice summaries)
+              Your Phone Number
             </label>
             <input
               type="tel"
               value={agentPhone}
               onChange={(e) => setAgentPhone(e.target.value)}
-              placeholder="+1 (604) 555-1234"
+              placeholder="+16045551234"
               className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500"
             />
+            <p className="text-xs text-neutral-500 mt-1">Use E.164 format (+1234567890)</p>
           </div>
         </div>
 
-        <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800 text-sm">
-            <strong>No Computer Required:</strong> When you take over a conversation, 
-            we'll call your phone with a voice summary of the customer, their issue, and tone.
+        {/* Transfer Control */}
+        <div className="mt-4 flex items-center space-x-3">
+          {!transferActive ? (
+            <button
+              onClick={setTransferNumber}
+              disabled={isLoading || !agentPhone}
+              className="btn-primary flex items-center space-x-2"
+            >
+              <Phone className="h-4 w-4" />
+              <span>Go Online for Transfers</span>
+            </button>
+          ) : (
+            <button
+              onClick={clearTransferNumber}
+              disabled={isLoading}
+              className="btn-outline flex items-center space-x-2"
+            >
+              <Phone className="h-4 w-4" />
+              <span>Go Offline</span>
+            </button>
+          )}
+          {transferActive && transferSetAt && (
+            <span className="text-sm text-neutral-600">
+              Active since {new Date(transferSetAt).toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+
+        <div className={`mt-4 rounded-lg p-4 ${transferActive ? 'bg-green-50 border border-green-200' : 'bg-blue-50 border border-blue-200'}`}>
+          <p className={`text-sm ${transferActive ? 'text-green-800' : 'text-blue-800'}`}>
+            {transferActive ? (
+              <><strong>🟢 You're Online:</strong> When customers say "human" or need help, Ryder will transfer them directly to {agentPhone}</>
+            ) : (
+              <><strong>Direct Call Transfer:</strong> Enter your phone number and go online. When customers request human help, they'll be transferred directly to your phone via ElevenLabs native transfer.</>
+            )}
           </p>
         </div>
       </div>
@@ -264,27 +360,31 @@ const HumanControlPanel = () => {
 
       {/* Instructions */}
       <div className="card">
-        <h3 className="text-lg font-semibold text-neutral-900 mb-4">How Human Handoff Works</h3>
+        <h3 className="text-lg font-semibold text-neutral-900 mb-4">Native Transfer System</h3>
         <div className="space-y-3 text-sm text-neutral-700">
           <div className="flex items-start space-x-2">
             <span className="font-medium text-primary-600">1.</span>
-            <p>Customer calls +1 (604) 670-0262 and talks to Ryder</p>
+            <p>Enter your phone number and click "Go Online for Transfers"</p>
           </div>
           <div className="flex items-start space-x-2">
             <span className="font-medium text-primary-600">2.</span>
-            <p>When customer says "human" or issue requires escalation, conversation appears in queue above</p>
+            <p>When customers call +1 (604) 670-0262, they speak with Ryder first</p>
           </div>
           <div className="flex items-start space-x-2">
             <span className="font-medium text-primary-600">3.</span>
-            <p><strong>No computer needed:</strong> Click "Get Voice Summary" and we'll call your phone with customer details</p>
+            <p><strong>Instant Transfer:</strong> When customer says "human", "agent", or needs help, Ryder immediately transfers the call to your phone</p>
           </div>
           <div className="flex items-start space-x-2">
             <span className="font-medium text-primary-600">4.</span>
-            <p>Click "Take Over Call" to transfer the customer to your phone line</p>
+            <p>The customer stays on the same call - no need to call back or redial</p>
           </div>
           <div className="flex items-start space-x-2">
             <span className="font-medium text-primary-600">5.</span>
-            <p>Voice summary includes: customer name/phone, issue summary, tone (happy/angry/urgent), and suggested actions</p>
+            <p><strong>Powered by ElevenLabs:</strong> Uses native transfer_to_number tool for seamless handoffs</p>
+          </div>
+          <div className="flex items-start space-x-2">
+            <span className="font-medium text-primary-600">6.</span>
+            <p>Click "Go Offline" when you're unavailable - Ryder will take messages instead</p>
           </div>
         </div>
       </div>

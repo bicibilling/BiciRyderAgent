@@ -1,3 +1,23 @@
 {
-    "tools": []
+    "tools": [
+        {
+            "type": "client_tool",
+            "name": "transfer_to_number",
+            "description": "Transfer the current call to a human agent's phone number when customer requests human assistance or when escalation is needed",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "phone_number": {
+                        "type": "string",
+                        "description": "The phone number to transfer the call to (E.164 format: +1234567890)"
+                    },
+                    "reason": {
+                        "type": "string", 
+                        "description": "Brief reason for the transfer (e.g., 'customer requested human agent', 'complex inquiry', 'billing issue')"
+                    }
+                },
+                "required": ["phone_number", "reason"]
+            }
+        }
+    ]
 }

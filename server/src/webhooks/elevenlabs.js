@@ -87,6 +87,10 @@ router.post('/conversation-start', verifyWebhookSignature, async (req, res) => {
       customer_context: customerContext
     });
 
+    // Get current transfer number from human control system
+    const humanControl = require('../routes/humanControl');
+    const transferData = humanControl.getCurrentTransferData();
+    
     // Build dynamic variables with FULL CUSTOMER CONTEXT
     const storeHours = require('../services/storeHours');
     const dynamicVariables = {
@@ -100,6 +104,10 @@ router.post('/conversation-start', verifyWebhookSignature, async (req, res) => {
         timeZone: 'America/Vancouver'
       }),
       caller_phone: callerPhone || 'unknown',
+      
+      // HUMAN AGENT TRANSFER DATA
+      human_agent_available: transferData.is_active ? 'true' : 'false',
+      transfer_phone_number: transferData.phone_number || 'none',
       
       // CUSTOMER CONTEXT (zero latency)
       customer_tier: customerContext.customer_tier,
