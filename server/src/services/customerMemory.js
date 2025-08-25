@@ -581,6 +581,9 @@ class CustomerMemoryService {
     
     const previousContext = `Returning customer (${totalCalls} previous calls). Last call ${daysSinceLastCall} days ago: ${lastCallContext}${extractedInfo}`;
     
+    // Build recent conversation summaries for suggested approach
+    const recentSummaries = elevenLabsHistory.slice(0, 3).map(conv => conv.summary).join(', ');
+    
     return {
       customer_tier: tier,
       customer_name: customerName,
