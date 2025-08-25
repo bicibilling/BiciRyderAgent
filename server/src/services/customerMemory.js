@@ -1,5 +1,6 @@
 // Customer Memory & Context System for Lightning-Fast Agent Context
 const moment = require('moment-timezone');
+const axios = require('axios');
 
 class CustomerMemoryService {
   constructor() {
@@ -438,6 +439,135 @@ class CustomerMemoryService {
     return false;
   }
 
+
+  // Get conversation history from ElevenLabs API for customer
+  async getElevenLabsConversationHistory(customerPhone) {
+    try {
+      const apiKey = process.env.ELEVENLABS_API_KEY;
+      const agentId = process.env.ELEVENLABS_AGENT_ID;
+      
+      if (!apiKey || !agentId) {
+        console.log('❌ Missing ElevenLabs credentials for conversation history');
+        return [];
+      }
+
+      const response = await axios.get('https://api.elevenlabs.io/v1/convai/conversations', {
+        headers: { 'xi-api-key': apiKey },
+        params: { 
+          agent_id: agentId, 
+          limit: 100 // Get enough conversations to find customer history
+        }
+      });
+
+      const allConversations = response.data.conversations || [];
+      
+      // Filter conversations by phone number and get detailed data
+      const customerConversations = [];
+      
+      for (const conv of allConversations) {
+        try {
+          // Get detailed conversation with transcript and analysis
+          const detailResponse = await axios.get(`https://api.elevenlabs.io/v1/convai/conversations/${conv.conversation_id}`, {
+            headers: { 'xi-api-key': apiKey }
+          });
+          
+          const phoneCall = detailResponse.data.metadata?.phone_call;
+          const callerPhone = phoneCall?.external_number;
+          
+          // Match this customer's phone number
+          if (callerPhone === customerPhone) {
+            const analysis = detailResponse.data.analysis || {};
+            
+            customerConversations.push({
+              conversation_id: conv.conversation_id,
+              date: new Date(conv.start_time_unix_secs * 1000).toISOString(),
+              duration_seconds: conv.call_duration_secs || 0,
+              summary: analysis.call_summary_title || 'General inquiry',
+              transcript_summary: analysis.transcript_summary || '',
+              call_successful: analysis.call_successful === 'success',
+              
+              // ElevenLabs structured data extraction
+              extracted_data: analysis.data_collection_results || {},
+              
+              // Extracted customer data
+              customer_name: analysis.data_collection_results?.customer_name?.value || null,
+              bike_interest: analysis.data_collection_results?.bike_interest?.value || null,
+              budget_range: analysis.data_collection_results?.budget_range?.value || null,
+              experience_level: analysis.data_collection_results?.experience_level?.value || null
+            });
+          }
+        } catch (detailError) {
+          console.log('Could not get conversation details for:', conv.conversation_id);
+        }
+      }
+      
+      // Sort by date (newest first)
+      return customerConversations.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+    } catch (error) {
+      console.error('❌ Failed to fetch ElevenLabs conversation history:', error.message);
+      return [];
+    }
+  }
+
+  // Enhanced context building using ElevenLabs conversation summaries
+  async getEnhancedCustomerContext(callerPhone) {
+    const customerId = this.normalizePhoneNumber(callerPhone);
+    
+    // Get ElevenLabs conversation history for this customer
+    const elevenLabsHistory = await this.getElevenLabsConversationHistory(callerPhone);
+    
+    if (elevenLabsHistory.length === 0) {
+      // First time caller - no ElevenLabs history
+      return {
+        customer_tier: 'new',
+        customer_name: 'New Customer',
+        conversation_count: 0,
+        previous_context: 'First time calling Bici',
+        preferred_communication: 'friendly and informative',
+        bike_interest: 'unknown',
+        last_conversation: 'none',
+        customer_sentiment: 'neutral',
+        suggested_approach: 'New customer - collect basic information'
+      };
+    }
+
+    // Build rich context from ElevenLabs data
+    const mostRecentCall = elevenLabsHistory[0];
+    const totalCalls = elevenLabsHistory.length;
+    
+    // Get customer name from most recent conversation with name data
+    const nameCall = elevenLabsHistory.find(conv => conv.customer_name);
+    const customerName = nameCall?.customer_name || 'Valued Customer';
+    
+    // Get bike interest from most recent conversation with bike data
+    const bikeCall = elevenLabsHistory.find(conv => conv.bike_interest);
+    const bikeInterest = bikeCall?.bike_interest || 'exploring options';
+    
+    // Determine customer tier
+    let tier = 'returning';
+    if (totalCalls >= 5) tier = 'frequent';
+    if (totalCalls >= 10) tier = 'vip';
+    
+    // Build previous context from conversation summaries
+    const recentSummaries = elevenLabsHistory.slice(0, 3).map(conv => conv.summary).join(', ');
+    const daysSinceLastCall = Math.floor((Date.now() - new Date(mostRecentCall.date)) / (1000 * 60 * 60 * 24));
+    
+    const previousContext = `Returning customer (${totalCalls} previous calls). Last call ${daysSinceLastCall} days ago about: ${mostRecentCall.summary}`;
+    
+    return {
+      customer_tier: tier,
+      customer_name: customerName,
+      conversation_count: totalCalls,
+      previous_context: previousContext,
+      preferred_communication: 'professional and helpful',
+      bike_interest: bikeInterest,
+      last_conversation: mostRecentCall.summary,
+      customer_sentiment: 'neutral',
+      suggested_approach: `${tier} customer - ${totalCalls > 1 ? 'acknowledge previous conversations about ' + recentSummaries : 'build relationship'}`,
+      elevenlabs_history: elevenLabsHistory // Include for detailed context
+    };
+  }
 
   // Clear old data (privacy compliance)
   cleanupOldData(daysToKeep = 90) {

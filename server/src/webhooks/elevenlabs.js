@@ -126,9 +126,9 @@ router.post('/conversation-start', verifyWebhookSignature, async (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    // INSTANT CONTEXT LOOKUP (no latency - happens before conversation starts)
+    // INSTANT CONTEXT LOOKUP using ElevenLabs conversation summaries
     const customerMemory = require('../services/customerMemory');
-    const customerContext = customerMemory.getCustomerContext(callerPhone);
+    const customerContext = await customerMemory.getEnhancedCustomerContext(callerPhone);
     
     // Store conversation start
     const conversationStore = require('../services/conversationStore');
