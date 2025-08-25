@@ -478,22 +478,35 @@ class CustomerMemoryService {
           if (callerPhone === customerPhone) {
             const analysis = detailResponse.data.analysis || {};
             
+            // Build rich conversation context
+            const extractedData = analysis.data_collection_results || {};
+            const detailedSummary = analysis.transcript_summary || analysis.call_summary_title || 'General inquiry';
+            
+            // Include extracted data in summary for context
+            const contextualSummary = [
+              detailedSummary,
+              extractedData.bike_interest?.value ? `[Bike Interest: ${extractedData.bike_interest.value}]` : null,
+              extractedData.budget_range?.value ? `[Budget: ${extractedData.budget_range.value}]` : null,
+              extractedData.experience_level?.value ? `[Experience: ${extractedData.experience_level.value}]` : null
+            ].filter(Boolean).join(' ');
+
             customerConversations.push({
               conversation_id: conv.conversation_id,
               date: new Date(conv.start_time_unix_secs * 1000).toISOString(),
               duration_seconds: conv.call_duration_secs || 0,
               summary: analysis.call_summary_title || 'General inquiry',
+              detailed_summary: contextualSummary,
               transcript_summary: analysis.transcript_summary || '',
               call_successful: analysis.call_successful === 'success',
               
               // ElevenLabs structured data extraction
-              extracted_data: analysis.data_collection_results || {},
+              extracted_data: extractedData,
               
               // Extracted customer data
-              customer_name: analysis.data_collection_results?.customer_name?.value || null,
-              bike_interest: analysis.data_collection_results?.bike_interest?.value || null,
-              budget_range: analysis.data_collection_results?.budget_range?.value || null,
-              experience_level: analysis.data_collection_results?.experience_level?.value || null
+              customer_name: extractedData.customer_name?.value || null,
+              bike_interest: extractedData.bike_interest?.value || null,
+              budget_range: extractedData.budget_range?.value || null,
+              experience_level: extractedData.experience_level?.value || null
             });
           }
         } catch (detailError) {
@@ -549,11 +562,24 @@ class CustomerMemoryService {
     if (totalCalls >= 5) tier = 'frequent';
     if (totalCalls >= 10) tier = 'vip';
     
-    // Build previous context from conversation summaries
-    const recentSummaries = elevenLabsHistory.slice(0, 3).map(conv => conv.summary).join(', ');
+    // Build detailed previous context from conversation summaries and extracted data
     const daysSinceLastCall = Math.floor((Date.now() - new Date(mostRecentCall.date)) / (1000 * 60 * 60 * 24));
+    const lastCallContext = mostRecentCall.detailed_summary || mostRecentCall.summary;
     
-    const previousContext = `Returning customer (${totalCalls} previous calls). Last call ${daysSinceLastCall} days ago about: ${mostRecentCall.summary}`;
+    // Include key extracted data in context
+    const extractedContext = [];
+    if (nameCall) extractedContext.push(`Name: ${nameCall.customer_name}`);
+    if (bikeCall && bikeCall.bike_interest !== 'exploring options') extractedContext.push(`Interested in: ${bikeCall.bike_interest}`);
+    
+    const recentBudget = elevenLabsHistory.find(conv => conv.budget_range);
+    if (recentBudget) extractedContext.push(`Budget: ${recentBudget.budget_range}`);
+    
+    const recentExperience = elevenLabsHistory.find(conv => conv.experience_level);
+    if (recentExperience) extractedContext.push(`Experience: ${recentExperience.experience_level}`);
+    
+    const extractedInfo = extractedContext.length > 0 ? ` [${extractedContext.join(', ')}]` : '';
+    
+    const previousContext = `Returning customer (${totalCalls} previous calls). Last call ${daysSinceLastCall} days ago: ${lastCallContext}${extractedInfo}`;
     
     return {
       customer_tier: tier,

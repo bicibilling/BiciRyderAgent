@@ -189,10 +189,10 @@ router.post('/conversation-start', verifyWebhookSignature, async (req, res) => {
       customer_sentiment: customerContext.customer_sentiment,
       suggested_approach: customerContext.suggested_approach,
       
-      // Conversation history summaries from ElevenLabs
+      // Detailed conversation history summaries from ElevenLabs
       conversation_summaries: customerContext.elevenlabs_history ? 
-        customerContext.elevenlabs_history.slice(0, 5).map(conv => 
-          `${conv.date.split('T')[0]}: ${conv.summary}`
+        customerContext.elevenlabs_history.slice(0, 3).map(conv => 
+          `${conv.date.split('T')[0]}: ${conv.detailed_summary || conv.summary}`
         ).join(' | ') : 'No previous conversation summaries',
       
       // Data collection flags
