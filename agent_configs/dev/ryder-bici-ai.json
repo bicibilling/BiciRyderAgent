@@ -13,11 +13,12 @@
         },
         "conversation": {
             "text_only": false,
-            "max_duration_seconds": 1800,
+            "max_duration_seconds": 3600,
             "client_events": [
                 "audio",
                 "interruption"
-            ]
+            ],
+            "inactivity_timeout_seconds": 300
         },
         "tts": {
             "model_id": "eleven_turbo_v2",

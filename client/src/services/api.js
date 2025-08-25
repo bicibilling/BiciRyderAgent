@@ -8,7 +8,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || (
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // Increased timeout for cold starts
 });
 
 // Request interceptor
@@ -22,12 +22,28 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Response interceptor with retry logic for cold starts
 api.interceptors.response.use(
   (response) => {
     return response;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // Retry on timeout or 502/503 errors (cold start indicators)
+    if (!originalRequest._retry && (
+      error.code === 'ECONNABORTED' || 
+      error.response?.status === 502 || 
+      error.response?.status === 503
+    )) {
+      originalRequest._retry = true;
+      console.log('🔄 API cold start detected, retrying request...');
+      
+      // Wait 2 seconds for server to wake up, then retry
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return api(originalRequest);
+    }
+    
     console.error('API Error:', error.response?.data || error.message);
     return Promise.reject(error);
   }
