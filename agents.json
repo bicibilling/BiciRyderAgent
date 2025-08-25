@@ -5,6 +5,9 @@
             "environments": {
                 "dev": {
                     "config": "agent_configs/dev/ryder-bici-ai.json"
+                },
+                "prod": {
+                    "config": "agent_configs/prod/ryder-bici-ai.json"
                 }
             }
         }
