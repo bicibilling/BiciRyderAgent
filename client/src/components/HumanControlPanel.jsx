@@ -36,7 +36,8 @@ const HumanControlPanel = () => {
       const response = await axios.get('/api/human-control/transfer-number');
       setTransferActive(response.data.is_active);
       setTransferSetAt(response.data.set_at);
-      if (response.data.phone_number && response.data.phone_number !== agentPhone) {
+      // Only update phone number if field is empty and we have a stored number
+      if (response.data.phone_number && !agentPhone) {
         setAgentPhone(response.data.phone_number);
       }
     } catch (error) {

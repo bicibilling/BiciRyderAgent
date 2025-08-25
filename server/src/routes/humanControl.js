@@ -3,36 +3,62 @@ const router = express.Router();
 const conversationStore = require('../services/conversationStore');
 const twilio = require('twilio');
 
-const fs = require('fs');
-const path = require('path');
+// Redis setup for scalable persistence (70+ calls/day)
+let redisClient = null;
+let transferData = { phone_number: null, set_at: null, agent_name: null };
 
-// Persistent storage file
-const TRANSFER_DATA_FILE = path.join(__dirname, '../../../transfer_data.json');
-
-// Load transfer data from file
-function loadTransferData() {
-  try {
-    if (fs.existsSync(TRANSFER_DATA_FILE)) {
-      const data = JSON.parse(fs.readFileSync(TRANSFER_DATA_FILE, 'utf8'));
-      return data;
+// Initialize Redis connection
+async function initializeRedis() {
+  if (process.env.REDIS_URL) {
+    try {
+      const { createClient } = require('redis');
+      redisClient = createClient({
+        url: process.env.REDIS_URL,
+        socket: {
+          reconnectStrategy: (retries) => Math.min(retries * 50, 1000)
+        }
+      });
+      
+      redisClient.on('error', (err) => {
+        console.error('Redis Client Error:', err);
+      });
+      
+      await redisClient.connect();
+      console.log('📦 Redis connected for transfer data persistence');
+      
+      // Load existing transfer data from Redis
+      const stored = await redisClient.get('transfer_data');
+      if (stored) {
+        transferData = JSON.parse(stored);
+        console.log('📞 Transfer data loaded from Redis:', transferData.phone_number ? 'Active' : 'Inactive');
+      }
+    } catch (error) {
+      console.error('Redis initialization failed:', error.message);
+      console.log('📦 Falling back to memory storage');
+      redisClient = null;
     }
-  } catch (error) {
-    console.error('Error loading transfer data:', error);
-  }
-  return { phone_number: null, set_at: null };
-}
-
-// Save transfer data to file
-function saveTransferData(data) {
-  try {
-    fs.writeFileSync(TRANSFER_DATA_FILE, JSON.stringify(data, null, 2));
-  } catch (error) {
-    console.error('Error saving transfer data:', error);
+  } else {
+    console.log('📦 REDIS_URL not provided - using memory storage');
   }
 }
 
-// Load initial data
-let transferData = loadTransferData();
+// Save transfer data (Redis or memory)
+async function saveTransferData(data) {
+  transferData = { ...data };
+  if (redisClient) {
+    try {
+      await redisClient.set('transfer_data', JSON.stringify(data), {
+        EX: 86400 // Expire after 24 hours
+      });
+      console.log('📦 Transfer data saved to Redis');
+    } catch (error) {
+      console.error('Redis save error:', error);
+    }
+  }
+}
+
+// Initialize Redis on module load
+initializeRedis().catch(console.error);
 
 // Export function to get current transfer data
 function getCurrentTransferData() {
@@ -64,11 +90,13 @@ router.post('/transfer-number', async (req, res) => {
       });
     }
 
-    transferData.phone_number = phone_number;
-    transferData.set_at = new Date().toISOString();
-    transferData.agent_name = agent_name;
+    const newData = {
+      phone_number: phone_number,
+      set_at: new Date().toISOString(),
+      agent_name: agent_name
+    };
     
-    saveTransferData(transferData);
+    await saveTransferData(newData);
     
     console.log('📞 Transfer number set and persisted:', {
       phone_number,
@@ -79,9 +107,9 @@ router.post('/transfer-number', async (req, res) => {
     res.json({
       success: true,
       message: 'Transfer number updated',
-      phone_number: transferData.phone_number,
+      phone_number: newData.phone_number,
       agent_name,
-      set_at: transferData.set_at
+      set_at: newData.set_at
     });
   } catch (error) {
     console.error('Transfer number error:', error);
@@ -113,11 +141,13 @@ router.get('/transfer-number', async (req, res) => {
 // Clear transfer number (agent going offline)
 router.delete('/transfer-number', async (req, res) => {
   try {
-    transferData.phone_number = null;
-    transferData.set_at = null;
-    transferData.agent_name = null;
+    const clearedData = {
+      phone_number: null,
+      set_at: null,
+      agent_name: null
+    };
     
-    saveTransferData(transferData);
+    await saveTransferData(clearedData);
     
     console.log('📞 Transfer number cleared and persisted');
 
