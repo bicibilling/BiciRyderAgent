@@ -318,14 +318,16 @@ router.post('/post-call', verifyWebhookSignature, async (req, res) => {
   try {
     console.log('📞 RAW POST-CALL DATA:', JSON.stringify(req.body, null, 2));
     
-    // Handle both direct webhook and nested data structure
-    const webhookData = req.body.data || req.body;
-    const {
-      conversation_id,
-      agent_id, 
-      transcript,
-      metadata
-    } = webhookData;
+    // Handle ElevenLabs webhook structure properly
+    if (req.body.type === 'post_call_transcription') {
+      const webhookData = req.body.data;
+      const {
+        conversation_id,
+        agent_id, 
+        transcript,
+        metadata,
+        analysis
+      } = webhookData;
     
     // Extract from metadata or phone_call data
     const phoneData = metadata?.phone_call || metadata;
@@ -334,18 +336,18 @@ router.post('/post-call', verifyWebhookSignature, async (req, res) => {
                        phoneData?.from ||
                        metadata?.caller_id;
     
-    const duration_seconds = metadata?.call_duration_secs || 0;
-    const call_summary_title = webhookData.analysis?.call_summary_title || 'General inquiry'; 
-    const call_successful = webhookData.analysis?.call_successful || 'success';
-    
-    // Extract structured data from ElevenLabs analysis
-    const dataCollection = webhookData.analysis?.data_collection_results || {};
-    const extractedData = {
-      customer_name: dataCollection.customer_name?.value || null,
-      bike_interest: dataCollection.bike_interest?.value || null,
-      budget_range: dataCollection.budget_range?.value || null,
-      experience_level: dataCollection.experience_level?.value || null
-    };
+      const duration_seconds = metadata?.call_duration_secs || 0;
+      const call_summary_title = analysis?.call_summary_title || 'General inquiry'; 
+      const call_successful = analysis?.call_successful || 'success';
+      
+      // Extract structured data from ElevenLabs analysis
+      const dataCollection = analysis?.data_collection_results || {};
+      const extractedData = {
+        customer_name: dataCollection.customer_name?.value || null,
+        bike_interest: dataCollection.bike_interest?.value || null,
+        budget_range: dataCollection.budget_range?.value || null,
+        experience_level: dataCollection.experience_level?.value || null
+      };
     
     console.log('📊 ElevenLabs extracted data:', extractedData);
     
@@ -353,7 +355,6 @@ router.post('/post-call', verifyWebhookSignature, async (req, res) => {
       conversation_id,
       caller_phone: callerPhone,
       duration_seconds,
-      end_reason,
       summary: call_summary_title,
       timestamp: new Date().toISOString()
     });
@@ -395,20 +396,24 @@ router.post('/post-call', verifyWebhookSignature, async (req, res) => {
       }
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Call processed and customer memory updated',
-      customer_profile: {
-        tier: customerProfile.conversation_count >= 3 ? 'frequent' : 'returning',
-        conversation_count: customerProfile.conversation_count,
-        has_context_for_next_call: true
-      },
-      follow_up_actions: [
-        'Transcript analyzed and insights extracted',
-        'Customer profile updated for future context',
-        'Memory ready for next conversation'
-      ]
-    });
+      res.status(200).json({
+        success: true,
+        message: 'Call processed and customer memory updated',
+        customer_profile: {
+          tier: customerProfile.conversation_count >= 3 ? 'frequent' : 'returning',
+          conversation_count: customerProfile.conversation_count,
+          has_context_for_next_call: true
+        },
+        follow_up_actions: [
+          'Transcript analyzed and insights extracted',
+          'Customer profile updated for future context',
+          'Memory ready for next conversation'
+        ]
+      });
+    } else {
+      console.log('⚠️ Unexpected webhook type:', req.body.type);
+      res.status(200).json({ success: true, message: 'Webhook received but not post_call_transcription' });
+    }
   } catch (error) {
     console.error('Post-call error:', error);
     res.status(200).json({
