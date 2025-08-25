@@ -3,16 +3,43 @@ const router = express.Router();
 const conversationStore = require('../services/conversationStore');
 const twilio = require('twilio');
 
-// Store for current transfer number (in production, use Redis or database)
-let currentTransferNumber = null;
-let transferNumberSetAt = null;
+const fs = require('fs');
+const path = require('path');
+
+// Persistent storage file
+const TRANSFER_DATA_FILE = path.join(__dirname, '../../../transfer_data.json');
+
+// Load transfer data from file
+function loadTransferData() {
+  try {
+    if (fs.existsSync(TRANSFER_DATA_FILE)) {
+      const data = JSON.parse(fs.readFileSync(TRANSFER_DATA_FILE, 'utf8'));
+      return data;
+    }
+  } catch (error) {
+    console.error('Error loading transfer data:', error);
+  }
+  return { phone_number: null, set_at: null };
+}
+
+// Save transfer data to file
+function saveTransferData(data) {
+  try {
+    fs.writeFileSync(TRANSFER_DATA_FILE, JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.error('Error saving transfer data:', error);
+  }
+}
+
+// Load initial data
+let transferData = loadTransferData();
 
 // Export function to get current transfer data
 function getCurrentTransferData() {
   return {
-    phone_number: currentTransferNumber,
-    set_at: transferNumberSetAt,
-    is_active: currentTransferNumber !== null
+    phone_number: transferData.phone_number,
+    set_at: transferData.set_at,
+    is_active: transferData.phone_number !== null
   };
 }
 
@@ -37,21 +64,24 @@ router.post('/transfer-number', async (req, res) => {
       });
     }
 
-    currentTransferNumber = phone_number;
-    transferNumberSetAt = new Date().toISOString();
+    transferData.phone_number = phone_number;
+    transferData.set_at = new Date().toISOString();
+    transferData.agent_name = agent_name;
     
-    console.log('📞 Transfer number set:', {
+    saveTransferData(transferData);
+    
+    console.log('📞 Transfer number set and persisted:', {
       phone_number,
       agent_name,
-      set_at: transferNumberSetAt
+      set_at: transferData.set_at
     });
 
     res.json({
       success: true,
       message: 'Transfer number updated',
-      phone_number: currentTransferNumber,
+      phone_number: transferData.phone_number,
       agent_name,
-      set_at: transferNumberSetAt
+      set_at: transferData.set_at
     });
   } catch (error) {
     console.error('Transfer number error:', error);
@@ -67,9 +97,9 @@ router.get('/transfer-number', async (req, res) => {
   try {
     res.json({
       success: true,
-      phone_number: currentTransferNumber,
-      set_at: transferNumberSetAt,
-      is_active: currentTransferNumber !== null
+      phone_number: transferData.phone_number,
+      set_at: transferData.set_at,
+      is_active: transferData.phone_number !== null
     });
   } catch (error) {
     console.error('Get transfer number error:', error);
@@ -83,10 +113,13 @@ router.get('/transfer-number', async (req, res) => {
 // Clear transfer number (agent going offline)
 router.delete('/transfer-number', async (req, res) => {
   try {
-    currentTransferNumber = null;
-    transferNumberSetAt = null;
+    transferData.phone_number = null;
+    transferData.set_at = null;
+    transferData.agent_name = null;
     
-    console.log('📞 Transfer number cleared');
+    saveTransferData(transferData);
+    
+    console.log('📞 Transfer number cleared and persisted');
 
     res.json({
       success: true,

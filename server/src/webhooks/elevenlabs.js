@@ -61,12 +61,15 @@ async function verifyWebhookSignature(req, res, next) {
 // Conversation initiation webhook - ZERO LATENCY CONTEXT INJECTION
 router.post('/conversation-start', verifyWebhookSignature, async (req, res) => {
   try {
+    console.log('🔍 RAW WEBHOOK DATA:', JSON.stringify(req.body, null, 2));
+    
     const { conversation_id, agent_id, user_id, metadata } = req.body;
-    const callerPhone = metadata?.caller_phone || metadata?.from;
+    const callerPhone = metadata?.caller_phone || metadata?.from || metadata?.phone_number;
     
     console.log('🎯 Conversation started with context lookup:', {
       conversation_id,
       caller_phone: callerPhone,
+      metadata: metadata,
       timestamp: new Date().toISOString()
     });
 
@@ -260,6 +263,8 @@ router.post('/conversation-interrupt', verifyWebhookSignature, async (req, res) 
 // Post-call webhook - BUILD CUSTOMER MEMORY FOR FUTURE CALLS
 router.post('/post-call', verifyWebhookSignature, async (req, res) => {
   try {
+    console.log('📞 RAW POST-CALL DATA:', JSON.stringify(req.body, null, 2));
+    
     const {
       conversation_id,
       agent_id,
@@ -271,7 +276,7 @@ router.post('/post-call', verifyWebhookSignature, async (req, res) => {
       call_successful
     } = req.body;
     
-    const callerPhone = metadata?.caller_phone || metadata?.from;
+    const callerPhone = metadata?.caller_phone || metadata?.from || metadata?.phone_number;
     
     console.log('📞 Call ended - building customer memory:', {
       conversation_id,
