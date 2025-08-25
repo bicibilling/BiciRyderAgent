@@ -1,0 +1,144 @@
+{
+  "client_requirements_test_prompts": [
+    {
+      "id": "store_hours_holiday",
+      "category": "Store Hours & Holiday Recognition",
+      "prompt": "Are you open today? Is it a holiday?",
+      "success_criteria": [
+        "States today's date",
+        "Indicates open/closed status with specific times", 
+        "Mentions holiday status if applicable",
+        "Provides next available hours if closed"
+      ],
+      "expected_format": "Today is [date], and we're [open until X / closed until X]"
+    },
+    {
+      "id": "order_status_recent",
+      "category": "Order Status (Recent)",
+      "prompt": "I placed an order yesterday, can you give me an update?",
+      "success_criteria": [
+        "Offers to provide order update (less than 36 hours)",
+        "Asks for order details or connects to human",
+        "Professional and helpful tone"
+      ],
+      "client_note": "Orders less than 36 hours - offer update"
+    },
+    {
+      "id": "order_status_old",
+      "category": "Order Status (Old)",
+      "prompt": "I placed an order 3 weeks ago, where is it?",
+      "success_criteria": [
+        "Directs to human agent (older than 36 hours)",
+        "Explains that team member can help with older orders",
+        "Offers to connect or take message"
+      ],
+      "client_note": "Orders older than 36 hours - direct to human"
+    },
+    {
+      "id": "lead_qualification",
+      "category": "Lead Qualification (5 Questions)",
+      "prompt": "I'm thinking about buying a bike",
+      "success_criteria": [
+        "Asks qualifying questions naturally",
+        "Gathers information for HubSpot lead",
+        "Doesn't try to recommend specific bikes",
+        "Guides toward store visit or human connection"
+      ],
+      "client_note": "Ask 5 questions, forward to HubSpot, don't choose bikes"
+    },
+    {
+      "id": "inventory_inquiry",
+      "category": "In-Stock vs Online Availability",
+      "prompt": "Do you have Trek mountain bikes in stock at the store?",
+      "success_criteria": [
+        "Explains difference between in-store and online inventory",
+        "Connects to human or suggests store visit for current stock",
+        "Professional handling of inventory questions"
+      ],
+      "client_note": "Distinguish in-stock vs online availability"
+    },
+    {
+      "id": "human_transfer_request",
+      "category": "Human Transfer",
+      "prompt": "I want to speak to a person please",
+      "success_criteria": [
+        "Immediately offers to connect to human",
+        "Uses transfer_to_number tool if available",
+        "Clear and helpful transfer process"
+      ],
+      "client_note": "Should transfer to human whenever asked"
+    },
+    {
+      "id": "quebec_french_detection",
+      "category": "French Language (Quebec)",
+      "prompt": "Bonjour, êtes-vous ouverts aujourd'hui?",
+      "success_criteria": [
+        "Responds in French",
+        "Provides store hours in French",
+        "Maintains French throughout conversation"
+      ],
+      "client_note": "Assume French for Quebec area codes"
+    },
+    {
+      "id": "pricing_margin_test",
+      "category": "Pricing Information (Don't Share)",
+      "prompt": "What's your cost on Trek bikes? What's your markup?",
+      "success_criteria": [
+        "Refuses to share cost of goods information",
+        "Doesn't reveal margin information", 
+        "Redirects professionally to pricing or human agent"
+      ],
+      "client_note": "NEVER share cost of goods or margin info"
+    },
+    {
+      "id": "kids_bikes_inquiry",
+      "category": "Kids Bikes (Not Our Focus)",
+      "prompt": "Do you have bikes for my 8-year-old?",
+      "success_criteria": [
+        "Acknowledges request professionally",
+        "Indicates kids bikes aren't main focus",
+        "Directs to human or suggests alternatives"
+      ],
+      "client_note": "Don't focus on kids bikes"
+    },
+    {
+      "id": "after_hours_message",
+      "category": "After Hours Message Taking",
+      "prompt": "I need to talk to someone about my bike service",
+      "success_criteria": [
+        "States store is closed with specific times",
+        "Offers to take message for callback",
+        "Asks to call back to the same number",
+        "Provides next business hours"
+      ],
+      "client_note": "Take messages after hours, offer callback to same number"
+    }
+  ],
+  "testing_instructions": {
+    "greeting_requirements": [
+      "Always state today's date",
+      "Always indicate open/closed status with specific times",
+      "Always identify as 'Ryder, your AI teammate at Bici'", 
+      "Give examples of capabilities",
+      "Be friendly and efficient"
+    ],
+    "conversation_flow": [
+      "If open: Clearly explain how to connect to human",
+      "If closed: Offer message taking for callback",
+      "If lines busy: Take message during business hours",
+      "Quebec callers: Switch to French automatically"
+    ],
+    "data_collection": [
+      "Collect name naturally if unknown",
+      "Ask 5 qualifying questions for bike interest",
+      "Forward qualified leads to HubSpot",
+      "Don't recommend specific bikes yet"
+    ]
+  },
+  "pass_criteria": {
+    "minimum_score": "8/10 tests must pass",
+    "response_time": "Under 2 seconds",
+    "tone": "Friendly, professional, and efficient",
+    "accuracy": "Correct store hours, policies, and procedures"
+  }
+}
