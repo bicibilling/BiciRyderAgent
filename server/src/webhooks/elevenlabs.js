@@ -41,6 +41,19 @@ function buildCustomerFlags(customerContext) {
   };
 }
 
+function buildGreetingMessage(customerContext, timeData) {
+  if (customerContext.customer_name !== 'New Customer' && customerContext.customer_name !== 'Valued Customer') {
+    // Returning customer with known name
+    return `Hi ${customerContext.customer_name}! Welcome back to Bici on ${timeData.current_datetime}. I'm Ryder, your AI teammate.`;
+  } else if (customerContext.conversation_count > 0) {
+    // Returning customer without name
+    return `Hi there! Welcome back to Bici on ${timeData.current_datetime}. I'm Ryder, your AI teammate. I remember you've called before, but I don't have your name on file.`;
+  } else {
+    // New customer
+    return `Hi! You've reached Bici on ${timeData.current_datetime}. I'm Ryder, your AI teammate.`;
+  }
+}
+
 function buildTransferContext(transferData) {
   return {
     human_agent_available: transferData.is_active,
@@ -158,6 +171,9 @@ router.post('/conversation-start', verifyWebhookSignature, async (req, res) => {
       store_greeting: storeHours.formatGreeting(),
       caller_phone: callerPhone || 'unknown',
       ...timeData,
+      
+      // Dynamic greeting message
+      dynamic_greeting: buildGreetingMessage(customerContext, timeData),
       
       // Transfer system
       ...transferContext,
