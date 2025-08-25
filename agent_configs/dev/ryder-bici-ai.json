@@ -9,7 +9,7 @@
                 "max_tokens": 500
             },
             "language": "en",
-            "first_message": "Hi, you've reached Bici on {{current_datetime}}. I'm Ryder, your AI teammate. {{#if has_customer_name}}Welcome back, {{customer_name}}!{{else}}How can I help you today?{{/if}}"
+            "first_message": "Hi, you've reached Bici on {{current_datetime}}. I'm Ryder, your AI teammate. How can I help you today?"
         },
         "conversation": {
             "text_only": false,

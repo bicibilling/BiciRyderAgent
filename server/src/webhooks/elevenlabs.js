@@ -2,6 +2,52 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 
+// Helper functions for dynamic variables
+function formatCurrentDateTime() {
+  const now = new Date();
+  const timeOptions = {
+    timeZone: 'America/Vancouver',
+    hour: 'numeric',
+    minute: '2-digit', 
+    hour12: true
+  };
+  
+  return {
+    current_date: now.toLocaleDateString('en-CA', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/Vancouver'
+    }),
+    current_time: now.toLocaleTimeString('en-CA', timeOptions),
+    current_datetime: `${now.toLocaleDateString('en-CA', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/Vancouver'
+    })} at ${now.toLocaleTimeString('en-CA', timeOptions)}`
+  };
+}
+
+function buildCustomerFlags(customerContext) {
+  const isNewCustomer = customerContext.customer_name === 'New Customer' || customerContext.customer_name === 'Valued Customer';
+  const needsBikeData = customerContext.bike_interest === 'unknown' || customerContext.bike_interest === 'exploring options';
+  
+  return {
+    has_customer_name: !isNewCustomer,
+    needs_name: isNewCustomer,
+    needs_bike_interest: needsBikeData
+  };
+}
+
+function buildTransferContext(transferData) {
+  return {
+    human_agent_available: transferData.is_active,
+    transfer_phone_number: transferData.phone_number || 'none'
+  };
+}
+
 // Enhanced webhook signature verification following ElevenLabs best practices
 async function verifyWebhookSignature(req, res, next) {
   const signatureHeader = req.headers['elevenlabs-signature'];
@@ -94,43 +140,24 @@ router.post('/conversation-start', verifyWebhookSignature, async (req, res) => {
     const humanControl = require('../routes/humanControl');
     const transferData = humanControl.getCurrentTransferData();
     
-    // Build dynamic variables with FULL CUSTOMER CONTEXT
+    // Build dynamic variables with helper functions
     const storeHours = require('../services/storeHours');
-    const now = new Date();
-    const timeOptions = {
-      timeZone: 'America/Vancouver',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    };
+    const timeData = formatCurrentDateTime();
+    const customerFlags = buildCustomerFlags(customerContext);
+    const transferContext = buildTransferContext(transferData);
     
     const dynamicVariables = {
-      // Real-time store data with enhanced time context
+      // Real-time store and time data
       store_greeting: storeHours.formatGreeting(),
-      current_date: now.toLocaleDateString('en-CA', {
-        weekday: 'long',
-        year: 'numeric', 
-        month: 'long',
-        day: 'numeric',
-        timeZone: 'America/Vancouver'
-      }),
-      current_time: now.toLocaleTimeString('en-CA', timeOptions),
-      current_datetime: `${now.toLocaleDateString('en-CA', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        timeZone: 'America/Vancouver'
-      })} at ${now.toLocaleTimeString('en-CA', timeOptions)}`,
       caller_phone: callerPhone || 'unknown',
+      ...timeData,
       
-      // HUMAN AGENT TRANSFER DATA
-      human_agent_available: transferData.is_active ? 'true' : 'false',
-      transfer_phone_number: transferData.phone_number || 'none',
+      // Transfer system
+      ...transferContext,
       
-      // CUSTOMER CONTEXT (zero latency)
+      // Customer context
       customer_tier: customerContext.customer_tier,
       customer_name: customerContext.customer_name,
-      has_customer_name: customerContext.customer_name !== 'New Customer' && customerContext.customer_name !== 'Valued Customer' ? 'true' : 'false',
       conversation_count: customerContext.conversation_count.toString(),
       previous_context: customerContext.previous_context,
       preferred_communication: customerContext.preferred_communication,
@@ -139,9 +166,8 @@ router.post('/conversation-start', verifyWebhookSignature, async (req, res) => {
       customer_sentiment: customerContext.customer_sentiment,
       suggested_approach: customerContext.suggested_approach,
       
-      // DATA COLLECTION FLAGS
-      needs_name: customerContext.customer_name === 'New Customer' || customerContext.customer_name === 'Valued Customer' ? 'true' : 'false',
-      needs_bike_interest: customerContext.bike_interest === 'unknown' || customerContext.bike_interest === 'exploring options' ? 'true' : 'false'
+      // Data collection flags
+      ...customerFlags
     };
 
     console.log('🧠 Context injected for customer:', customerContext.customer_tier, 
