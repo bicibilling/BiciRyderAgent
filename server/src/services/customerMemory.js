@@ -55,6 +55,12 @@ class CustomerMemoryService {
     if (insights.communication_style) {
       profile.preferences.communication_style = insights.communication_style;
     }
+    
+    // Store customer name if extracted
+    if (insights.customer_name && !profile.name) {
+      profile.name = insights.customer_name;
+      console.log('📝 Customer name captured:', insights.customer_name);
+    }
 
     // Track sentiment over time (existing logic)
     profile.sentiment_history.push({
@@ -169,8 +175,30 @@ class CustomerMemoryService {
       budget: null,
       experience_level: null,
       communication_style: 'standard',
-      suggested_actions: []
+      suggested_actions: [],
+      customer_name: null // Add name extraction
     };
+
+    // Customer name extraction from transcript
+    const namePatterns = [
+      /my name is (\w+)/i,
+      /i'm (\w+)/i,
+      /this is (\w+)/i,
+      /call me (\w+)/i,
+      /(\w+) speaking/i
+    ];
+
+    const transcriptText = typeof transcript === 'string' ? transcript : 
+      Array.isArray(transcript) ? transcript.map(t => t.message || t).join(' ') : '';
+
+    for (const pattern of namePatterns) {
+      const match = transcriptText.match(pattern);
+      if (match && match[1] && match[1].length > 1) {
+        // Capitalize first letter
+        insights.customer_name = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+        break;
+      }
+    }
 
     // Bike interest detection
     if (fullText.includes('mountain') || fullText.includes('mtb')) {
@@ -417,72 +445,6 @@ class CustomerMemoryService {
     return false;
   }
 
-  // Enhanced store method with LRU management
-  storeConversationSummary(callerPhone, conversationData) {
-    const customerId = this.normalizePhoneNumber(callerPhone);
-    
-    // Update LRU access order
-    this.updateAccessOrder(customerId);
-    
-    // Get or create profile (existing logic - don't break!)
-    const profile = this.customerProfiles.get(customerId) || {
-      phone: callerPhone,
-      first_seen: new Date().toISOString(),
-      conversation_count: 0,
-      preferences: {},
-      purchase_history: [],
-      sentiment_history: [],
-      last_interaction: null
-    };
-
-    profile.conversation_count += 1;
-    profile.last_interaction = new Date().toISOString();
-    
-    // Extract customer insights from conversation (existing logic)
-    const insights = this.extractInsights(conversationData);
-    
-    // Update preferences based on conversation (existing logic)
-    if (insights.bike_interest) {
-      profile.preferences.bike_type = insights.bike_interest;
-    }
-    if (insights.budget) {
-      profile.preferences.budget_range = insights.budget;
-    }
-    if (insights.experience_level) {
-      profile.preferences.experience = insights.experience_level;
-    }
-    if (insights.communication_style) {
-      profile.preferences.communication_style = insights.communication_style;
-    }
-
-    // Track sentiment over time (existing logic)
-    profile.sentiment_history.push({
-      sentiment: insights.sentiment,
-      date: new Date().toISOString(),
-      conversation_id: conversationData.conversation_id
-    });
-
-    // Store conversation summary (existing logic)
-    this.conversationHistory.set(conversationData.conversation_id, {
-      customer_id: customerId,
-      conversation_id: conversationData.conversation_id,
-      date: new Date().toISOString(),
-      duration_seconds: conversationData.duration_seconds,
-      summary: conversationData.summary,
-      outcome: conversationData.outcome,
-      next_actions: insights.suggested_actions || [],
-      transcript_summary: conversationData.transcript_summary
-    });
-
-    // Update memory cache
-    this.customerProfiles.set(customerId, profile);
-    
-    // Background save to Redis (async - no latency)
-    this.saveToRedisAsync(customerId, profile);
-    
-    console.log('📝 Customer profile updated in LRU cache:', customerId, profile.conversation_count, 'conversations');
-    return profile;
-  }
 
   // Clear old data (privacy compliance)
   cleanupOldData(daysToKeep = 90) {

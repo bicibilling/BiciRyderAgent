@@ -96,16 +96,31 @@ router.post('/conversation-start', verifyWebhookSignature, async (req, res) => {
     
     // Build dynamic variables with FULL CUSTOMER CONTEXT
     const storeHours = require('../services/storeHours');
+    const now = new Date();
+    const timeOptions = {
+      timeZone: 'America/Vancouver',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    };
+    
     const dynamicVariables = {
-      // Real-time store data
+      // Real-time store data with enhanced time context
       store_greeting: storeHours.formatGreeting(),
-      current_date: new Date().toLocaleDateString('en-CA', {
+      current_date: now.toLocaleDateString('en-CA', {
         weekday: 'long',
         year: 'numeric', 
         month: 'long',
         day: 'numeric',
         timeZone: 'America/Vancouver'
       }),
+      current_time: now.toLocaleTimeString('en-CA', timeOptions),
+      current_datetime: `${now.toLocaleDateString('en-CA', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'America/Vancouver'
+      })} at ${now.toLocaleTimeString('en-CA', timeOptions)}`,
       caller_phone: callerPhone || 'unknown',
       
       // HUMAN AGENT TRANSFER DATA
@@ -115,13 +130,18 @@ router.post('/conversation-start', verifyWebhookSignature, async (req, res) => {
       // CUSTOMER CONTEXT (zero latency)
       customer_tier: customerContext.customer_tier,
       customer_name: customerContext.customer_name,
+      has_customer_name: customerContext.customer_name !== 'New Customer' && customerContext.customer_name !== 'Valued Customer' ? 'true' : 'false',
       conversation_count: customerContext.conversation_count.toString(),
       previous_context: customerContext.previous_context,
       preferred_communication: customerContext.preferred_communication,
       bike_interest: customerContext.bike_interest,
       last_conversation: customerContext.last_conversation,
       customer_sentiment: customerContext.customer_sentiment,
-      suggested_approach: customerContext.suggested_approach
+      suggested_approach: customerContext.suggested_approach,
+      
+      // DATA COLLECTION FLAGS
+      needs_name: customerContext.customer_name === 'New Customer' || customerContext.customer_name === 'Valued Customer' ? 'true' : 'false',
+      needs_bike_interest: customerContext.bike_interest === 'unknown' || customerContext.bike_interest === 'exploring options' ? 'true' : 'false'
     };
 
     console.log('🧠 Context injected for customer:', customerContext.customer_tier, 
