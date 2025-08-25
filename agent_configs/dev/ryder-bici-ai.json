@@ -9,7 +9,7 @@
                 "max_tokens": 500
             },
             "language": "en",
-            "first_message": "Hi, you've reached Bici. I'm Ryder, your AI teammate. {{current_datetime}}, and {{store_greeting}}. I can help with store hours, location, or connecting you with the right department. How can I help you today?"
+            "first_message": "{{dynamic_greeting}} How can I help you today?"
         },
         "conversation": {
             "text_only": false,

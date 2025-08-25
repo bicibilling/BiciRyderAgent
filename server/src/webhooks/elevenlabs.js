@@ -41,16 +41,29 @@ function buildCustomerFlags(customerContext) {
   };
 }
 
-function buildGreetingMessage(customerContext, timeData) {
+function buildGreetingMessage(customerContext, timeData, storeHours) {
+  const isOpen = storeHours.getCurrentStatus().isOpen;
+  const now = new Date();
+  const dayName = now.toLocaleDateString('en-CA', { weekday: 'long', timeZone: 'America/Vancouver' });
+  const dateTime = timeData.current_datetime;
+  
+  // Day-specific enthusiasm
+  let dayGreeting = '';
+  if (dayName === 'Friday') dayGreeting = 'Happy Friday! ';
+  else if (dayName === 'Monday') dayGreeting = 'Hope you had a great weekend! ';
+  else if (dayName === 'Saturday' || dayName === 'Sunday') dayGreeting = 'Happy weekend! ';
+  
+  const storeStatus = isOpen ? "We're open until 6 PM" : "We're closed now";
+  
   if (customerContext.customer_name !== 'New Customer' && customerContext.customer_name !== 'Valued Customer') {
     // Returning customer with known name
-    return `Hi ${customerContext.customer_name}! Welcome back to Bici on ${timeData.current_datetime}. I'm Ryder, your AI teammate.`;
+    return `Hi ${customerContext.customer_name}! ${dayGreeting}It's ${dateTime}. I'm Ryder at Bici. ${storeStatus}.`;
   } else if (customerContext.conversation_count > 0) {
-    // Returning customer without name
-    return `Hi there! Welcome back to Bici on ${timeData.current_datetime}. I'm Ryder, your AI teammate. I remember you've called before, but I don't have your name on file.`;
+    // Returning customer without name  
+    return `Hi! ${dayGreeting}Welcome back to Bici. It's ${dateTime}. I'm Ryder. ${storeStatus}.`;
   } else {
     // New customer
-    return `Hi! You've reached Bici on ${timeData.current_datetime}. I'm Ryder, your AI teammate.`;
+    return `Hi! ${dayGreeting}You've reached Bici. It's ${dateTime}. I'm Ryder. ${storeStatus}.`;
   }
 }
 
@@ -172,8 +185,8 @@ router.post('/conversation-start', verifyWebhookSignature, async (req, res) => {
       caller_phone: callerPhone || 'unknown',
       ...timeData,
       
-      // Dynamic greeting message
-      dynamic_greeting: buildGreetingMessage(customerContext, timeData),
+      // Dynamic greeting message (short and human)
+      dynamic_greeting: buildGreetingMessage(customerContext, timeData, storeHours),
       
       // Transfer system
       ...transferContext,
