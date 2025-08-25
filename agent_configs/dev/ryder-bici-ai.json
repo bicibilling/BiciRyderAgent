@@ -75,6 +75,30 @@
             }
         ]
     },
+    "analysis": {
+        "data_collection": [
+            {
+                "identifier": "customer_name",
+                "data_type": "string",
+                "description": "Extract the customer's first name when they introduce themselves (e.g., 'My name is John', 'I'm Sarah', 'This is Mike')"
+            },
+            {
+                "identifier": "bike_interest", 
+                "data_type": "string",
+                "description": "Extract the type of bike the customer is interested in: mountain, road, electric, gravel, hybrid, or unknown if not mentioned"
+            },
+            {
+                "identifier": "budget_range",
+                "data_type": "string", 
+                "description": "Extract the customer's budget if mentioned (e.g., 'under $2000', '$1500-$3000', 'budget-conscious')"
+            },
+            {
+                "identifier": "experience_level",
+                "data_type": "string",
+                "description": "Determine customer's cycling experience: beginner, intermediate, experienced, or unknown"
+            }
+        ]
+    },
     "platform_settings": {
         "widget": {
             "variant": "full",

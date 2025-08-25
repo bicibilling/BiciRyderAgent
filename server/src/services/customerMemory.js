@@ -39,8 +39,23 @@ class CustomerMemoryService {
     profile.conversation_count += 1;
     profile.last_interaction = new Date().toISOString();
     
-    // Extract customer insights from conversation (existing logic)
+    // Use ElevenLabs structured data extraction + fallback insights
     const insights = this.extractInsights(conversationData);
+    const elevenlabsData = conversationData.extracted_data || {};
+    
+    // Prioritize ElevenLabs structured data over regex extraction
+    if (elevenlabsData.customer_name) {
+      insights.customer_name = elevenlabsData.customer_name;
+    }
+    if (elevenlabsData.bike_interest) {
+      insights.bike_interest = elevenlabsData.bike_interest;
+    }
+    if (elevenlabsData.budget_range) {
+      insights.budget = elevenlabsData.budget_range;
+    }
+    if (elevenlabsData.experience_level) {
+      insights.experience_level = elevenlabsData.experience_level;
+    }
     
     // Update preferences based on conversation (existing logic)
     if (insights.bike_interest) {
@@ -56,10 +71,10 @@ class CustomerMemoryService {
       profile.preferences.communication_style = insights.communication_style;
     }
     
-    // Store customer name if extracted
+    // Store customer name from ElevenLabs extraction
     if (insights.customer_name && !profile.name) {
       profile.name = insights.customer_name;
-      console.log('📝 Customer name captured:', insights.customer_name);
+      console.log('📝 Customer name captured via ElevenLabs:', insights.customer_name);
     }
 
     // Track sentiment over time (existing logic)
@@ -175,30 +190,8 @@ class CustomerMemoryService {
       budget: null,
       experience_level: null,
       communication_style: 'standard',
-      suggested_actions: [],
-      customer_name: null // Add name extraction
+      suggested_actions: []
     };
-
-    // Customer name extraction from transcript
-    const namePatterns = [
-      /my name is (\w+)/i,
-      /i'm (\w+)/i,
-      /this is (\w+)/i,
-      /call me (\w+)/i,
-      /(\w+) speaking/i
-    ];
-
-    const transcriptText = typeof transcript === 'string' ? transcript : 
-      Array.isArray(transcript) ? transcript.map(t => t.message || t).join(' ') : '';
-
-    for (const pattern of namePatterns) {
-      const match = transcriptText.match(pattern);
-      if (match && match[1] && match[1].length > 1) {
-        // Capitalize first letter
-        insights.customer_name = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
-        break;
-      }
-    }
 
     // Bike interest detection
     if (fullText.includes('mountain') || fullText.includes('mtb')) {

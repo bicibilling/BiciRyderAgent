@@ -109,8 +109,15 @@ router.post('/conversation-start', verifyWebhookSignature, async (req, res) => {
   try {
     console.log('🔍 RAW WEBHOOK DATA:', JSON.stringify(req.body, null, 2));
     
-    const { conversation_id, agent_id, user_id, metadata } = req.body;
-    const callerPhone = metadata?.caller_phone || metadata?.from || metadata?.phone_number;
+    // ElevenLabs webhook structure analysis
+    const { conversation_id, agent_id, user_id, metadata, caller_id, called_number } = req.body;
+    
+    // Multiple ways to get caller phone number
+    const callerPhone = caller_id || 
+                       metadata?.caller_phone || 
+                       metadata?.from || 
+                       metadata?.phone_number ||
+                       metadata?.external_number;
     
     console.log('🎯 Conversation started with context lookup:', {
       conversation_id,
@@ -306,23 +313,41 @@ router.post('/conversation-interrupt', verifyWebhookSignature, async (req, res) 
   }
 });
 
-// Post-call webhook - BUILD CUSTOMER MEMORY FOR FUTURE CALLS
+// Post-call webhook - BUILD CUSTOMER MEMORY FOR FUTURE CALLS  
 router.post('/post-call', verifyWebhookSignature, async (req, res) => {
   try {
     console.log('📞 RAW POST-CALL DATA:', JSON.stringify(req.body, null, 2));
     
+    // Handle both direct webhook and nested data structure
+    const webhookData = req.body.data || req.body;
     const {
       conversation_id,
-      agent_id,
-      duration_seconds,
-      end_reason,
+      agent_id, 
       transcript,
-      metadata,
-      call_summary_title,
-      call_successful
-    } = req.body;
+      metadata
+    } = webhookData;
     
-    const callerPhone = metadata?.caller_phone || metadata?.from || metadata?.phone_number;
+    // Extract from metadata or phone_call data
+    const phoneData = metadata?.phone_call || metadata;
+    const callerPhone = phoneData?.external_number || 
+                       phoneData?.caller_phone ||
+                       phoneData?.from ||
+                       metadata?.caller_id;
+    
+    const duration_seconds = metadata?.call_duration_secs || 0;
+    const call_summary_title = webhookData.analysis?.call_summary_title || 'General inquiry'; 
+    const call_successful = webhookData.analysis?.call_successful || 'success';
+    
+    // Extract structured data from ElevenLabs analysis
+    const dataCollection = webhookData.analysis?.data_collection_results || {};
+    const extractedData = {
+      customer_name: dataCollection.customer_name?.value || null,
+      bike_interest: dataCollection.bike_interest?.value || null,
+      budget_range: dataCollection.budget_range?.value || null,
+      experience_level: dataCollection.experience_level?.value || null
+    };
+    
+    console.log('📊 ElevenLabs extracted data:', extractedData);
     
     console.log('📞 Call ended - building customer memory:', {
       conversation_id,
@@ -340,13 +365,14 @@ router.post('/post-call', verifyWebhookSignature, async (req, res) => {
     const conversationData = {
       conversation_id,
       caller_phone: callerPhone,
-      duration_seconds: duration_seconds || 0,
-      summary: call_summary_title || 'General inquiry',
-      transcript: transcript,
+      duration_seconds,
+      summary: call_summary_title,
+      transcript,
       transcript_summary: generateTranscriptSummary(transcript),
       outcome: call_successful === 'success' ? 'successful' : 'incomplete',
-      end_reason: end_reason,
-      agent_id: agent_id
+      agent_id,
+      // ElevenLabs structured data extraction
+      extracted_data: extractedData
     };
 
     // Store customer profile and conversation insights
@@ -393,13 +419,11 @@ router.post('/post-call', verifyWebhookSignature, async (req, res) => {
   }
 });
 
-// Helper function to generate transcript summary
+// Helper function to generate transcript summary  
 function generateTranscriptSummary(transcript) {
   if (!transcript || !Array.isArray(transcript)) return 'No transcript available';
   
   const customerMessages = transcript.filter(t => t.role === 'user').map(t => t.message);
-  const agentMessages = transcript.filter(t => t.role === 'agent').map(t => t.message);
-  
   const customerText = customerMessages.join(' ').toLowerCase();
   
   // Quick summary generation
