@@ -15,11 +15,12 @@ const HumanControlPanel = () => {
   useEffect(() => {
     loadConversationQueue();
     loadTransferStatus();
-    const interval = setInterval(() => {
-      loadConversationQueue();
-      loadTransferStatus();
-    }, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
+    // Disabled auto-refresh - was causing painful page refreshing  
+    // const interval = setInterval(() => {
+    //   loadConversationQueue();
+    //   loadTransferStatus();
+    // }, 5000); // Refresh every 5 seconds
+    // return () => clearInterval(interval);
   }, []);
 
   const loadConversationQueue = async () => {

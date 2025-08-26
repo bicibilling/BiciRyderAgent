@@ -27,10 +27,9 @@ function App() {
   useEffect(() => {
     fetchAllData();
     
-    // Set up polling for real-time updates
-    const interval = setInterval(fetchAllData, 30000); // Every 30 seconds
-    
-    return () => clearInterval(interval);
+    // Disabled auto-refresh - was causing painful page refreshing
+    // const interval = setInterval(fetchAllData, 30000); // Every 30 seconds
+    // return () => clearInterval(interval);
   }, []);
 
   const fetchAllData = async () => {
