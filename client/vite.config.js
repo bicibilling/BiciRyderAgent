@@ -6,6 +6,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
+    hmr: {
+      overlay: false, // Disable error overlay that might cause refreshes
+    },
+    watch: {
+      ignored: ['**/node_modules/**', '**/dist/**'], // Don't watch these directories
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3002',
