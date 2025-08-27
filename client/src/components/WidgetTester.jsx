@@ -169,12 +169,21 @@ const WidgetTester = ({ agentStatus }) => {
       const widget = document.createElement('elevenlabs-convai');
       widget.setAttribute('agent-id', config.agent_id);
       
-      // CRITICAL: Pass ALL dynamic variables that agent expects
+      // CRITICAL: Pass ALL dynamic variables that agent expects (ElevenLabs format)
       if (Object.keys(dynamicVariables).length > 0) {
-        widget.setAttribute('dynamic-variables', JSON.stringify(dynamicVariables));
+        // Ensure we have the critical dynamic_greeting variable
+        if (!dynamicVariables.dynamic_greeting) {
+          console.error('❌ Missing dynamic_greeting in variables:', Object.keys(dynamicVariables));
+          throw new Error('Dynamic greeting not available from webhook');
+        }
+        
+        const widgetVariables = JSON.stringify(dynamicVariables);
+        widget.setAttribute('dynamic-variables', widgetVariables);
         console.log('✅ Added dynamic variables to widget:', Object.keys(dynamicVariables));
+        console.log('🎯 Widget dynamic-variables attribute:', widgetVariables);
       } else {
-        console.log('⚠️ No dynamic variables received from webhook');
+        console.error('❌ No dynamic variables received from webhook');
+        throw new Error('No dynamic variables available - webhook failed');
       }
       
       // Widget configuration for testing
