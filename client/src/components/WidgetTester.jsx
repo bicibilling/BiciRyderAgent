@@ -156,9 +156,13 @@ const WidgetTester = ({ agentStatus }) => {
       if (contextResponse.ok) {
         const contextData = await contextResponse.json();
         dynamicVariables = contextData.dynamic_variables || {};
-        console.log('✅ Got dynamic variables for widget:', dynamicVariables);
+        console.log('✅ Got dynamic variables for widget:', Object.keys(dynamicVariables));
+        console.log('🎯 Dynamic greeting value:', dynamicVariables.dynamic_greeting);
+        console.log('🏪 Store greeting value:', dynamicVariables.store_greeting);
       } else {
-        console.log('⚠️ Could not get dynamic variables, using empty object');
+        const errorText = await contextResponse.text();
+        console.error('❌ Webhook failed:', contextResponse.status, errorText);
+        throw new Error(`Webhook failed: ${contextResponse.status} - ${errorText}`);
       }
 
       // Create the widget element with ALL dynamic variables (same as phone calls)
