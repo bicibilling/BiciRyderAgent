@@ -76,17 +76,9 @@ const WidgetTester = ({ agentStatus }) => {
       setTimeout(() => {
         console.log('🔍 Available window properties:', Object.keys(window).filter(key => key.toLowerCase().includes('eleven')));
         
-        // Try different initialization methods
-        if (window.ElevenLabsWidget && window.ElevenLabsWidget.init) {
-          console.log('🎯 Method 1: Using ElevenLabsWidget.init');
-          initializeWithAPI(config);
-        } else if (window.customElements && window.customElements.get('elevenlabs-convai')) {
-          console.log('🎯 Method 2: Using custom element approach');
-          initializeWithCustomElement(config);
-        } else {
-          console.log('🎯 Method 3: Creating custom element directly');
-          createWidgetElement(config);
-        }
+        // ALL methods need dynamic variables - use Method 3 which gets them
+        console.log('🎯 Using Method 3: Creating custom element with dynamic variables');
+        createWidgetElement(config);
       }, 1000);
     };
 
