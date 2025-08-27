@@ -61,11 +61,12 @@ const WidgetTester = ({ agentStatus }) => {
       existingScript.remove();
     }
 
-    // Create and load the ElevenLabs widget script
+    // Create and load the ElevenLabs widget script (OFFICIAL URL)
     const script = document.createElement('script');
     script.id = 'elevenlabs-widget';
-    script.src = 'https://elevenlabs.io/convai-widget/index.js';
+    script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed';
     script.async = true;
+    script.type = 'text/javascript';
     
     script.onload = () => {
       console.log('✅ ElevenLabs widget script loaded successfully');
@@ -130,19 +131,54 @@ const WidgetTester = ({ agentStatus }) => {
     }
   };
 
-  const createWidgetElement = (config) => {
+  const createWidgetElement = async (config) => {
     try {
-      // Create the custom element as described in ElevenLabs docs
+      console.log('🎯 Creating widget with dynamic variables...');
+      
+      // Get dynamic variables from our webhook system (same as phone calls)
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 
+        (import.meta.env.PROD ? 'https://bici-ryder-api.onrender.com/api' : 'http://localhost:3002/api');
+      
+      const contextResponse = await fetch(`${API_BASE_URL}/webhooks/elevenlabs/conversation-start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversation_id: `widget_${Date.now()}`,
+          agent_id: config.agent_id,
+          metadata: { 
+            caller_phone: '+1234567890', // Widget placeholder
+            source: 'widget'
+          }
+        })
+      });
+
+      let dynamicVariables = {};
+      if (contextResponse.ok) {
+        const contextData = await contextResponse.json();
+        dynamicVariables = contextData.dynamic_variables || {};
+        console.log('✅ Got dynamic variables for widget:', dynamicVariables);
+      } else {
+        console.log('⚠️ Could not get dynamic variables, using empty object');
+      }
+
+      // Create the widget element with dynamic variables
       const widget = document.createElement('elevenlabs-convai');
       widget.setAttribute('agent-id', config.agent_id);
       
+      // Add dynamic variables (CRITICAL for greeting to work)
+      widget.setAttribute('dynamic-variables', JSON.stringify(dynamicVariables));
+      
+      // Add widget configuration
+      widget.setAttribute('variant', 'expanded');
+      widget.setAttribute('text-input-enabled', 'true');
+      
       // Add to DOM
       document.body.appendChild(widget);
-      console.log('✅ Widget element created directly');
+      console.log('✅ Widget element created with dynamic variables');
       setWidgetLoaded(true);
     } catch (error) {
-      console.error('❌ Direct element creation failed:', error);
-      setError(`Direct element creation failed: ${error.message}`);
+      console.error('❌ Widget creation failed:', error);
+      setError(`Widget creation failed: ${error.message}`);
     }
   };
 
