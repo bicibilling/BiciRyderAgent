@@ -73,6 +73,9 @@ export const agentAPI = {
   getTestPrompts: () => api.get('/agent/test-prompts'),
   
   runAllTests: () => api.post('/agent/run-all-tests'),
+  
+  // Get ElevenLabs widget configuration
+  getWidget: () => api.get('/agent/widget'),
 };
 
 export const storeAPI = {

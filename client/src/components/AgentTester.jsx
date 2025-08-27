@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Send, Bot, User, Clock, CheckCircle, AlertTriangle, Phone } from 'lucide-react';
+import { Send, Bot, User, Clock, CheckCircle, AlertTriangle, Phone, ExternalLink, TestTube } from 'lucide-react';
+import WidgetTester from './WidgetTester';
 
 const AgentTester = ({ agentStatus, onTest }) => {
   const [message, setMessage] = useState('');
   const [testHistory, setTestHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [testingMode, setTestingMode] = useState('widget'); // 'widget' or 'simulated'
 
   const quickTestMessages = [
     "What are your store hours?",
@@ -75,8 +77,8 @@ const AgentTester = ({ agentStatus, onTest }) => {
           <div className="flex items-center space-x-3">
             <Bot className="h-6 w-6 text-primary-600" />
             <div>
-              <h2 className="text-xl font-semibold text-neutral-900">Voice Agent Testing</h2>
-              <p className="text-sm text-neutral-600">Ryder is a VOICE agent - call +1 (604) 670-0262 to test</p>
+              <h2 className="text-xl font-semibold text-neutral-900">Agent Testing</h2>
+              <p className="text-sm text-neutral-600">Test Ryder with widget, phone, or simulated responses</p>
             </div>
           </div>
           
@@ -85,6 +87,32 @@ const AgentTester = ({ agentStatus, onTest }) => {
           }`}>
             {agentStatus?.agent?.status?.toUpperCase() || 'OFFLINE'}
           </span>
+        </div>
+
+        {/* Testing Mode Selector */}
+        <div className="flex space-x-2 mb-4">
+          <button
+            onClick={() => setTestingMode('widget')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
+              testingMode === 'widget'
+                ? 'border-primary-300 bg-primary-50 text-primary-700'
+                : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
+            }`}
+          >
+            <ExternalLink className="h-4 w-4" />
+            <span>ElevenLabs Widget</span>
+          </button>
+          <button
+            onClick={() => setTestingMode('simulated')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
+              testingMode === 'simulated'
+                ? 'border-primary-300 bg-primary-50 text-primary-700'
+                : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
+            }`}
+          >
+            <TestTube className="h-4 w-4" />
+            <span>Simulated Testing</span>
+          </button>
         </div>
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
@@ -108,7 +136,12 @@ const AgentTester = ({ agentStatus, onTest }) => {
         )}
       </div>
 
-      {/* Test Interface */}
+      {/* Conditional Content Based on Mode */}
+      {testingMode === 'widget' ? (
+        <WidgetTester agentStatus={agentStatus} />
+      ) : (
+        <>
+          {/* Test Interface */}
       <div className="card">
         <h3 className="font-semibold text-neutral-900 mb-4">Simulated Text Testing</h3>
         <p className="text-sm text-neutral-600 mb-4">
@@ -235,6 +268,8 @@ const AgentTester = ({ agentStatus, onTest }) => {
             </p>
           )}
         </div>
+      )}
+        </>
       )}
     </div>
   );

@@ -613,4 +613,37 @@ router.get('/analytics', async (req, res) => {
   }
 });
 
+// Get ElevenLabs widget configuration
+router.get('/widget', async (req, res) => {
+  try {
+    const agentId = process.env.ELEVENLABS_AGENT_ID;
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    
+    if (!agentId || !apiKey) {
+      return res.status(400).json({
+        error: 'Missing ElevenLabs configuration'
+      });
+    }
+
+    // Get widget configuration from ElevenLabs
+    const response = await axios.get(`https://api.elevenlabs.io/v1/convai/agents/${agentId}/widget`, {
+      headers: {
+        'xi-api-key': apiKey
+      }
+    });
+
+    res.json({
+      success: true,
+      widget_config: response.data,
+      agent_id: agentId
+    });
+  } catch (error) {
+    console.error('Widget configuration error:', error);
+    res.status(500).json({
+      error: 'Failed to get widget configuration',
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;
