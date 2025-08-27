@@ -130,6 +130,10 @@
             "border_color": "#4A90A4",
             "focus_color": "#2B5AA0",
             "text_input_enabled": true,
+            "transcript_enabled": true,
+            "supports_text_only": true,
+            "text_only": false,
+            "mic_muting_enabled": true,
             "avatar": {
                 "type": "orb",
                 "color_1": "#2B5AA0",
