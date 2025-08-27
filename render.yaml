@@ -34,7 +34,7 @@ services:
     
   - type: static
     name: bici-ryder-dashboard
-    buildCommand: cd client && npm install && npm run build
+    buildCommand: cd client && npm install && npm run build # v2 - fixed auto-refresh
     staticPublishPath: ./client/dist
     routes:
       - type: rewrite
