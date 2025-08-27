@@ -161,16 +161,23 @@ const WidgetTester = ({ agentStatus }) => {
         console.log('⚠️ Could not get dynamic variables, using empty object');
       }
 
-      // Create the widget element with dynamic variables
+      // Create the widget element with ALL dynamic variables (same as phone calls)
       const widget = document.createElement('elevenlabs-convai');
       widget.setAttribute('agent-id', config.agent_id);
       
-      // Add dynamic variables (CRITICAL for greeting to work)
-      widget.setAttribute('dynamic-variables', JSON.stringify(dynamicVariables));
+      // CRITICAL: Pass ALL dynamic variables that agent expects
+      if (Object.keys(dynamicVariables).length > 0) {
+        widget.setAttribute('dynamic-variables', JSON.stringify(dynamicVariables));
+        console.log('✅ Added dynamic variables to widget:', Object.keys(dynamicVariables));
+      } else {
+        console.log('⚠️ No dynamic variables received from webhook');
+      }
       
-      // Add widget configuration
+      // Widget configuration for testing
       widget.setAttribute('variant', 'expanded');
       widget.setAttribute('text-input-enabled', 'true');
+      widget.setAttribute('default-expanded', 'true');
+      widget.setAttribute('always-expanded', 'true');
       
       // Add to DOM
       document.body.appendChild(widget);
