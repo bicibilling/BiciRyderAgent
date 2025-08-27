@@ -41,8 +41,8 @@ const PromptEditor = ({ agentStatus, onUpdate }) => {
     try {
       await agentAPI.updatePrompt({ prompt, temperature });
       setHasChanges(false);
-      onUpdate?.();
-      console.log('Prompt saved locally');
+      // Removed onUpdate?.() call to prevent page refresh
+      console.log('Prompt saved locally - no refresh');
     } catch (error) {
       console.error('Failed to save prompt:', error);
     } finally {
