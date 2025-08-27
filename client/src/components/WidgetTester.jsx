@@ -8,7 +8,10 @@ const WidgetTester = ({ agentStatus }) => {
   const [widgetLoaded, setWidgetLoaded] = useState(false);
 
   const loadWidget = async () => {
+    console.log('🚀 Starting widget load process...');
+    
     if (!agentStatus?.agent?.id) {
+      console.error('❌ No agent ID available');
       setError('Agent ID not available');
       return;
     }
@@ -17,33 +20,44 @@ const WidgetTester = ({ agentStatus }) => {
     setError(null);
 
     try {
+      console.log('📡 Fetching widget configuration...');
+      
       // Get widget configuration from ElevenLabs
       const API_BASE_URL = import.meta.env.VITE_API_URL || 
         (import.meta.env.PROD ? 'https://bici-ryder-api.onrender.com/api' : 'http://localhost:3002/api');
       
+      console.log('🔗 API URL:', API_BASE_URL);
+      
       const response = await fetch(`${API_BASE_URL}/agent/widget`);
+      console.log('📡 Widget API response status:', response.status);
       
       if (!response.ok) {
-        throw new Error('Failed to get widget configuration');
+        const errorText = await response.text();
+        console.error('❌ API Error:', errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
       }
       
       const data = await response.json();
+      console.log('✅ Widget config received:', data);
       setWidgetConfig(data.widget_config);
       
       // Load ElevenLabs widget script dynamically
       loadElevenLabsWidget(data.widget_config);
     } catch (err) {
-      console.error('Widget loading error:', err);
-      setError(err.message);
+      console.error('❌ Widget loading error:', err);
+      setError(`Widget loading failed: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const loadElevenLabsWidget = (config) => {
+    console.log('📦 Loading ElevenLabs widget script...');
+    
     // Remove any existing widget script
     const existingScript = document.getElementById('elevenlabs-widget');
     if (existingScript) {
+      console.log('🗑️ Removing existing widget script');
       existingScript.remove();
     }
 
@@ -54,31 +68,48 @@ const WidgetTester = ({ agentStatus }) => {
     script.async = true;
     
     script.onload = () => {
-      console.log('✅ ElevenLabs widget script loaded');
+      console.log('✅ ElevenLabs widget script loaded successfully');
+      console.log('🔍 Window.ElevenLabsWidget available:', !!window.ElevenLabsWidget);
       
-      // Initialize the widget with configuration
-      if (window.ElevenLabsWidget) {
-        window.ElevenLabsWidget.init({
-          agentId: config.agent_id,
-          ...config.widget_config,
-          // Override for dashboard integration
-          variant: 'full',
-          placement: 'bottom-right',
-          expandable: 'always',
-          always_expanded: true,
-          default_expanded: true,
-          text_input_enabled: true,
-          mic_muting_enabled: true,
-          transcript_enabled: true
-        });
-        setWidgetLoaded(true);
-      }
+      // Wait a moment for script to initialize
+      setTimeout(() => {
+        // Initialize the widget with configuration
+        if (window.ElevenLabsWidget && window.ElevenLabsWidget.init) {
+          console.log('🎯 Initializing widget with config:', config);
+          
+          try {
+            window.ElevenLabsWidget.init({
+              agentId: config.agent_id,
+              ...config.widget_config,
+              // Override for dashboard integration
+              variant: 'full',
+              placement: 'bottom-right',
+              expandable: 'always', 
+              always_expanded: true,
+              default_expanded: true,
+              text_input_enabled: true,
+              mic_muting_enabled: true,
+              transcript_enabled: true
+            });
+            console.log('✅ Widget initialized successfully');
+            setWidgetLoaded(true);
+          } catch (initError) {
+            console.error('❌ Widget initialization error:', initError);
+            setError(`Widget initialization failed: ${initError.message}`);
+          }
+        } else {
+          console.error('❌ ElevenLabsWidget.init not available');
+          setError('ElevenLabs widget script loaded but init function not available');
+        }
+      }, 1000);
     };
 
-    script.onerror = () => {
-      setError('Failed to load ElevenLabs widget script');
+    script.onerror = (scriptError) => {
+      console.error('❌ Script loading error:', scriptError);
+      setError('Failed to load ElevenLabs widget script from https://elevenlabs.io/convai-widget/index.js');
     };
 
+    console.log('📤 Adding script to document head...');
     document.head.appendChild(script);
   };
 
