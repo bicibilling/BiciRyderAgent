@@ -73,33 +73,18 @@ const WidgetTester = ({ agentStatus }) => {
       
       // Wait a moment for script to initialize
       setTimeout(() => {
-        // Initialize the widget with configuration
+        console.log('🔍 Available window properties:', Object.keys(window).filter(key => key.toLowerCase().includes('eleven')));
+        
+        // Try different initialization methods
         if (window.ElevenLabsWidget && window.ElevenLabsWidget.init) {
-          console.log('🎯 Initializing widget with config:', config);
-          
-          try {
-            window.ElevenLabsWidget.init({
-              agentId: config.agent_id,
-              ...config.widget_config,
-              // Override for dashboard integration
-              variant: 'full',
-              placement: 'bottom-right',
-              expandable: 'always', 
-              always_expanded: true,
-              default_expanded: true,
-              text_input_enabled: true,
-              mic_muting_enabled: true,
-              transcript_enabled: true
-            });
-            console.log('✅ Widget initialized successfully');
-            setWidgetLoaded(true);
-          } catch (initError) {
-            console.error('❌ Widget initialization error:', initError);
-            setError(`Widget initialization failed: ${initError.message}`);
-          }
+          console.log('🎯 Method 1: Using ElevenLabsWidget.init');
+          initializeWithAPI(config);
+        } else if (window.customElements && window.customElements.get('elevenlabs-convai')) {
+          console.log('🎯 Method 2: Using custom element approach');
+          initializeWithCustomElement(config);
         } else {
-          console.error('❌ ElevenLabsWidget.init not available');
-          setError('ElevenLabs widget script loaded but init function not available');
+          console.log('🎯 Method 3: Creating custom element directly');
+          createWidgetElement(config);
         }
       }, 1000);
     };
@@ -113,18 +98,85 @@ const WidgetTester = ({ agentStatus }) => {
     document.head.appendChild(script);
   };
 
+  const initializeWithAPI = (config) => {
+    try {
+      window.ElevenLabsWidget.init({
+        agentId: config.agent_id,
+        ...config.widget_config,
+        variant: 'full',
+        placement: 'bottom-right',
+        always_expanded: true,
+        text_input_enabled: true
+      });
+      console.log('✅ Widget initialized with API method');
+      setWidgetLoaded(true);
+    } catch (error) {
+      console.error('❌ API initialization failed:', error);
+      setError(`API initialization failed: ${error.message}`);
+    }
+  };
+
+  const initializeWithCustomElement = (config) => {
+    try {
+      const widget = document.createElement('elevenlabs-convai');
+      widget.setAttribute('agent-id', config.agent_id);
+      widget.setAttribute('widget-config', JSON.stringify(config.widget_config));
+      document.body.appendChild(widget);
+      console.log('✅ Widget created with custom element');
+      setWidgetLoaded(true);
+    } catch (error) {
+      console.error('❌ Custom element initialization failed:', error);
+      setError(`Custom element failed: ${error.message}`);
+    }
+  };
+
+  const createWidgetElement = (config) => {
+    try {
+      // Create the custom element as described in ElevenLabs docs
+      const widget = document.createElement('elevenlabs-convai');
+      widget.setAttribute('agent-id', config.agent_id);
+      
+      // Add to DOM
+      document.body.appendChild(widget);
+      console.log('✅ Widget element created directly');
+      setWidgetLoaded(true);
+    } catch (error) {
+      console.error('❌ Direct element creation failed:', error);
+      setError(`Direct element creation failed: ${error.message}`);
+    }
+  };
+
   const removeWidget = () => {
+    console.log('🗑️ Removing ElevenLabs widget...');
+    
+    // Remove script
     const script = document.getElementById('elevenlabs-widget');
     if (script) {
       script.remove();
+      console.log('✅ Removed widget script');
     }
     
-    // Remove widget DOM elements
-    const widgets = document.querySelectorAll('[data-elevenlabs-widget]');
-    widgets.forEach(widget => widget.remove());
+    // Remove all possible widget DOM elements
+    const selectors = [
+      'elevenlabs-convai',
+      '[data-elevenlabs-widget]',
+      '.elevenlabs-widget',
+      '.convai-widget',
+      '[class*="elevenlabs"]',
+      '[id*="elevenlabs"]'
+    ];
+    
+    selectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(element => {
+        element.remove();
+        console.log('✅ Removed widget element:', selector);
+      });
+    });
     
     setWidgetLoaded(false);
     setWidgetConfig(null);
+    console.log('✅ Widget cleanup complete');
   };
 
   return (
