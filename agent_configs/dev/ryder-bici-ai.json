@@ -9,7 +9,7 @@
                 "max_tokens": 500
             },
             "language": "en",
-            "first_message": "{{dynamic_greeting}} I can help with store hours, our location, or connecting you with the right department. In the future, I'll also be able to check order status and product availability. If you'd like to talk to a person, just say 'human' and I'll connect you. How can I help you today?"
+            "first_message": "Hi! I'm Ryder, your AI teammate at Bici. I can help with store hours, our location, or connecting you with the right department. In the future, I'll also be able to check order status and product availability. If you'd like to talk to a person, just say 'human' and I'll connect you. How can I help you today?"
         },
         "conversation": {
             "text_only": false,
