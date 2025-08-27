@@ -646,4 +646,24 @@ router.get('/widget', async (req, res) => {
   }
 });
 
+// Clear all customer memory (for testing/reset)
+router.post('/clear-memory', async (req, res) => {
+  try {
+    const customerMemory = require('../services/customerMemory');
+    customerMemory.clearAllMemory();
+    
+    res.json({
+      success: true,
+      message: 'All customer memory cleared successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Memory clear error:', error);
+    res.status(500).json({
+      error: 'Failed to clear memory',
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;

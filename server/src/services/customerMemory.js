@@ -598,6 +598,25 @@ class CustomerMemoryService {
     };
   }
 
+  // Clear ALL memory data (for testing/reset)
+  clearAllMemory() {
+    console.log('🗑️ Clearing all customer memory data...');
+    
+    // Clear in-memory cache
+    this.customerProfiles.clear();
+    this.conversationHistory.clear();
+    this.accessOrder.length = 0;
+    
+    // Clear Redis if available
+    if (this.redisClient) {
+      this.redisClient.flushall().catch(err => {
+        console.log('⚠️ Redis flush failed:', err.message);
+      });
+    }
+    
+    console.log('✅ All customer memory cleared');
+  }
+
   // Clear old data (privacy compliance)
   cleanupOldData(daysToKeep = 90) {
     const cutoffDate = moment().subtract(daysToKeep, 'days');
