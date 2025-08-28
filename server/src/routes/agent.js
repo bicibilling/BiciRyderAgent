@@ -397,8 +397,8 @@ router.post('/deploy', async (req, res) => {
     
     console.log('🚀 Deploying agent changes via ElevenLabs CLI...');
     
-    // Run convai sync to deploy changes using npx (CLI is the correct way per documentation)
-    const { stdout, stderr } = await execAsync('npx convai sync --env dev', {
+    // Run convai sync to deploy changes using npx with full package name
+    const { stdout, stderr } = await execAsync('npx @elevenlabs/convai-cli sync --env dev', {
       cwd: path.join(__dirname, '../../..'),
       timeout: 30000,
       env: { 
