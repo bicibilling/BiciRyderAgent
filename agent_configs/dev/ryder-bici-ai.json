@@ -3,9 +3,9 @@
     "conversation_config": {
         "agent": {
             "prompt": {
-                "prompt": "TESTING DEPLOY FUNCTIONALITY - UPDATED PROMPT",
+                "prompt": "TEST PRESERVE VOICE AND FIRST MESSAGE",
                 "llm": "gemini-2.0-flash",
-                "temperature": 0.3,
+                "temperature": 0.2,
                 "max_tokens": 500
             },
             "language": "en",

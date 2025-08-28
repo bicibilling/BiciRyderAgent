@@ -408,10 +408,29 @@ router.post('/deploy', async (req, res) => {
     
     console.log('📤 Deploying agent prompt:', agentConfig.conversation_config.agent?.prompt?.prompt?.substring(0, 100) + '...');
     
-    // Use exact PATCH format from ElevenLabs documentation
+    // CRITICAL: Get current agent config from ElevenLabs first to preserve voice settings
+    const currentAgentResponse = await axios.get(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
+      headers: { 'xi-api-key': apiKey }
+    });
+    
+    const currentConfig = currentAgentResponse.data;
+    console.log('📥 Current voice ID:', currentConfig.conversation_config.tts.voice_id);
+    console.log('📥 Current first_message:', currentConfig.conversation_config.agent.first_message);
+    
+    // Only update the prompt, preserve everything else
     const patchPayload = {
-      name: agentConfig.name,
-      conversation_config: agentConfig.conversation_config
+      conversation_config: {
+        ...currentConfig.conversation_config,
+        agent: {
+          ...currentConfig.conversation_config.agent,
+          first_message: "{{dynamic_greeting}}", // Always preserve dynamic greeting
+          prompt: {
+            ...currentConfig.conversation_config.agent.prompt,
+            prompt: agentConfig.conversation_config.agent.prompt.prompt,
+            temperature: agentConfig.conversation_config.agent.prompt.temperature
+          }
+        }
+      }
     };
     
     // Update agent via PATCH API (exact format from documentation)
