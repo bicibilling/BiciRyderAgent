@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.12.0",
+    "@elevenlabs/convai-cli": "latest",
     "axios": "^1.6.0",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
