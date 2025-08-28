@@ -37,28 +37,33 @@ const PromptEditor = ({ agentStatus, onUpdate }) => {
   };
 
   const handleSave = async () => {
+    console.log('🔄 Starting prompt save...', { prompt: prompt.substring(0, 50) + '...' });
     setIsLoading(true);
     try {
-      await agentAPI.updatePrompt({ prompt, temperature });
+      const response = await agentAPI.updatePrompt({ prompt, temperature });
+      console.log('✅ Save API response:', response.data);
       setHasChanges(false);
-      // Removed onUpdate?.() call to prevent page refresh
-      console.log('Prompt saved locally - no refresh');
+      console.log('✅ Prompt saved locally - no refresh');
     } catch (error) {
-      console.error('Failed to save prompt:', error);
+      console.error('❌ Failed to save prompt:', error);
+      console.error('❌ Error details:', error.response?.data);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDeploy = async () => {
+    console.log('🚀 Starting deployment to ElevenLabs...');
     setIsLoading(true);
     try {
-      await agentAPI.deploy();
+      const response = await agentAPI.deploy();
+      console.log('✅ Deploy API response:', response.data);
       setHasChanges(false);
-      onUpdate?.();
-      console.log('Agent deployed to ElevenLabs');
+      // Removed onUpdate?.() call to prevent page refresh
+      console.log('✅ Agent deployed to ElevenLabs - no refresh');
     } catch (error) {
-      console.error('Failed to deploy:', error);
+      console.error('❌ Failed to deploy:', error);
+      console.error('❌ Deploy error details:', error.response?.data);
     } finally {
       setIsLoading(false);
     }
