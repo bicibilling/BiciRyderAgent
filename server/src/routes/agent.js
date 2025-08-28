@@ -406,6 +406,12 @@ router.post('/deploy', async (req, res) => {
       throw new Error('Missing ElevenLabs credentials');
     }
     
+    // Debug: Log what we're sending to ElevenLabs
+    console.log('📤 Sending to ElevenLabs API:');
+    console.log('📤 Agent ID:', agentId);
+    console.log('📤 Config keys:', Object.keys(agentConfig.conversation_config));
+    console.log('📤 Prompt preview:', agentConfig.conversation_config.agent?.prompt?.prompt?.substring(0, 100) + '...');
+    
     // Update agent via API
     const response = await axios.patch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, 
       agentConfig.conversation_config,
@@ -417,7 +423,8 @@ router.post('/deploy', async (req, res) => {
       }
     );
     
-    console.log('✅ Agent updated via ElevenLabs API');
+    console.log('✅ ElevenLabs API Response:', response.status, response.statusText);
+    console.log('✅ Response data:', response.data);
     
     res.json({
       success: true,
