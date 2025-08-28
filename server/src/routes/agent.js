@@ -387,36 +387,43 @@ router.post('/update-prompt', async (req, res) => {
   }
 });
 
-// Deploy agent changes via ElevenLabs CLI
+// Deploy agent changes via ElevenLabs JavaScript SDK
 router.post('/deploy', async (req, res) => {
   try {
-    const { exec } = require('child_process');
-    const util = require('util');
+    const fs = require('fs');
     const path = require('path');
-    const execAsync = util.promisify(exec);
     
-    console.log('🚀 Deploying agent changes via ElevenLabs CLI...');
+    console.log('🚀 Deploying agent changes via ElevenLabs API...');
     
-    // Run convai sync to deploy changes (use npx to ensure CLI is available)
-    const { stdout, stderr } = await execAsync('npx convai sync --env dev', {
-      cwd: path.join(__dirname, '../../..'),
-      timeout: 30000 // 30 second timeout
-    });
+    // Read the current agent configuration
+    const configPath = path.join(__dirname, '../../../agent_configs/dev/ryder-bici-ai.json');
+    const agentConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     
-    console.log('CLI Output:', stdout);
-    if (stderr) console.log('CLI Stderr:', stderr);
+    const agentId = process.env.ELEVENLABS_AGENT_ID;
+    const apiKey = process.env.ELEVENLABS_API_KEY;
     
-    // Check if response was already sent
-    if (res.headersSent) {
-      console.log('⚠️ Response already sent, skipping');
-      return;
+    if (!agentId || !apiKey) {
+      throw new Error('Missing ElevenLabs credentials');
     }
+    
+    // Update agent via API
+    const response = await axios.patch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, 
+      agentConfig.conversation_config,
+      {
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    console.log('✅ Agent updated via ElevenLabs API');
     
     res.json({
       success: true,
-      message: 'Agent deployed successfully via ElevenLabs CLI',
-      cli_output: stdout,
-      cli_stderr: stderr || null,
+      message: 'Agent deployed successfully via ElevenLabs API',
+      agent_id: agentId,
+      api_response: response.status,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -424,7 +431,7 @@ router.post('/deploy', async (req, res) => {
     res.status(500).json({
       error: 'Failed to deploy agent',
       message: error.message,
-      cli_error: error.stdout || error.stderr
+      api_error: error.response?.data || null
     });
   }
 });
