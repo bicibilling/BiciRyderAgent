@@ -45,26 +45,28 @@ function buildGreetingMessage(customerContext, timeData, storeHours) {
   const isOpen = storeHours.getCurrentStatus().isOpen;
   const now = new Date();
   const dayName = now.toLocaleDateString('en-CA', { weekday: 'long', timeZone: 'America/Vancouver' });
-  const dateTime = timeData.current_datetime;
+  const formattedDate = timeData.current_datetime;
   
-  // Day-specific enthusiasm
-  let dayGreeting = '';
-  if (dayName === 'Friday') dayGreeting = 'Happy Friday! ';
-  else if (dayName === 'Monday') dayGreeting = 'Hope you had a great weekend! ';
-  else if (dayName === 'Saturday' || dayName === 'Sunday') dayGreeting = 'Happy weekend! ';
+  // Day-specific context
+  let dayContext = '';
+  if (dayName === 'Friday') dayContext = 'Happy Friday!';
+  else if (dayName === 'Monday') dayContext = 'Hope you had a great weekend!';
+  else if (dayName === 'Saturday' || dayName === 'Sunday') dayContext = 'Happy weekend!';
+  else dayContext = 'Hope you\'re having a great week!';
   
-  const storeStatus = isOpen ? "We're open until 6 PM" : "We're closed now";
+  const storeStatus = isOpen ? "we're open until 6 PM" : "we're closed now";
+  
+  let dynamicGreeting = '';
   
   if (customerContext.customer_name !== 'New Customer' && customerContext.customer_name !== 'Valued Customer') {
     // Returning customer with known name
-    return `Hi ${customerContext.customer_name}! ${dayGreeting}It's ${dateTime}. I'm Ryder at Bici. ${storeStatus}.`;
-  } else if (customerContext.conversation_count > 0) {
-    // Returning customer without name  
-    return `Hi! ${dayGreeting}Welcome back to Bici. It's ${dateTime}. I'm Ryder. ${storeStatus}.`;
+    dynamicGreeting = `Hi ${customerContext.customer_name}! I'm Ryder, your AI teammate at Bici. Today is ${formattedDate}, and ${storeStatus}. ${dayContext} How can I help you today?`;
   } else {
-    // New customer
-    return `Hi! ${dayGreeting}You've reached Bici. It's ${dateTime}. I'm Ryder. ${storeStatus}.`;
+    // New customer or customer without name
+    dynamicGreeting = `Hi! I'm Ryder, your AI teammate at Bici. Today is ${formattedDate}, and ${storeStatus}. ${dayContext} How can I help you today?`;
   }
+  
+  return dynamicGreeting;
 }
 
 function buildTransferContext(transferData) {
