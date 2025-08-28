@@ -399,16 +399,24 @@ router.post('/deploy', async (req, res) => {
     
     // Run convai sync to deploy changes
     const { stdout, stderr } = await execAsync('convai sync --env dev', {
-      cwd: path.join(__dirname, '../../..')
+      cwd: path.join(__dirname, '../../..'),
+      timeout: 30000 // 30 second timeout
     });
     
     console.log('CLI Output:', stdout);
     if (stderr) console.log('CLI Stderr:', stderr);
     
+    // Check if response was already sent
+    if (res.headersSent) {
+      console.log('⚠️ Response already sent, skipping');
+      return;
+    }
+    
     res.json({
       success: true,
       message: 'Agent deployed successfully via ElevenLabs CLI',
       cli_output: stdout,
+      cli_stderr: stderr || null,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
