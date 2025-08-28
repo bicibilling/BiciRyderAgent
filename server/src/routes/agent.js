@@ -387,43 +387,62 @@ router.post('/update-prompt', async (req, res) => {
   }
 });
 
-// Deploy agent changes via ElevenLabs CLI (proper method)
+// Deploy agent changes via ElevenLabs PATCH API (based on official documentation)
 router.post('/deploy', async (req, res) => {
   try {
-    const { exec } = require('child_process');
-    const util = require('util');
+    const fs = require('fs');
     const path = require('path');
-    const execAsync = util.promisify(exec);
     
-    console.log('🚀 Deploying agent changes via ElevenLabs CLI...');
+    console.log('🚀 Deploying agent changes via ElevenLabs PATCH API...');
     
-    // Run convai sync to deploy changes using npx with full package name
-    const { stdout, stderr } = await execAsync('npx @elevenlabs/convai-cli sync --env dev', {
-      cwd: path.join(__dirname, '../../..'),
-      timeout: 30000,
-      env: { 
-        ...process.env,
-        PATH: process.env.PATH + ':/usr/local/bin:/opt/render/.local/bin',
-        ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY
+    // Read the current agent configuration
+    const configPath = path.join(__dirname, '../../../agent_configs/dev/ryder-bici-ai.json');
+    const agentConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    
+    const agentId = process.env.ELEVENLABS_AGENT_ID;
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    
+    if (!agentId || !apiKey) {
+      throw new Error('Missing ElevenLabs credentials');
+    }
+    
+    console.log('📤 Deploying agent prompt:', agentConfig.conversation_config.agent?.prompt?.prompt?.substring(0, 100) + '...');
+    
+    // Use exact PATCH format from ElevenLabs documentation
+    const patchPayload = {
+      name: agentConfig.name,
+      conversation_config: agentConfig.conversation_config
+    };
+    
+    // Update agent via PATCH API (exact format from documentation)
+    const response = await axios.patch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, 
+      patchPayload,
+      {
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json'
+        }
       }
-    });
+    );
     
-    console.log('CLI Output:', stdout);
-    if (stderr) console.log('CLI Stderr:', stderr);
+    console.log('✅ Agent updated successfully via PATCH API');
+    console.log('✅ Response status:', response.status);
     
     res.json({
       success: true,
-      message: 'Agent deployed successfully via ElevenLabs CLI',
-      cli_output: stdout,
-      cli_stderr: stderr || null,
+      message: 'Agent deployed successfully via ElevenLabs PATCH API',
+      agent_id: agentId,
+      api_response: response.status,
+      updated_at: response.data?.metadata?.updated_at_unix_secs,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Deploy error:', error);
+    console.error('Deploy PATCH error:', error);
     res.status(500).json({
-      error: 'Failed to deploy agent',
+      error: 'Failed to deploy agent via PATCH API',
       message: error.message,
-      cli_error: error.stdout || error.stderr
+      api_error: error.response?.data || null,
+      status_code: error.response?.status || null
     });
   }
 });
