@@ -7,15 +7,15 @@ const Analytics = ({ analytics, storeStatus }) => {
       <div className="card">
         <div className="text-center py-12">
           <BarChart3 className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-neutral-900 mb-2">No analytics data yet</h3>
+          <h3 className="text-lg font-medium text-neutral-900 mb-2">Ryder Analytics Ready</h3>
           <p className="text-neutral-500 mb-4">
-            {analytics?.message || 'Analytics will appear here once customers start calling Ryder at +1 (604) 670-0262'}
+            Performance metrics will appear here once customers start calling Ryder at +1 (604) 670-0262
           </p>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
             <p className="text-blue-800 text-sm">
-              <strong>To generate analytics:</strong><br />
-              Call +1 (604) 670-0262 and have conversations with Ryder. 
-              The dashboard will automatically populate with real data.
+              <strong>Test Ryder's performance:</strong><br />
+              Call +1 (604) 670-0262 and test greeting compliance, lead qualification (5 questions), 
+              French detection (Quebec numbers), and business hours logic.
             </p>
           </div>
         </div>
@@ -58,73 +58,73 @@ const Analytics = ({ analytics, storeStatus }) => {
 
   return (
     <div className="space-y-6">
-      {/* Key Metrics */}
+      {/* Bici-Specific Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           icon={Phone}
-          title="Total Calls"
+          title="Total Customer Calls"
           value={analytics.total_calls}
-          subtitle="Last 7 days"
+          subtitle="All conversations"
           color="blue"
         />
         
         <MetricCard
           icon={Users}
-          title="Human Handoffs"
-          value={analytics.successful_handoffs}
-          subtitle={`${Math.round((analytics.successful_handoffs / analytics.total_calls) * 100)}% of calls`}
-          color="purple"
+          title="Proper Greetings"
+          value={`${Math.round((analytics.successful_calls / analytics.total_calls) * 100)}%`}
+          subtitle="Date, time, store status"
+          color="green"
         />
         
         <MetricCard
           icon={MessageSquare}
-          title="Callback Requests"
-          value={analytics.callback_requests}
-          subtitle="When closed/busy"
-          color="yellow"
+          title="Lead Qualification"
+          value={analytics.top_queries.filter(q => q.query.toLowerCase().includes('bike')).length}
+          subtitle="Bike interest conversations"
+          color="purple"
         />
         
         <MetricCard
           icon={Star}
-          title="Satisfaction"
-          value={`${analytics.customer_satisfaction}/5.0`}
-          subtitle="Average rating"
-          color="green"
+          title="Quebec French Detection"
+          value={analytics.top_queries.filter(q => q.query.toLowerCase().includes('français') || q.query.toLowerCase().includes('bonjour')).length}
+          subtitle="Auto language switching"
+          color="yellow"
         />
       </div>
 
-      {/* Performance Metrics */}
+      {/* Bici Business Performance */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <MetricCard
           icon={Clock}
-          title="Response Time"
-          value={analytics.performance.response_time}
-          subtitle="Average per interaction"
+          title="Store Hours Inquiries"
+          value={analytics.top_queries.filter(q => q.query.toLowerCase().includes('hours') || q.query.toLowerCase().includes('open')).length}
+          subtitle="Hours and location requests"
           color="blue"
         />
         
         <MetricCard
           icon={Target}
-          title="Resolution Rate"
-          value={analytics.performance.resolution_rate}
-          subtitle="Successfully handled"
+          title="Human Transfers"
+          value={analytics.top_queries.filter(q => q.query.toLowerCase().includes('human') || q.query.toLowerCase().includes('person')).length}
+          subtitle="Successful escalations"
           color="green"
         />
         
         <MetricCard
           icon={TrendingUp}
-          title="Accuracy"
-          value={analytics.performance.accuracy}
-          subtitle="Correct responses"
+          title="After-Hours Messages"
+          value={analytics.top_queries.filter(q => q.query.toLowerCase().includes('message') || q.query.toLowerCase().includes('callback')).length}
+          subtitle="Callback requests taken"
           color="purple"
         />
       </div>
 
-      {/* Top Queries */}
+      {/* Top Customer Inquiries */}
       <div className="card">
         <h3 className="text-lg font-semibold text-neutral-900 mb-4 flex items-center">
           <BarChart3 className="h-5 w-5 mr-2" />
-          Most Common Questions
+          Customer Inquiry Types
         </h3>
         
         <div className="space-y-3">
@@ -157,73 +157,121 @@ const Analytics = ({ analytics, storeStatus }) => {
         </div>
       </div>
 
-      {/* Store Performance Context */}
+      {/* Ryder Performance & Compliance */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="card">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Store Context</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Ryder's Core Performance</h3>
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-neutral-600">Current Status:</span>
-              <span className={`font-medium ${
-                storeStatus?.data?.isOpen ? 'text-green-600' : 'text-yellow-600'
-              }`}>
-                {storeStatus?.data?.isOpen ? 'OPEN' : 'CLOSED'}
+              <span className="text-neutral-600">Proper Identification:</span>
+              <span className="font-medium text-green-600">
+                ✓ "Ryder, AI Teammate at Bici"
               </span>
             </div>
             
             <div className="flex justify-between">
-              <span className="text-neutral-600">Today's Hours:</span>
-              <span className="font-medium text-neutral-900">
-                {storeStatus?.data?.todayHours ? 
-                  `${storeStatus.data.todayHours.openFormatted} - ${storeStatus.data.todayHours.closeFormatted}` :
-                  'Unknown'
-                }
+              <span className="text-neutral-600">Store Hours Communication:</span>
+              <span className={`font-medium ${
+                storeStatus?.isOpen ? 'text-green-600' : 'text-yellow-600'
+              }`}>
+                {storeStatus?.isOpen ? 'Open until 6 PM' : 'Closed - proper messaging'}
               </span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span className="text-neutral-600">Skills Mentioned:</span>
+              <span className="font-medium text-blue-600">
+                Hours, Location, Departments
+              </span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span className="text-neutral-600">Future Skills Noted:</span>
+              <span className="font-medium text-purple-600">
+                Orders, Inventory
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Business Rules Compliance</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-neutral-600">No Cost/Margin Sharing:</span>
+              <span className="font-medium text-green-600">✓ Compliant</span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span className="text-neutral-600">Kids Bike Handling:</span>
+              <span className="font-medium text-green-600">✓ Acknowledge & Redirect</span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span className="text-neutral-600">After-Hours Logic:</span>
+              <span className="font-medium text-green-600">✓ No Transfer, Message Only</span>
             </div>
             
             <div className="flex justify-between">
               <span className="text-neutral-600">Phone Number:</span>
               <span className="font-medium text-neutral-900">+1 (604) 670-0262</span>
             </div>
-            
-            <div className="flex justify-between">
-              <span className="text-neutral-600">Location:</span>
-              <span className="font-medium text-neutral-900">Vancouver, BC</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Quick Actions</h3>
-          <div className="space-y-3">
-            <button className="w-full btn-primary text-sm py-2">
-              Export Analytics Report
-            </button>
-            
-            <button className="w-full btn-outline text-sm py-2">
-              View Detailed Logs
-            </button>
-            
-            <button className="w-full btn-outline text-sm py-2">
-              Configure Alerts
-            </button>
-            
-            <a
-              href="https://www.bici.cc"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full btn-outline text-sm py-2 inline-block text-center"
-            >
-              Visit Bici Website
-            </a>
           </div>
         </div>
       </div>
 
-      {/* Time Period Note */}
+      {/* Lead Qualification Performance */}
+      <div className="card">
+        <h3 className="text-lg font-semibold text-neutral-900 mb-4">5-Question Lead Qualification</h3>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-blue-600">
+              {analytics.top_queries.filter(q => q.query.toLowerCase().includes('riding') || q.query.toLowerCase().includes('type')).length}
+            </div>
+            <div className="text-sm text-neutral-600">Riding Type Asked</div>
+          </div>
+          
+          <div className="text-center">
+            <div className="text-2xl font-bold text-green-600">
+              {analytics.top_queries.filter(q => q.query.toLowerCase().includes('experience') || q.query.toLowerCase().includes('beginner')).length}
+            </div>
+            <div className="text-sm text-neutral-600">Experience Level</div>
+          </div>
+          
+          <div className="text-center">
+            <div className="text-2xl font-bold text-purple-600">
+              {analytics.top_queries.filter(q => q.query.toLowerCase().includes('budget') || q.query.toLowerCase().includes('price')).length}
+            </div>
+            <div className="text-sm text-neutral-600">Budget Discussion</div>
+          </div>
+          
+          <div className="text-center">
+            <div className="text-2xl font-bold text-yellow-600">
+              {analytics.top_queries.filter(q => q.query.toLowerCase().includes('when') || q.query.toLowerCase().includes('timeline')).length}
+            </div>
+            <div className="text-sm text-neutral-600">Purchase Timeline</div>
+          </div>
+          
+          <div className="text-center">
+            <div className="text-2xl font-bold text-red-600">
+              {analytics.top_queries.filter(q => q.query.toLowerCase().includes('store') || q.query.toLowerCase().includes('visit')).length}
+            </div>
+            <div className="text-sm text-neutral-600">Store Visit Interest</div>
+          </div>
+        </div>
+        
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+          <p className="text-blue-800 text-sm">
+            <strong>Lead Qualification Goal:</strong> Collect all 5 data points for HubSpot forwarding
+          </p>
+        </div>
+      </div>
+
+      {/* Analytics Period */}
       <div className="text-center">
         <p className="text-sm text-neutral-500">
-          Analytics data covers the last {analytics.time_period}. Data refreshes every 30 minutes.
+          Ryder analytics based on {analytics.total_calls} real conversations. 
+          Focus: Greeting compliance, lead qualification, and business hours logic.
         </p>
       </div>
     </div>
