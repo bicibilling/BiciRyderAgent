@@ -403,7 +403,8 @@ router.post('/deploy', async (req, res) => {
       timeout: 30000,
       env: { 
         ...process.env,
-        ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY 
+        PATH: process.env.PATH + ':/usr/local/bin:/opt/render/.local/bin',
+        ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY
       }
     });
     
