@@ -412,9 +412,18 @@ router.post('/deploy', async (req, res) => {
     console.log('📤 Config keys:', Object.keys(agentConfig.conversation_config));
     console.log('📤 Prompt preview:', agentConfig.conversation_config.agent?.prompt?.prompt?.substring(0, 100) + '...');
     
-    // Update agent via API
+    // Update agent via API (send complete agent structure, not just conversation_config)
+    const updatePayload = {
+      conversation_config: agentConfig.conversation_config,
+      platform_settings: agentConfig.platform_settings,
+      analysis: agentConfig.analysis
+    };
+    
+    console.log('📤 Update payload structure:', Object.keys(updatePayload));
+    console.log('📤 Agent prompt being sent:', agentConfig.conversation_config.agent.prompt.prompt.substring(0, 200));
+    
     const response = await axios.patch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, 
-      agentConfig.conversation_config,
+      updatePayload,
       {
         headers: {
           'xi-api-key': apiKey,
