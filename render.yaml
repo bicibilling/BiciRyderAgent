@@ -2,7 +2,7 @@ services:
   - type: web
     name: bici-ryder-server
     runtime: node
-    buildCommand: cd server && npm install
+    buildCommand: cd server && npm install && npm install -g @elevenlabs/convai-cli
     startCommand: cd server && npm start
     envVars:
       - key: NODE_ENV

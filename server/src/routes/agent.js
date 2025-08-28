@@ -387,59 +387,34 @@ router.post('/update-prompt', async (req, res) => {
   }
 });
 
-// Deploy agent changes via ElevenLabs JavaScript SDK
+// Deploy agent changes via ElevenLabs CLI (proper method)
 router.post('/deploy', async (req, res) => {
   try {
-    const fs = require('fs');
+    const { exec } = require('child_process');
+    const util = require('util');
     const path = require('path');
+    const execAsync = util.promisify(exec);
     
-    console.log('🚀 Deploying agent changes via ElevenLabs API...');
+    console.log('🚀 Deploying agent changes via ElevenLabs CLI...');
     
-    // Read the current agent configuration
-    const configPath = path.join(__dirname, '../../../agent_configs/dev/ryder-bici-ai.json');
-    const agentConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    
-    const agentId = process.env.ELEVENLABS_AGENT_ID;
-    const apiKey = process.env.ELEVENLABS_API_KEY;
-    
-    if (!agentId || !apiKey) {
-      throw new Error('Missing ElevenLabs credentials');
-    }
-    
-    // Debug: Log what we're sending to ElevenLabs
-    console.log('📤 Sending to ElevenLabs API:');
-    console.log('📤 Agent ID:', agentId);
-    console.log('📤 Config keys:', Object.keys(agentConfig.conversation_config));
-    console.log('📤 Prompt preview:', agentConfig.conversation_config.agent?.prompt?.prompt?.substring(0, 100) + '...');
-    
-    // Update agent via API (send complete agent structure, not just conversation_config)
-    const updatePayload = {
-      conversation_config: agentConfig.conversation_config,
-      platform_settings: agentConfig.platform_settings,
-      analysis: agentConfig.analysis
-    };
-    
-    console.log('📤 Update payload structure:', Object.keys(updatePayload));
-    console.log('📤 Agent prompt being sent:', agentConfig.conversation_config.agent.prompt.prompt.substring(0, 200));
-    
-    const response = await axios.patch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, 
-      updatePayload,
-      {
-        headers: {
-          'xi-api-key': apiKey,
-          'Content-Type': 'application/json'
-        }
+    // Run convai sync to deploy changes (CLI is the correct way per documentation)
+    const { stdout, stderr } = await execAsync('convai sync --env dev', {
+      cwd: path.join(__dirname, '../../..'),
+      timeout: 30000,
+      env: { 
+        ...process.env,
+        ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY 
       }
-    );
+    });
     
-    console.log('✅ ElevenLabs API Response:', response.status, response.statusText);
-    console.log('✅ Response data:', response.data);
+    console.log('CLI Output:', stdout);
+    if (stderr) console.log('CLI Stderr:', stderr);
     
     res.json({
       success: true,
-      message: 'Agent deployed successfully via ElevenLabs API',
-      agent_id: agentId,
-      api_response: response.status,
+      message: 'Agent deployed successfully via ElevenLabs CLI',
+      cli_output: stdout,
+      cli_stderr: stderr || null,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -447,7 +422,7 @@ router.post('/deploy', async (req, res) => {
     res.status(500).json({
       error: 'Failed to deploy agent',
       message: error.message,
-      api_error: error.response?.data || null
+      cli_error: error.stdout || error.stderr
     });
   }
 });
