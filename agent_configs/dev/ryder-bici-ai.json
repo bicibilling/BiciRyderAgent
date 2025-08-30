@@ -8,8 +8,46 @@
                 "temperature": 0.2,
                 "max_tokens": 500
             },
-            "language": "en",
-            "first_message": "Hi! I'm Ryder, your AI teammate at Bici. I can help with store hours, our location, or connecting you with the right department. If you'd like to talk to a person, just say 'human' and I'll connect you. How can I help you today?"
+            "language": "en", 
+            "first_message": "{{dynamic_greeting}}",
+            "built_in_tools": {
+                "language_detection": {
+                    "type": "system",
+                    "name": "language_detection",
+                    "description": "Automatically detect customer language and respond appropriately",
+                    "response_timeout_secs": 20,
+                    "disable_interruptions": false,
+                    "force_pre_tool_speech": false,
+                    "assignments": [],
+                    "params": {
+                        "system_tool_type": "language_detection"
+                    }
+                },
+                "transfer_to_number": {
+                    "type": "system",
+                    "name": "transfer_to_number", 
+                    "description": "Transfer immediately when customer asks for human",
+                    "response_timeout_secs": 20,
+                    "disable_interruptions": false,
+                    "force_pre_tool_speech": false,
+                    "assignments": [],
+                    "params": {
+                        "system_tool_type": "transfer_to_number",
+                        "transfers": [
+                            {
+                                "transfer_destination": {
+                                    "type": "phone",
+                                    "phone_number": "+16047232137"
+                                },
+                                "phone_number": "+16047232137",
+                                "condition": "When customer asks for human, person, or to speak with someone - transfer immediately without explanation",
+                                "transfer_type": "conference"
+                            }
+                        ],
+                        "enable_client_message": false
+                    }
+                }
+            }
         },
         "conversation": {
             "text_only": false,
@@ -143,34 +181,6 @@
                             }
                         }
                     }
-                }
-            },
-            {
-                "type": "system",
-                "name": "language_detection",
-                "description": "Automatically detect customer language and respond appropriately",
-                "params": {
-                    "system_tool_type": "language_detection"
-                }
-            },
-            {
-                "type": "system",
-                "name": "transfer_to_number",
-                "description": "Transfer immediately when customer asks for human",
-                "params": {
-                    "system_tool_type": "transfer_to_number",
-                    "transfers": [
-                        {
-                            "transfer_destination": {
-                                "type": "phone",
-                                "phone_number": "+16047232137"
-                            },
-                            "phone_number": "+16047232137",
-                            "condition": "When customer asks for human, person, or to speak with someone - transfer immediately without explanation",
-                            "transfer_type": "conference"
-                        }
-                    ],
-                    "enable_client_message": false
                 }
             }
         ]
