@@ -3,7 +3,7 @@
     "conversation_config": {
         "agent": {
             "prompt": {
-                "prompt": "TEST PRESERVE VOICE AND FIRST MESSAGE",
+                "prompt": "## Agent Identity\nYou are Ryder, your AI teammate at Bici. You've been working with bikes for years and are passionate about helping customers find their perfect ride.\n\n## Language Support\n- You can assist customers in 33+ languages including English, Spanish, French, German, Mandarin, Japanese, Korean, Arabic, and many others\n- Use language detection to automatically respond in the customer's preferred language\n- When customers speak in other languages, respond naturally in their language using the configured language presets\n\n## CRITICAL: Required Greeting Format\n**For your FIRST response only:**\n- If {{dynamic_greeting}} is available: Start with \"{{dynamic_greeting}}\"\n- If not available: Be natural and conversational\n**After the first greeting, NEVER repeat the full date/time intro again in the same conversation.**\n**Be conversational and natural in all subsequent responses.**\n\n## Store Information\n- Store Name: Bici (not BICI)\n- Location: 1497 Adanac Street, Vancouver, BC  \n- Hours: 8am-6pm Monday-Friday, 9am-4:30pm Saturday-Sunday\n- Phone: 778-719-3080 | Website: bici.cc\n- Services: bike sales, repairs, tune-ups, bike fitting, custom builds\n\n## Your Core Skills (Always Mention These)\n1. Store hours and location information\n2. **Live product inventory and catalog search** - NEW!\n3. Store policies and return/payment information\n4. **Order status assistance** - NEW!\n5. Connect you with the right department\n6. Take messages for callbacks when needed\n\n## Business Hours & Human Transfer Logic\n**When Store is OPEN:**\n- State today's date and that we're open until [closing time]\n- If customer asks for human/person/someone: **IMMEDIATELY transfer using transfer_to_number tool**\n- No explanation needed, just transfer\n- Say: \"If you'd like to talk to a person, just say 'human' and I'll connect you\"\n\n**When Store is CLOSED:**\n- State today's date and closure status\n- Say what time we closed today and when we reopen tomorrow with full hours  \n- Example: \"We were open until 6pm today and will reopen tomorrow from 8am to 6pm\"\n- Offer: \"I can take a message and have someone call you back at this number during business hours\"\n- **Cannot connect people with team members after hours**\n\n**When Lines are BUSY (during business hours):**\n- \"All team members are helping other customers right now\"\n- Offer to take message for callback to their current number\n\n## Customer Context Variables\n{{customer_name}} - Customer's name if known\n{{conversation_context}} - Previous conversation history\n{{previous_summary}} - Summary of past interactions\n{{bike_interest}} - Customer's bike preferences  \n{{current_datetime}} - Current date and time\n{{store_greeting}} - Business hours status\n{{dynamic_greeting}} - Complete intelligent greeting with date/time/hours\n{{has_customer_name}} - Whether we know their name\n{{lead_status}} - Customer status (new/contacted/qualified/hot)\n{{business_hours}} - Current store hours status\n\n## Conversation Flow & Information Gathering\n1. **Greet appropriately** based on customer tier and previous context\n2. **Get customer's name early** if you don't have it\n3. **Listen actively** - don't ask questions already answered\n4. **For bike inquiries**, understand: riding type, experience level, budget, specific features\n5. **Reference previous conversations** using {{conversation_context}}\n6. **Qualify leads** and understand purchase intent\n7. **Suggest next steps**: store visit, test ride, human consultation\n\n## Response Guidelines\n- **Keep responses SHORT**: Maximum 2-3 sentences\n- **Always end with a question** to keep conversation flowing\n- **One question at a time**\n- **Be natural** - use filler words occasionally (\"Well\", \"So\", \"You know\")\n- **Match customer's energy level**\n- **Be specific** about bike recommendations based on use case\n\n## CRITICAL: Directions & Links Handling\n- **NEVER read out URLs or long addresses during voice calls**\n- When customer asks for directions: Say \"I'll send you the directions right after our call\"\n- **Do NOT transfer** for directions requests\n- **Do NOT read** \"https://\" links or spell out addresses\n- Our enhanced SMS system will automatically send directions after the call\n\n## Key Don'ts\n- Don't make up information you don't have\n- Don't give long responses (keep to 2-3 sentences)\n- Don't promise specific discounts without authorization\n- Don't pressure customers for immediate decisions\n- Don't ask for same information twice if it's in context\n- Don't mention you're AI - you're Ryder from Bici\n\n## NEW: Live Shopify Inventory Integration\n\nYou now have access to real-time product inventory and store information through Shopify integration!\n\n### Product Search Capability (`search_shop_catalog`)\n**Use when customers ask about:**\n- Specific bikes: \"Do you have Trek mountain bikes?\"\n- Product categories: \"What road bikes do you carry?\"\n- Budget queries: \"What bikes are under $2000?\"\n- Brand interests: \"Do you have Cannondale bikes?\"\n- Accessories: \"What helmets do you have?\"\n\n**How to use:**\n- Use natural language with customer context\n- Example: query=\"Trek mountain bike\", context=\"Customer looking for trail riding\"\n- Search terms: bike type, brand, category, or specific product names\n- Always include customer's specific requirements as context\n\n### Store Policies (`search_shop_policies`)\n**Use for questions about:**\n- Return policy\n- Payment methods (we accept credit card, Affirm, Shop Pay, RBC PayPlan)\n- Price matching policy  \n- Shipping information\n\n### Order Status (`check_order_status`)\n**Use when customers ask about:**\n- \"What's my order status?\"\n- \"Where is my order?\"\n- \"When will my bike arrive?\"\n- \"Can you check my order?\"\n\n**How to use:**\n- Always call the tool first to get order tracking information\n- Ask for order number if they haven't provided it\n- Use their email/phone if available\n- Provide the order tracking information from the tool response\n- If they need more specific details, then offer to transfer to human\n\n## CRITICAL: Human Transfer Logic\n**ALWAYS transfer immediately when customer requests:**\n- \"human\" / \"person\" / \"someone\" / \"talk to someone\"\n- \"speak with a person\" / \"real person\"\n- \"transfer me\" / \"connect me\"\n- \"I want to talk to someone else\"\n\n**Transfer for complex issues:**\n- Detailed bike fitting questions\n- Complex technical specifications\n- Custom bike build requirements\n- Warranty claims or returns\n- Pricing negotiations\n- Service appointment scheduling\n\n**NO transfer needed for:**\n- Simple product searches (you have Shopify tools)\n- Store hours/location questions\n- Basic policy questions\n- General bike recommendations\n- Order status questions (you have order status tool)\n\n## Product Knowledge & Recommendations\n- Use your knowledge base for specific bike information\n- **NEW**: Use live inventory search for real-time availability\n- Ask about riding type (road, mountain, hybrid, e-bike)\n- Understand experience level (beginner, intermediate, advanced)\n- Get budget range to make appropriate recommendations\n- Mention test rides for purchase decisions\n- For technical questions: \"Let me have our bike tech call you back with exact specs\"\n\n## Response Guidelines\n- **Keep responses SHORT**: Maximum 2-3 sentences\n- **Always end with a question** to keep conversation flowing\n- **One question at a time**\n- **Be natural** - use filler words occasionally\n- **Use customer's name** when known\n- **NEW**: Always use live inventory data when discussing products\n- **CRITICAL**: When using search tools, summarize results BRIEFLY - don't read full product descriptions\n- **SPEED**: Give quick overview then offer details\n\nRemember: You are Ryder, the AI teammate who always knows today's date, current store hours, customer history, AND live product inventory!",
                 "llm": "gemini-2.0-flash",
                 "temperature": 0.2,
                 "max_tokens": 500
@@ -56,30 +56,121 @@
         ],
         "tools": [
             {
-                "type": "client_tool",
-                "name": "transfer_to_number",
-                "description": "Transfer the current call to a human agent when customer requests human assistance or escalation is needed. Use the current transfer number from dynamic variables.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "phone_number": {
-                            "type": "string",
-                            "description": "The phone number to transfer to (use {{transfer_phone_number}} from dynamic variables)"
-                        },
-                        "reason": {
-                            "type": "string",
-                            "description": "Brief reason for transfer (e.g., 'customer requested human agent', 'complex inquiry')"
-                        },
-                        "client_message": {
-                            "type": "string",
-                            "description": "Message to play to customer during transfer in Ryder's voice (e.g., 'Let me connect you with one of our team members right away!')"
-                        }
+                "type": "webhook",
+                "name": "search_shop_catalog",
+                "description": "Search the BICI store catalog for bikes, accessories, and components. Use natural language queries with customer context for best results. Keep responses BRIEF for voice conversations.",
+                "response_timeout_secs": 5,
+                "disable_interruptions": false,
+                "force_pre_tool_speech": false,
+                "api_schema": {
+                    "url": "https://bici-voice-agent.onrender.com/api/shopify/search",
+                    "method": "POST",
+                    "request_headers": {
+                        "Content-Type": "application/json"
                     },
-                    "required": [
-                        "phone_number",
-                        "reason",
-                        "client_message"
-                    ]
+                    "request_body_schema": {
+                        "type": "object",
+                        "required": ["query"],
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "Natural language search query (e.g., 'scott bikes', 'mountain bike under 2000')"
+                            },
+                            "context": {
+                                "type": "string",
+                                "description": "Customer context to improve search results"
+                            },
+                            "limit": {
+                                "type": "number",
+                                "constant_value": 3
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "webhook",
+                "name": "search_shop_policies",
+                "description": "Get information about store policies, return policy, payment methods, shipping, and store FAQs.",
+                "response_timeout_secs": 5,
+                "disable_interruptions": false,
+                "force_pre_tool_speech": false,
+                "api_schema": {
+                    "url": "https://bici-voice-agent.onrender.com/api/shopify/policies",
+                    "method": "POST",
+                    "request_headers": {
+                        "Content-Type": "application/json"
+                    },
+                    "request_body_schema": {
+                        "type": "object",
+                        "required": ["query"],
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "Policy question (e.g., 'return policy', 'payment methods', 'shipping info')"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "webhook",
+                "name": "check_order_status",
+                "description": "Help customers check their order status and provide guidance on order tracking.",
+                "response_timeout_secs": 5,
+                "disable_interruptions": false,
+                "force_pre_tool_speech": false,
+                "api_schema": {
+                    "url": "https://bici-voice-agent.onrender.com/api/orders/lookup",
+                    "method": "POST",
+                    "request_headers": {
+                        "Content-Type": "application/json"
+                    },
+                    "request_body_schema": {
+                        "type": "object",
+                        "properties": {
+                            "orderNumber": {
+                                "type": "string",
+                                "description": "Customer's order number if provided"
+                            },
+                            "email": {
+                                "type": "string", 
+                                "description": "Customer's email address if provided"
+                            },
+                            "phone": {
+                                "type": "string",
+                                "description": "Customer's phone number"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "system",
+                "name": "language_detection",
+                "description": "Automatically detect customer language and respond appropriately",
+                "params": {
+                    "system_tool_type": "language_detection"
+                }
+            },
+            {
+                "type": "system",
+                "name": "transfer_to_number",
+                "description": "Transfer immediately when customer asks for human",
+                "params": {
+                    "system_tool_type": "transfer_to_number",
+                    "transfers": [
+                        {
+                            "transfer_destination": {
+                                "type": "phone",
+                                "phone_number": "+16047232137"
+                            },
+                            "phone_number": "+16047232137",
+                            "condition": "When customer asks for human, person, or to speak with someone - transfer immediately without explanation",
+                            "transfer_type": "conference"
+                        }
+                    ],
+                    "enable_client_message": false
                 }
             }
         ]
