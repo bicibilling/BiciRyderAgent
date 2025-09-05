@@ -1,0 +1,17 @@
+{
+    "agents": {
+        "Bike agent": {
+            "prod": {
+                "id": "agent_9801k4dzaerfet3srneq5wfbd6kc",
+                "hash": "ecab89e7b3f778d6264bafb0f36bf1c5"
+            }
+        },
+        "BICI Voice Agent": {
+            "prod": {
+                "id": "agent_4101k4e2k0z6f65a1cxha527ydmv",
+                "hash": "cc2f253a7302e745c8b645c4c93d51eb"
+            }
+        }
+    },
+    "tools": {}
+}

@@ -1,0 +1,13 @@
+{
+    "agents": [
+        {
+            "name": "BICI Voice Agent",
+            "environments": {
+                "prod": {
+                    "config": "agent_configs/prod/bike_agent.json",
+                    "agent_id": "agent_01jy5s8gwnfw5v3bpr1ep6bj1c"
+                }
+            }
+        }
+    ]
+}
