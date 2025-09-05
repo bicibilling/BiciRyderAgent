@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '../utils/logger';
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   logger.error('Missing Supabase configuration');
   throw new Error('Supabase configuration is required');
 }
@@ -9,7 +9,7 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
 // Create Supabase client with service role key for admin operations
 export const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
   {
     auth: {
       autoRefreshToken: false,
