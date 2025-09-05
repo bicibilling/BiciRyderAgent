@@ -84,7 +84,7 @@ export function getWeatherGreeting(): string {
 export function getCustomerGreeting(customerName?: string, lastVisit?: Date | string): string {
   // No customer name - generic greeting
   if (!customerName) {
-    return "";  // Empty string so it just says "Hey! I'm Mark..."
+    return "";  // Empty string so it just says "Hey! I'm Ryder..."
   }
   
   // Have customer name
@@ -138,7 +138,7 @@ export function createDynamicGreeting(lead?: any, currentTime?: string, dayOfWee
   }
   
   // Add introduction
-  greeting += ` I'm Mark from BICI Bike Store. How can I help you today?`;
+  greeting += ` I'm Ryder from BICI Bike Store. How can I help you today?`;
   
   return greeting;
 }

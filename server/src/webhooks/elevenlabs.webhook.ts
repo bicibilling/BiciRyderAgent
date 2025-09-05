@@ -89,7 +89,7 @@ function generateFirstMessage(lead: Lead): string {
     return `Welcome back to BICI! I see you've been in touch with us before. How can I help you today?`;
   }
   
-  return `Hey there, I'm Mark from BICI. How can I help you today?`;
+  return `Hey there, I'm Ryder from BICI. How can I help you today?`;
 }
 
 // Get current Pacific time
@@ -668,7 +668,7 @@ export async function handlePostCall(req: Request, res: Response) {
       updateData.customer_name = insights.customerName;
       logger.info('Updating customer name to:', insights.customerName);
     } else if (insights.clearCustomerName) {
-      // Only clear if we found an incorrect name (like "Mark")
+      // Only clear if we found an incorrect name (like "Ryder")
       updateData.customer_name = null;
       logger.info('Clearing incorrect customer name');
     }
@@ -863,8 +863,8 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
     if (analysis.data_collection_results.customer_name?.value) {
       const extractedName = analysis.data_collection_results.customer_name.value;
       
-      // Only set the name if it's not "Mark" (our agent's name) or other false positives
-      if (!['mark', 'agent', 'assistant'].includes(extractedName.toLowerCase())) {
+      // Only set the name if it's not "Ryder" (our agent's name) or other false positives
+      if (!['ryder', 'agent', 'assistant'].includes(extractedName.toLowerCase())) {
         insights.customerName = extractedName;
         logger.info('Extracted customer name:', insights.customerName);
       } else {

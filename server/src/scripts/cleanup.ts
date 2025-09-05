@@ -82,7 +82,7 @@ async function cleanupDatabase() {
     const { data: fixedLeads, error: fixError2 } = await supabase
       .from('leads')
       .update({ customer_name: null })
-      .in('customer_name', ['Mark', 'mark', 'Looking for', 'LOOKING FOR', 'agent', 'Agent', 'system'])
+      .in('customer_name', ['Ryder', 'ryder', 'Looking for', 'LOOKING FOR', 'agent', 'Agent', 'system'])
       .select('id, customer_name');
 
     if (fixError2) {
