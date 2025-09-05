@@ -2,9 +2,18 @@ import { createClient } from '@supabase/supabase-js';
 import { logger } from '../utils/logger';
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  logger.error('Missing Supabase configuration');
+  logger.error('Missing Supabase configuration', {
+    hasUrl: !!process.env.SUPABASE_URL,
+    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    hasOldServiceKey: !!process.env.SUPABASE_SERVICE_KEY
+  });
   throw new Error('Supabase configuration is required');
 }
+
+logger.info('Supabase configuration loaded', {
+  url: process.env.SUPABASE_URL?.substring(0, 30) + '...',
+  hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+});
 
 // Create Supabase client with service role key for admin operations
 export const supabase = createClient(
