@@ -10,7 +10,7 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('Supabase configuration is required');
 }
 
-logger.info('Supabase configuration loaded successfully', {
+logger.info('Supabase configuration loaded and ready', {
   url: process.env.SUPABASE_URL?.substring(0, 30) + '...',
   hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
 });
