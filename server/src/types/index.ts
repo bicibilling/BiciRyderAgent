@@ -80,12 +80,22 @@ export interface ElevenLabsDynamicVariables {
   organization_id: string;
   location_address: string;
   business_hours: string;
+  current_time?: string;
+  current_day?: string;
+  current_datetime?: string;
+  dynamic_greeting?: string; // Complete greeting with date/time/customer name/store hours
   has_customer_name?: string;
   call_reason?: string;
   last_interaction_date?: string;
   last_interaction_summary?: string;
   greeting_opener?: string;
   greeting_variation?: string;
+  time_greeting?: string;
+  day_context?: string;
+  weather_context?: string;
+  customer_greeting?: string;
+  is_outbound?: string;
+  call_type?: string;
   [key: string]: any; // Allow additional properties from spread operator
 }
 

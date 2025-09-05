@@ -8,7 +8,7 @@ import { EnhancedSMSAutomationService } from '../services/enhanced-sms.service';
 import { broadcastToClients } from '../services/realtime.service';
 import { businessHours, storeInfo } from '../config/elevenlabs.config';
 import { ElevenLabsDynamicVariables, ConversationInsights, Lead, CallSession } from '../types';
-import { generateGreetingContext } from '../utils/greeting.helper';
+import { generateGreetingContext, createDynamicGreeting } from '../utils/greeting.helper';
 
 const leadService = new LeadService();
 const conversationService = new ConversationService();
@@ -424,14 +424,16 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     const conversationContext = await buildConversationContext(lead.id);
     const previousSummary = await conversationService.getLatestSummary(lead.id);
     
-    // Generate greeting context for dynamic first message
-    // For outbound calls, pass the isOutbound flag and previous summary
-    const greetingContext = generateGreetingContext(lead, isOutbound, previousSummary);
-    
-    // Generate dynamic variables
     // Get current Pacific time info
     const { timeString: currentTime, date: pacificDate } = getCurrentPacificTime();
     const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][pacificDate.getDay()];
+    const businessHoursStatus = getTodaysHours();
+    
+    // Create complete dynamic greeting
+    const dynamicGreeting = createDynamicGreeting(lead, currentTime, dayOfWeek, businessHoursStatus);
+    
+    // Generate greeting context for additional variables
+    const greetingContext = generateGreetingContext(lead, isOutbound, previousSummary);
     
     const dynamicVariables: ElevenLabsDynamicVariables = {
       conversation_context: conversationContext,
@@ -443,12 +445,14 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       organization_name: organization.name,
       organization_id: organization.id,
       location_address: storeInfo.address,
-      business_hours: getTodaysHours(),
+      business_hours: businessHoursStatus,
       current_time: currentTime,
       current_day: dayOfWeek,
       current_datetime: `${dayOfWeek} ${currentTime} Pacific Time`,
       has_customer_name: lead.customer_name ? "true" : "false",  // Flag to check if name exists
-      // Add greeting context for dynamic first message
+      // Add the complete dynamic greeting that ElevenLabs expects
+      dynamic_greeting: dynamicGreeting,
+      // Add greeting context for additional variables
       ...greetingContext
     };
     

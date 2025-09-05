@@ -106,6 +106,44 @@ export function getCustomerGreeting(customerName?: string, lastVisit?: Date | st
 }
 
 /**
+ * Create a complete dynamic greeting combining all elements
+ * @param lead - Lead information
+ * @param currentTime - Current time string
+ * @param dayOfWeek - Current day of the week
+ * @param businessHours - Current store hours status
+ */
+export function createDynamicGreeting(lead?: any, currentTime?: string, dayOfWeek?: string, businessHours?: string): string {
+  const timeGreeting = getTimeBasedGreeting();
+  const dayContext = getDayContext();
+  const customerName = lead?.customer_name || "";
+  const hasName = !!customerName;
+  
+  let greeting = "";
+  
+  // Start with time-based greeting
+  if (hasName) {
+    greeting = `${timeGreeting} ${customerName}!`;
+  } else {
+    greeting = `${timeGreeting}`;
+  }
+  
+  // Add day context if available
+  if (dayContext) {
+    greeting += ` ${dayContext}`;
+  }
+  
+  // Add store hours if relevant
+  if (businessHours && (businessHours.includes("Closed") || businessHours.includes("Opens at"))) {
+    greeting += ` Just so you know, we're ${businessHours.toLowerCase()}.`;
+  }
+  
+  // Add introduction
+  greeting += ` I'm Mark from BICI Bike Store. How can I help you today?`;
+  
+  return greeting;
+}
+
+/**
  * Generate a complete dynamic greeting context
  * @param lead - Lead information
  * @param isOutbound - Whether this is an outbound call (agent-initiated)
