@@ -8,7 +8,7 @@ import { SMSAutomationService } from '../services/sms.service';
 import { broadcastToClients } from '../services/realtime.service';
 import { normalizePhoneNumber } from '../config/twilio.config';
 import { storeInfo, businessHours } from '../config/elevenlabs.config';
-import { generateGreetingContext } from '../utils/greeting.helper';
+import { generateGreetingContext, createDynamicGreeting } from '../utils/greeting.helper';
 import { buildConversationContext } from '../webhooks/elevenlabs.webhook';
 import WebSocket from 'ws';
 
@@ -200,6 +200,9 @@ async function generateElevenLabsTextResponse(
       // Generate greeting context for dynamic first message
       const greetingContext = generateGreetingContext(lead);
       
+      // Create the complete dynamic greeting that the agent expects using the comprehensive function
+      const dynamicGreeting = createDynamicGreeting(lead, new Date().toISOString(), new Date().toLocaleDateString('en-US', { weekday: 'long' }), getTodaysHours());
+      
       // Send conversation initialization using Jack Automotive pattern
       const initMessage = {
         type: 'conversation_initiation_client_data',
@@ -222,6 +225,9 @@ async function generateElevenLabsTextResponse(
           // Additional context
           last_interaction_date: lead.last_contact_at || 'First contact',
           customer_sentiment: lead.sentiment || 'neutral',
+          
+          // CRITICAL: Add the dynamic_greeting that the agent expects
+          dynamic_greeting: dynamicGreeting,
           
           // Add greeting context for dynamic first message
           ...greetingContext
