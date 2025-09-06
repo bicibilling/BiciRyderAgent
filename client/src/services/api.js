@@ -97,7 +97,7 @@ export const storeAPI = {
 
 export const healthAPI = {
   // Server health check
-  checkHealth: () => api.get('/health', { baseURL: 'http://localhost:3002' }),
+  checkHealth: () => api.get('/health'),
   
   // ElevenLabs webhook health
   checkElevenLabsHealth: () => api.get('/webhooks/elevenlabs/health'),
