@@ -17,16 +17,16 @@ const enhancedSMSService = new EnhancedSMSAutomationService();
 
 // Verify ElevenLabs webhook signature
 function verifyElevenLabsSignature(req: Request): boolean {
-  // Skip signature verification for testing - RE-ENABLE FOR PRODUCTION
+  // PRODUCTION-READY: Signature verification is now ENABLED
   if (!process.env.ELEVENLABS_WEBHOOK_SECRET) {
-    logger.info('Skipping webhook signature verification - no secret set');
-    return true;
+    logger.error('ELEVENLABS_WEBHOOK_SECRET not configured - rejecting webhook');
+    return false;
   }
   
   const signature = req.headers['xi-signature'] as string;
   if (!signature) {
-    logger.warn('No xi-signature header found');
-    return true; // Allow for testing - change to false in production
+    logger.error('Missing xi-signature header - rejecting webhook');
+    return false;
   }
   
   const payload = JSON.stringify(req.body);
@@ -36,11 +36,15 @@ function verifyElevenLabsSignature(req: Request): boolean {
     .digest('hex');
   
   const isValid = signature === `sha256=${expectedSignature}`;
-  logger.info('Webhook signature check', { 
-    provided: signature, 
-    expected: `sha256=${expectedSignature}`,
-    valid: isValid
-  });
+  
+  if (isValid) {
+    logger.info('Webhook signature verified successfully');
+  } else {
+    logger.error('Invalid webhook signature', { 
+      provided: signature, 
+      expected: `sha256=${expectedSignature}`
+    });
+  }
   
   return isValid;
 }
@@ -354,6 +358,12 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       body: req.body,
       headers: req.headers
     });
+
+    // Verify webhook signature FIRST
+    if (!verifyElevenLabsSignature(req)) {
+      logger.error('Invalid webhook signature - rejecting conversation initiation');
+      return res.status(403).json({ error: 'Invalid signature' });
+    }
     
     const { caller_id, called_number, conversation_id, call_sid, agent_id, conversation_initiation_client_data } = req.body;
     
@@ -524,10 +534,10 @@ export async function handlePostCall(req: Request, res: Response) {
       headers: req.headers
     });
     
-    // Verify webhook signature (temporarily disabled for testing)
+    // Verify webhook signature - ENABLED FOR PRODUCTION
     if (!verifyElevenLabsSignature(req)) {
-      logger.error('Invalid webhook signature');
-      // return res.status(403).json({ error: 'Invalid signature' });
+      logger.error('Invalid webhook signature - rejecting post-call');
+      return res.status(403).json({ error: 'Invalid signature' });
     }
     
     // ElevenLabs sends a different structure than expected
