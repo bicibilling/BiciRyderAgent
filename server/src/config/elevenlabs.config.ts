@@ -2,7 +2,10 @@ import { logger } from '../utils/logger';
 
 // Validate ElevenLabs configuration
 if (!process.env.ELEVENLABS_API_KEY || !process.env.ELEVENLABS_AGENT_ID) {
-  logger.error('Missing ElevenLabs configuration');
+  logger.error('Missing ElevenLabs configuration', {
+    hasApiKey: !!process.env.ELEVENLABS_API_KEY,
+    hasAgentId: !!process.env.ELEVENLABS_AGENT_ID
+  });
   throw new Error('ElevenLabs configuration is required');
 }
 
