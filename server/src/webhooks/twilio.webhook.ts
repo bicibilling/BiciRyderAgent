@@ -288,24 +288,21 @@ async function generateElevenLabsTextResponse(
         if (response.type === 'agent_response' && response.agent_response_event?.agent_response) {
           const aiResponse = response.agent_response_event.agent_response;
           
-          // Skip the first response if it looks like a greeting
+          // For SMS: Only take the response to the user's actual message, not the initial greeting
           if (isFirstResponse) {
             isFirstResponse = false;
-            const lowerResponse = aiResponse.toLowerCase();
-            if (lowerResponse.includes('hey') || lowerResponse.includes('hello') || 
-                lowerResponse.includes('how can i help') || lowerResponse.includes("i'm mark") ||
-                lowerResponse.includes('bici') && lowerResponse.includes('help')) {
-              logger.info('Skipping greeting response, waiting for actual response');
-              return; // Skip this greeting and wait for the real response
-            }
+            logger.info('Received initial agent greeting (will wait for response to user message):', { 
+              greeting_preview: aiResponse.substring(0, 100)
+            });
+            return; // Skip initial greeting, wait for response to user message
           }
           
-          // This is the actual response to the user's message
+          // This is the agent's response to the user's message
           responseReceived = true;
           clearTimeout(timeout);
           ws.close();
           
-          logger.info('Received ElevenLabs SMS response:', { 
+          logger.info('Received ElevenLabs SMS response to user message:', { 
             response_preview: aiResponse.substring(0, 100),
             response_length: aiResponse.length,
             lead_id: lead.id,
