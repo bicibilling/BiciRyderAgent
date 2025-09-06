@@ -1,0 +1,17 @@
+{
+    "agents": {
+        "Bici Voice Agent - New": {
+            "prod": {
+                "id": "agent_0501k4ey3qnmf5cs10xepm289gfp",
+                "hash": "04ef79b5e18cd79539409119416c4924"
+            }
+        },
+        "Bici Voice Agent - New_1": {
+            "prod": {
+                "id": "agent_2001k4e6157ce3rv5scqjb1a80q2",
+                "hash": "a5c10b3a2b450c44ed74c9a9c4405295"
+            }
+        }
+    },
+    "tools": {}
+}

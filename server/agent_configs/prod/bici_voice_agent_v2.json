@@ -1,0 +1,311 @@
+{
+    "name": "BICI Voice Agent v2",
+    "conversation_config": {
+        "asr": {
+            "quality": "high",
+            "provider": "elevenlabs",
+            "user_input_audio_format": "pcm_16000",
+            "keywords": []
+        },
+        "turn": {
+            "turn_timeout": 7,
+            "silence_end_call_timeout": -1,
+            "mode": "turn"
+        },
+        "tts": {
+            "model_id": "eleven_turbo_v2",
+            "voice_id": "cjVigY5qzO86Huf0OWal",
+            "supported_voices": [],
+            "agent_output_audio_format": "pcm_16000",
+            "optimize_streaming_latency": 3,
+            "stability": 0.5,
+            "speed": 1,
+            "similarity_boost": 0.8,
+            "pronunciation_dictionary_locators": []
+        },
+        "conversation": {
+            "text_only": false,
+            "max_duration_seconds": 1800,
+            "client_events": [
+                "agent_response",
+                "audio",
+                "interruption",
+                "user_transcript",
+                "agent_response_correction",
+                "agent_tool_response",
+                "vad_score"
+            ]
+        },
+        "language_presets": {},
+        "agent": {
+            "first_message": "{{dynamic_greeting}}",
+            "language": "en",
+            "dynamic_variables": {
+                "dynamic_variable_placeholders": {
+                    "store_greeting": "a",
+                    "business_hours": "a",
+                    "customer_name": "a",
+                    "previous_summary": "a",
+                    "has_customer_name": "a",
+                    "conversation_context": "a",
+                    "dynamic_greeting": "a",
+                    "lead_status": "a",
+                    "current_datetime": "a",
+                    "bike_interest": "a"
+                }
+            },
+            "prompt": {
+                "prompt": "Agent Identity\nYou are Ryder, your AI teammate at Bici (not BICI - just \"Bici\"). You are friendly, efficient, and helpful.\nStore Information\n\nStore Name: Bici\nLocation: 1497 Adanac Street, Vancouver, BC\nHours: 8am-6pm Monday-Friday, 9am-4:30pm Saturday-Sunday\nServices: bike sales, repairs, tune-ups, bike fitting, custom builds\n\nRequired Greeting Format\nALWAYS start with: \"{{dynamic_greeting}}\"\nThis includes today's date, time, store status, and intelligent day context.\nCRITICAL: Name Collection Priority\nFor NEW conversations (when {{has_customer_name}} is \"false\" or {{customer_name}} is empty):\n\nIf this is a phone/voice call, ask for their name immediately after greeting\nIf this is an SMS/text conversation and you see {{conversation_context}} with previous messages, DO NOT ask for name again\nIf this is an SMS/text conversation and {{conversation_context}} shows the customer already provided their name, use that name\nFor SMS: Check {{conversation_context}} for previous name exchange before asking\nOnly ask \"Could I get your name please?\" if it's truly a NEW customer with NO conversation history\n\nSMS Conversation Rules:\n\nIf {{conversation_context}} contains previous messages, this is an ONGOING SMS conversation\nLook for names already provided in the conversation context\nDo NOT repeat greetings or name requests in ongoing SMS exchanges\nRespond naturally to their current message while acknowledging the conversation history\n\nCRITICAL: For SMS, check conversation_context BEFORE asking for names!\nYour Core Skills (Always Mention These)\n\nStore hours and location information\nLive product inventory and catalog search - NEW!\nStore policies and return/payment information\nOrder status assistance - NEW!\nConnect you with the right department\nTake messages for callbacks when needed\n\nBusiness Hours Logic\nWhen Store is OPEN:\n\nAlways state today's date and that we're open until [closing time]\nSay: \"If you'd like to talk to a person, just say 'human' and I'll connect you\"\nIMMEDIATELY transfer when customer says \"human\", \"person\", \"someone\", or \"talk to someone\"\nUse transfer_to_number tool without explanation\nDon't mention that humans are only available during business hours\n\nWhen Store is CLOSED:\n\nAlways state today's date and current closure status\nSay what time we closed today and when we reopen tomorrow with full hours\nExample: \"We were open until 6pm today and will reopen tomorrow from 8am to 6pm\"\nOffer to take a message: \"I can take a message and have someone call you back at this number during business hours\"\nDO NOT transfer after hours - cannot connect people with team members\n\nWhen Lines are BUSY (during business hours):\n\nExplain all team members are helping other customers\nOffer to take a message for callback to their current number\n\nCRITICAL: Human Transfer Logic\nALWAYS transfer immediately when customer requests:\n\n\"human\" / \"person\" / \"someone\" / \"talk to someone\"\n\"speak with a person\" / \"real person\"\n\"transfer me\" / \"connect me\"\n\"I want to talk to someone else\"\n\nTransfer for complex issues:\n\nDetailed bike fitting questions\nComplex technical specifications\nCustom bike build requirements\nWarranty claims or returns\nPricing negotiations\nService appointment scheduling\n\nNO transfer needed for:\n\nSimple product searches (you have Shopify tools)\nStore hours/location questions\nBasic policy questions\nGeneral bike recommendations\n\nCustomer Context Variables Available:\n{{customer_name}} - Customer's name if known\n{{conversation_context}} - Previous conversation history\n{{previous_summary}} - Summary of past interactions\n{{bike_interest}} - Customer's bike preferences\n{{current_datetime}} - Current date and time\n{{store_greeting}} - Business hours status\n{{dynamic_greeting}} - Complete intelligent greeting with date/time/hours\n{{has_customer_name}} - Whether we know their name\n{{lead_status}} - Customer status\n{{business_hours}} - Current store hours status\nPersonality & Tone\n\nFriendly and efficient\nProfessional but warm\nAlways identify as \"Ryder, your AI teammate at Bici\"\nUse intelligent day-based greetings (Happy Friday, Hope you had a great weekend, etc.)\nReference customer's previous interactions when available\n\nKey Behaviors\n\nState today's date and store hours ONLY in the initial greeting ({{dynamic_greeting}} handles this)\nNEVER repeat date/time after the first message in the same conversation\nGive examples of your skills (hours, location, departments)\nDuring business hours: Clearly explain how to connect with humans\nAfter hours: Offer message taking for callback\nBe context-aware: Use customer history when available\nStay focused: Help with bikes, store info, and connections\n\nCRITICAL: Data Collection & Extraction\nDuring EVERY conversation, actively extract and track these data fields:\n\ncustomer_name: When customer provides their name, extract it immediately\n\nListen for: I'm [Name], This is [Name], My name is [Name], or just [Name]\nExtract: First name only (e.g., Div, John, Sarah)\n\n\nbike_type: Track bike interest mentioned\n\nListen for: bike categories, brands, specific uses\nExtract: road, mountain, hybrid, e-bike, kids, or unsure\n\n\npurchase_timeline: Note when they plan to buy\n\nListen for: timing indicators\nExtract: immediate, this_week, this_month, just_browsing, unsure\n\n\nbudget_range: Track budget if mentioned\n\nListen for: price mentions, budget discussions\nExtract: under_500, 500_1000, 1000_2000, 2000_5000, over_5000, not_specified\n\n\nriding_experience: Assess cycling experience\n\nListen for: experience indicators\nExtract: beginner, intermediate, advanced, returning_rider, unsure\n\n\ncustomer_triggers: Track what they want\n\nListen for: specific requests or needs\nExtract: hours, directions, prices, appointment, test_ride, complaint, general_help, inventory, order_status\n\n\nfollow_up_needed: Determine next steps\n\nAssess: based on conversation resolution\nExtract: hours_sms, directions_sms, product_info_sms, appointment_confirmation, follow_up_call, none\n\n\ncall_classification: Classify conversation purpose\n\nDetermine: main reason for contact\nExtract: sales, service, support, general, complaint\n\n\n\nIMPORTANT: The system automatically saves this extracted data for future conversations. Always extract and update these fields as you learn more about the customer.\nResponse Guidelines\n\nKeep responses concise but helpful\nEnd with a question or clear next step\nUse customer's name when known\nShow you remember previous conversations\nBe specific about next steps (visit store, speak to human, etc.)\nAlways use numerals for numbers (not words): $4,500 NOT four thousand five hundred dollars\nUse live inventory data when discussing products\n\nRemember: You are Ryder, the AI teammate who knows the date, hours, customer history, AND live product inventory!",
+                "llm": "gemini-2.5-flash-lite",
+                "temperature": 0.3,
+                "max_tokens": 500,
+                "tool_ids": [],
+                "built_in_tools": {
+                    "language_detection": {
+                        "type": "system",
+                        "name": "language_detection",
+                        "description": "Detect customer's preferred language for multilingual support",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "language_detection"
+                        }
+                    },
+                    "transfer_to_number": {
+                        "type": "system",
+                        "name": "transfer_to_number",
+                        "description": "Transfer customer to registered human agent when they request human assistance",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "transfer_to_number",
+                            "transfers": [
+                                {
+                                    "transfer_destination": {
+                                        "type": "phone",
+                                        "phone_number": "+16047232137"
+                                    },
+                                    "phone_number": "+16047232137",
+                                    "condition": "When customer requests human assistance or says human, person, talk to someone",
+                                    "transfer_type": "conference"
+                                }
+                            ],
+                            "enable_client_message": true
+                        }
+                    }
+                },
+                "mcp_server_ids": [],
+                "native_mcp_server_ids": [],
+                "knowledge_base": [],
+                "ignore_default_personality": false,
+                "rag": {
+                    "enabled": false,
+                    "embedding_model": "e5_mistral_7b_instruct",
+                    "max_vector_distance": 0.6,
+                    "max_documents_length": 50000,
+                    "max_retrieved_rag_chunks_count": 20
+                },
+                "tools": [
+                    {
+                        "type": "system",
+                        "name": "language_detection",
+                        "description": "Detect customer's preferred language for multilingual support",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "language_detection"
+                        }
+                    },
+                    {
+                        "type": "system",
+                        "name": "transfer_to_number",
+                        "description": "Transfer customer to registered human agent when they request human assistance",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "transfer_to_number",
+                            "transfers": [
+                                {
+                                    "transfer_destination": {
+                                        "type": "phone",
+                                        "phone_number": "+16047232137"
+                                    },
+                                    "phone_number": "+16047232137",
+                                    "condition": "When customer requests human assistance or says human, person, talk to someone",
+                                    "transfer_type": "conference"
+                                }
+                            ],
+                            "enable_client_message": true
+                        }
+                    }
+                ]
+            }
+        },
+        "webhooks": [
+            {
+                "event": "conversation_initiation",
+                "url": "https://bici-voice-agent.onrender.com/webhooks/elevenlabs/conversation-initiation"
+            },
+            {
+                "event": "post_call",
+                "url": "https://bici-voice-agent.onrender.com/webhooks/elevenlabs/post-call"
+            },
+            {
+                "event": "conversation_interruption",
+                "url": "https://bici-voice-agent.onrender.com/webhooks/elevenlabs/conversation-interruption"
+            }
+        ]
+    },
+    "platform_settings": {
+        "auth": {
+            "enable_auth": false,
+            "allowlist": []
+        },
+        "evaluation": {
+            "criteria": []
+        },
+        "widget": {
+            "variant": "full",
+            "placement": "bottom-right",
+            "expandable": "never",
+            "avatar": {
+                "type": "orb",
+                "color1": "#2B5AA0",
+                "color2": "#4A90A4"
+            },
+            "feedback_mode": "none",
+            "bg_color": "#F8F9FA",
+            "text_color": "#2C2C2C",
+            "btn_color": "#2B5AA0",
+            "btn_text_color": "#ffffff",
+            "border_color": "#4A90A4",
+            "focus_color": "#2B5AA0",
+            "shareable_page_show_terms": true,
+            "show_avatar_when_collapsed": false,
+            "disable_banner": false,
+            "mic_muting_enabled": false,
+            "transcript_enabled": true,
+            "text_input_enabled": true,
+            "default_expanded": false,
+            "always_expanded": false,
+            "text_contents": {},
+            "styles": {},
+            "language_selector": false,
+            "supports_text_only": true,
+            "language_presets": {}
+        },
+        "data_collection": {
+            "purchase_timeline": {
+                "type": "string",
+                "description": "Customer's purchasing timeline",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "customer_triggers": {
+                "type": "string",
+                "description": "Actions customer requested",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "follow_up_needed": {
+                "type": "string",
+                "description": "Recommended follow-up type",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "call_classification": {
+                "type": "string",
+                "description": "Primary purpose of call",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "budget_range": {
+                "type": "string",
+                "description": "Customer's budget range",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "customer_name": {
+                "type": "string",
+                "description": "Extract the customer's first name from the conversation. Look for when they introduce themselves (e.g., 'I'm John', 'This is Sarah', 'My name is Alex', or just state their name like 'Div'). Return only the first name in proper case (e.g., 'John', 'Sarah'). If no name is clearly provided, return empty.",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "riding_experience": {
+                "type": "string",
+                "description": "Customer's cycling experience level",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "bike_type": {
+                "type": "string",
+                "description": "Extract the type of bike customer is interested in (e.g., 'mountain bike', 'road bike', 'hybrid', 'electric bike', 'kids bike'). Look for mentions of bike types, brands, or specific models. Return the general category.",
+                "dynamic_variable": "",
+                "constant_value": ""
+            }
+        },
+        "overrides": {
+            "conversation_config_override": {
+                "tts": {
+                    "voice_id": false,
+                    "stability": false,
+                    "speed": false,
+                    "similarity_boost": false
+                },
+                "conversation": {
+                    "text_only": true
+                },
+                "agent": {
+                    "first_message": true,
+                    "language": true,
+                    "prompt": {
+                        "prompt": false,
+                        "native_mcp_server_ids": false
+                    }
+                }
+            },
+            "custom_llm_extra_body": false,
+            "enable_conversation_initiation_client_data_from_webhook": true
+        },
+        "call_limits": {
+            "agent_concurrency_limit": -1,
+            "daily_limit": 100000,
+            "bursting_enabled": true
+        },
+        "ban": null,
+        "privacy": {
+            "record_voice": true,
+            "retention_days": 30,
+            "delete_transcript_and_pii": false,
+            "delete_audio": false,
+            "apply_to_existing_conversations": false,
+            "zero_retention_mode": false
+        },
+        "workspace_overrides": {
+            "webhooks": {
+                "send_audio": false
+            }
+        },
+        "testing": {
+            "attached_tests": [],
+            "referenced_tests_ids": []
+        },
+        "safety": {
+            "is_blocked_ivc": false,
+            "is_blocked_non_ivc": false,
+            "ignore_safety_evaluation": false
+        }
+    },
+    "tags": [
+        "environment:prod",
+        "prod"
+    ]
+}

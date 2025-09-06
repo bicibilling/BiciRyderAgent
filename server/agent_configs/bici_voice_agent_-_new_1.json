@@ -1,0 +1,629 @@
+{
+    "name": "Bici Voice Agent - New_1",
+    "conversation_config": {
+        "asr": {
+            "quality": "high",
+            "provider": "elevenlabs",
+            "user_input_audio_format": "pcm_16000",
+            "keywords": []
+        },
+        "turn": {
+            "turn_timeout": 7,
+            "silence_end_call_timeout": -1,
+            "mode": "turn"
+        },
+        "tts": {
+            "model_id": "eleven_turbo_v2",
+            "voice_id": "cjVigY5qzO86Huf0OWal",
+            "supported_voices": [],
+            "agent_output_audio_format": "pcm_16000",
+            "optimize_streaming_latency": 3,
+            "stability": 0.5,
+            "speed": 1,
+            "similarity_boost": 0.8,
+            "pronunciation_dictionary_locators": []
+        },
+        "conversation": {
+            "text_only": false,
+            "max_duration_seconds": 600,
+            "client_events": [
+                "audio",
+                "interruption",
+                "agent_response",
+                "user_transcript",
+                "agent_response_correction",
+                "agent_tool_response"
+            ]
+        },
+        "language_presets": {
+            "nl": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hallo! Bedankt dat je BICI belt, hoe kan ik je vandaag helpen?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hallo! Bedankt dat je BICI belt, hoe kan ik je vandaag helpen?"
+                }
+            },
+            "fi": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hei! Kiitos, että soitit BICI:lle, kuinka voin auttaa sinua tänään?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hei! Kiitos, että soitit BICI:lle, kuinka voin auttaa sinua tänään?"
+                }
+            },
+            "tr": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Merhaba! BICI'yi aradığınız için teşekkürler, size bugün nasıl yardımcı olabilirim?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Merhaba! BICI'yi aradığınız için teşekkürler, size bugün nasıl yardımcı olabilirim?"
+                }
+            },
+            "ru": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Привет! Спасибо, что позвонили в BICI, чем я могу вам помочь сегодня?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Привет! Спасибо, что позвонили в BICI, чем я могу вам помочь сегодня?"
+                }
+            },
+            "ta": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "வணக்கம்! BICI-க்கு அழைத்ததற்கு நன்றி, இன்று உங்களுக்கு எப்படி உதவலாம்?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "வணக்கம்! BICI-க்கு அழைத்ததற்கு நன்றி, இன்று உங்களுக்கு எப்படி உதவலாம்?"
+                }
+            },
+            "hr": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Bok! Hvala što ste nazvali BICI, kako vam mogu pomoći danas?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Bok! Hvala što ste nazvali BICI, kako vam mogu pomoći danas?"
+                }
+            },
+            "ro": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Salut! Mulțumim că ai sunat la BICI, cu ce te pot ajuta astăzi?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Salut! Mulțumim că ai sunat la BICI, cu ce te pot ajuta astăzi?"
+                }
+            },
+            "ko": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "안녕하세요! BICI에 전화해 주셔서 감사합니다. 오늘 어떻게 도와드릴까요?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "안녕하세요! BICI에 전화해 주셔서 감사합니다. 오늘 어떻게 도와드릴까요?"
+                }
+            },
+            "no": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hei! Takk for at du ringer BICI, hvordan kan jeg hjelpe deg i dag?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hei! Takk for at du ringer BICI, hvordan kan jeg hjelpe deg i dag?"
+                }
+            },
+            "hu": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Szia! Köszönöm, hogy felhívta a BICI-t, miben segíthetek ma?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Szia! Köszönöm, hogy felhívta a BICI-t, miben segíthetek ma?"
+                }
+            },
+            "zh": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "你好！感谢致电BICI，我今天能帮您什么？"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "你好！感谢致电BICI，我今天能帮您什么？"
+                }
+            },
+            "ja": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "こんにちは！BICIにお電話いただきありがとうございます。今日はどのようにお手伝いできますか？"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "こんにちは！BICIにお電話いただきありがとうございます。今日はどのようにお手伝いできますか？"
+                }
+            },
+            "fil": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Kamusta! Salamat sa pagtawag sa BICI, paano kita matutulungan ngayon?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Kamusta! Salamat sa pagtawag sa BICI, paano kita matutulungan ngayon?"
+                }
+            },
+            "uk": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Привіт! Дякуємо, що зателефонували до BICI, чим я можу вам допомогти сьогодні?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Привіт! Дякуємо, що зателефонували до BICI, чим я можу вам допомогти сьогодні?"
+                }
+            },
+            "it": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Ciao! Grazie per aver chiamato BICI, come posso aiutarti oggi?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Ciao! Grazie per aver chiamato BICI, come posso aiutarti oggi?"
+                }
+            },
+            "sv": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hej där! Tack för att du ringde BICI, hur kan jag hjälpa dig idag?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hej där! Tack för att du ringde BICI, hur kan jag hjälpa dig idag?"
+                }
+            },
+            "id": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Halo! Terima kasih telah menelepon BICI, bagaimana saya bisa membantu Anda hari ini?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Halo! Terima kasih telah menelepon BICI, bagaimana saya bisa membantu Anda hari ini?"
+                }
+            },
+            "ar": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "مرحبًا! شكرًا لاتصالك بـ BICI، كيف يمكنني مساعدتك اليوم؟"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "مرحبًا! شكرًا لاتصالك بـ BICI، كيف يمكنني مساعدتك اليوم؟"
+                }
+            },
+            "pt_br": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Olá! Obrigado por ligar para a BICI, como posso ajudá-lo hoje?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Olá! Obrigado por ligar para a BICI, como posso ajudá-lo hoje?"
+                }
+            },
+            "es": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "¡Hola! Gracias por llamar a BICI, ¿en qué puedo ayudarte hoy?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "¡Hola! Gracias por llamar a BICI, ¿en qué puedo ayudarte hoy?"
+                }
+            },
+            "hi": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "नमस्ते! BICI को कॉल करने के लिए धन्यवाद, मैं आज आपकी कैसे मदद कर सकता हूँ?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "नमस्ते! BICI को कॉल करने के लिए धन्यवाद, मैं आज आपकी कैसे मदद कर सकता हूँ?"
+                }
+            },
+            "el": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Γεια σας! Ευχαριστούμε που καλέσατε την BICI, πώς μπορώ να σας βοηθήσω σήμερα;"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Γεια σας! Ευχαριστούμε που καλέσατε την BICI, πώς μπορώ να σας βοηθήσω σήμερα;"
+                }
+            },
+            "bg": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Здравейте! Благодаря, че се обадихте на BICI, как мога да ви помогна днес?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Здравейте! Благодаря, че се обадихте на BICI, как мога да ви помогна днес?"
+                }
+            },
+            "da": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hej! Tak fordi du ringede til BICI, hvordan kan jeg hjælpe dig i dag?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hej! Tak fordi du ringede til BICI, hvordan kan jeg hjælpe dig i dag?"
+                }
+            },
+            "ms": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hai! Terima kasih kerana menghubungi BICI, bagaimana saya boleh membantu anda hari ini?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hai! Terima kasih kerana menghubungi BICI, bagaimana saya boleh membantu anda hari ini?"
+                }
+            },
+            "vi": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Xin chào! Cảm ơn bạn đã gọi đến BICI, tôi có thể giúp gì cho bạn hôm nay?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Xin chào! Cảm ơn bạn đã gọi đến BICI, tôi có thể giúp gì cho bạn hôm nay?"
+                }
+            },
+            "pt": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Olá! Obrigado por ligar para a BICI, como posso ajudá-lo hoje?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Olá! Obrigado por ligar para a BICI, como posso ajudá-lo hoje?"
+                }
+            },
+            "de": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hallo! Danke, dass Sie BICI angerufen haben, wie kann ich Ihnen heute helfen?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hallo! Danke, dass Sie BICI angerufen haben, wie kann ich Ihnen heute helfen?"
+                }
+            },
+            "cs": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Ahoj! Děkujeme, že jste zavolali BICI, jak vám mohu dnes pomoci?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Ahoj! Děkujeme, že jste zavolali BICI, jak vám mohu dnes pomoci?"
+                }
+            },
+            "sk": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Ahoj! Ďakujeme, že ste zavolali do BICI, ako vám môžem dnes pomôcť?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Ahoj! Ďakujeme, že ste zavolali do BICI, ako vám môžem dnes pomôcť?"
+                }
+            },
+            "fr": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Salut ! Merci d'avoir appelé BICI, comment puis-je vous aider aujourd'hui ?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Salut ! Merci d'avoir appelé BICI, comment puis-je vous aider aujourd'hui ?"
+                }
+            },
+            "pl": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Cześć! Dziękuję za telefon do BICI, w czym mogę Ci dzisiaj pomóc?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! Thanks for calling BICI, how can I help you today?\",\"language\":\"en\"}",
+                    "text": "Cześć! Dziękuję za telefon do BICI, w czym mogę Ci dzisiaj pomóc?"
+                }
+            }
+        },
+        "agent": {
+            "first_message": "{{dynamic_greeting}}",
+            "language": "en",
+            "dynamic_variables": {
+                "dynamic_variable_placeholders": {
+                    "store_greeting": "a",
+                    "business_hours": "a",
+                    "customer_name": "a",
+                    "previous_summary": "a",
+                    "has_customer_name": "a",
+                    "conversation_context": "a",
+                    "dynamic_greeting": "a",
+                    "lead_status": "a",
+                    "current_datetime": "a",
+                    "bike_interest": "a"
+                }
+            },
+            "disable_first_message_interruptions": false,
+            "prompt": {
+                "prompt": "## Agent Identity\nYou are Ryder, your AI teammate at Bici (not BICI - just \"Bici\"). You are friendly, efficient, and helpful.\n\n## Store Information\n- Store Name: Bici\n- Location: 1497 Adanac Street, Vancouver, BC  \n- Hours: 8am-6pm Monday-Friday, 9am-4:30pm Saturday-Sunday\n- Services: bike sales, repairs, tune-ups, bike fitting, custom builds\n\n## Required Greeting Format\nALWAYS start with: \"{{dynamic_greeting}}\"\nThis includes today's date, time, store status, and intelligent day context.\n\n## Your Core Skills (Always Mention These)\n1. Store hours and location information\n2. **Live product inventory and catalog search** - NEW!\n3. Store policies and return/payment information\n4. **Order status assistance** - NEW!\n5. Connect you with the right department\n6. Take messages for callbacks when needed\n\n## Business Hours Logic\n**When Store is OPEN:**\n- Always state today's date and that we're open until [closing time]\n- Say: \"If you'd like to talk to a person, just say 'human' and I'll connect you\"\n- **IMMEDIATELY transfer** when customer says \"human\", \"person\", \"someone\", or \"talk to someone\"\n- Use transfer_to_number tool without explanation\n- Don't mention that humans are only available during business hours\n\n**When Store is CLOSED:**\n- Always state today's date and current closure status\n- Say what time we closed today and when we reopen tomorrow with full hours\n- Example: \"We were open until 6pm today and will reopen tomorrow from 8am to 6pm\"\n- Offer to take a message: \"I can take a message and have someone call you back at this number during business hours\"\n- **DO NOT transfer** after hours - cannot connect people with team members\n\n**When Lines are BUSY (during business hours):**\n- Explain all team members are helping other customers\n- Offer to take a message for callback to their current number\n\n## CRITICAL: Human Transfer Logic\n**ALWAYS transfer immediately when customer requests:**\n- \"human\" / \"person\" / \"someone\" / \"talk to someone\"\n- \"speak with a person\" / \"real person\"\n- \"transfer me\" / \"connect me\"\n- \"I want to talk to someone else\"\n\n**Transfer for complex issues:**\n- Detailed bike fitting questions\n- Complex technical specifications\n- Custom bike build requirements\n- Warranty claims or returns\n- Pricing negotiations\n- Service appointment scheduling\n\n**NO transfer needed for:**\n- Simple product searches (you have Shopify tools)\n- Store hours/location questions\n- Basic policy questions\n- General bike recommendations\n\n## Customer Context Variables Available:\n{{customer_name}} - Customer's name if known\n{{conversation_context}} - Previous conversation history\n{{previous_summary}} - Summary of past interactions  \n{{bike_interest}} - Customer's bike preferences\n{{current_datetime}} - Current date and time\n{{store_greeting}} - Business hours status\n{{dynamic_greeting}} - Complete intelligent greeting with date/time/hours\n{{has_customer_name}} - Whether we know their name\n{{lead_status}} - Customer status\n{{business_hours}} - Current store hours status\n\n## Personality & Tone\n- Friendly and efficient\n- Professional but warm\n- Always identify as \"Ryder, your AI teammate at Bici\"\n- Use intelligent day-based greetings (Happy Friday, Hope you had a great weekend, etc.)\n- Reference customer's previous interactions when available\n\n## Key Behaviors\n1. **State today's date and store hours ONLY in the initial greeting** ({{dynamic_greeting}} handles this)\n2. **NEVER repeat date/time after the first message in the same conversation**\n3. **Give examples of your skills** (hours, location, departments)\n3. **During business hours**: Clearly explain how to connect with humans\n4. **After hours**: Offer message taking for callback\n5. **Be context-aware**: Use customer history when available\n6. **Stay focused**: Help with bikes, store info, and connections\n\n## NEW: Live Shopify Inventory Integration\n\nYou now have access to real-time product inventory and store information through Shopify integration!\n\n### Product Search Capability (`search_shop_catalog`)\n**Use when customers ask about:**\n- Specific bikes: \"Do you have Trek mountain bikes?\"\n- Product categories: \"What road bikes do you carry?\"\n- Budget queries: \"What bikes are under $2000?\"\n- Brand interests: \"Do you have Cannondale bikes?\"\n- Accessories: \"What helmets do you have?\"\n\n**How to use:**\n- Use natural language with customer context\n- Example: query=\"Trek mountain bike\", context=\"Customer looking for trail riding\"\n- Search terms: bike type, brand, category, or specific product names\n- Always include customer's specific requirements as context\n\n### Store Policies (`search_shop_policies_and_faqs`)\n**Use for questions about:**\n- Return policy\n- Payment methods (we accept credit card, Affirm, Shop Pay, RBC PayPlan)\n- Price matching policy  \n- Shipping information\n\n### Product Details (`get_product_details`)\n**Use for follow-up information:**\n- After search results, get detailed specs\n- When customers want specific product information\n- Use product_id from search results\n\n### Order Status (`check_order_status`)\n**Use when customers ask about:**\n- \"What's my order status?\"\n- \"Where is my order?\"\n- \"When will my bike arrive?\"\n- \"Can you check my order?\"\n\n**How to use:**\n- Always call the tool first to get order tracking information from Shopify\n- Ask for order number if they haven't provided it\n- Use their email/phone if available\n- Provide the order tracking information from the tool response\n- If they need more specific details, then offer to transfer to human\n\n### Integration Guidelines:\n1. **Always search for products** when customers ask about inventory\n2. **Use customer context** - their riding style, budget, experience level\n3. **Provide real information** - reference actual product names and availability\n4. **Follow up naturally** - \"Would you like more details about any of these?\"\n5. **Transfer when appropriate** - complex technical questions or bike fitting\n\n### Example Conversations:\n**Customer**: \"Do you have any Trek mountain bikes?\"\n**You**: Use `search_shop_catalog(query=\"Trek mountain bike\", context=\"customer interested in Trek brand mountain bikes\")`\n**Response**: \"Yes! I found some Trek products in our inventory. [mention specific results]. Would you like me to get more details about any of these, or are you looking for something more specific?\"\n\n## Response Guidelines\n- Keep responses concise but helpful\n- End with a question or clear next step\n- Use customer's name when known\n- Show you remember previous conversations\n- Be specific about next steps (visit store, speak to human, etc.)\n- **NEW**: Always use live inventory data when discussing products\n- **CRITICAL**: When using search tools, summarize results BRIEFLY - don't read full product descriptions\n- **SPEED**: Give quick overview (\"We have 3 Scott road bikes from $3,500 to $9,000\") then offer details\n\n## CRITICAL: Number Format Rules\n**ALWAYS use numerals, NEVER spell out numbers:**\n - ✅ $4,500 NOT four thousand five hundred dollars\n- ✅ 14,000 NOT fourteen thousand\n- ✅ 2,999 NOT two thousand nine hundred ninety-nine\n- ✅ 1497 Adanac Street NOT one four nine seven Adanac Street\n- ✅ 778-719-3080 NOT seven seven eight seven one nine three zero eight zero\n- ✅ 6pm NOT six p m\n**Examples of correct price responses:**\n- \"We have Scott bikes from $3,500 to $9,000\"\n- \"That Trek is $14,500 for the large size\"\n- \"Our road bikes range from $2,000 to $12,000\"\n- \"The helmet is $199\"\n**Examples of correct address/phone:**\n- \"We're at 1497 Adanac Street\"\n- \"Call us at 778-719-3080\"\n- \"We're open until 6pm today\"\n\nRemember: You are Ryder, the AI teammate who knows the date, hours, customer history, AND live product inventory!",
+                "llm": "gemini-2.5-flash-lite",
+                "temperature": 0.25,
+                "max_tokens": -1,
+                "tool_ids": [],
+                "built_in_tools": {
+                    "end_call": {
+                        "type": "system",
+                        "name": "end_call",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "end_call"
+                        }
+                    },
+                    "language_detection": {
+                        "type": "system",
+                        "name": "language_detection",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "language_detection"
+                        }
+                    },
+                    "transfer_to_number": {
+                        "type": "system",
+                        "name": "transfer_to_number",
+                        "description": "When the caller or customer asks for human assistance.",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "transfer_to_number",
+                            "transfers": [
+                                {
+                                    "transfer_destination": {
+                                        "type": "phone",
+                                        "phone_number": "+16049085474"
+                                    },
+                                    "phone_number": "+16049085474",
+                                    "condition": "when the customer requires or asks for human assistance that you cannot provide.",
+                                    "transfer_type": "conference"
+                                }
+                            ],
+                            "enable_client_message": true
+                        }
+                    }
+                },
+                "mcp_server_ids": [],
+                "native_mcp_server_ids": [],
+                "knowledge_base": [],
+                "ignore_default_personality": false,
+                "rag": {
+                    "enabled": false,
+                    "embedding_model": "e5_mistral_7b_instruct",
+                    "max_vector_distance": 0.6,
+                    "max_documents_length": 50000,
+                    "max_retrieved_rag_chunks_count": 20
+                },
+                "tools": [
+                    {
+                        "type": "system",
+                        "name": "end_call",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "end_call"
+                        }
+                    },
+                    {
+                        "type": "system",
+                        "name": "language_detection",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "language_detection"
+                        }
+                    },
+                    {
+                        "type": "system",
+                        "name": "transfer_to_number",
+                        "description": "When the caller or customer asks for human assistance.",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "transfer_to_number",
+                            "transfers": [
+                                {
+                                    "transfer_destination": {
+                                        "type": "phone",
+                                        "phone_number": "+16049085474"
+                                    },
+                                    "phone_number": "+16049085474",
+                                    "condition": "when the customer requires or asks for human assistance that you cannot provide.",
+                                    "transfer_type": "conference"
+                                }
+                            ],
+                            "enable_client_message": true
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    "platform_settings": {
+        "auth": {
+            "enable_auth": false,
+            "allowlist": []
+        },
+        "evaluation": {
+            "criteria": []
+        },
+        "widget": {
+            "variant": "full",
+            "placement": "bottom-right",
+            "expandable": "never",
+            "avatar": {
+                "type": "orb",
+                "color1": "#2792dc",
+                "color2": "#9ce6e6"
+            },
+            "feedback_mode": "during",
+            "bg_color": "#ffffff",
+            "text_color": "#000000",
+            "btn_color": "#000000",
+            "btn_text_color": "#ffffff",
+            "border_color": "#e1e1e1",
+            "focus_color": "#000000",
+            "shareable_page_show_terms": true,
+            "terms_text": "#### Terms and conditions\n\nBy clicking \"Agree,\" and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as described in the Privacy Policy.\nIf you do not wish to have your conversations recorded, please refrain from using this service.",
+            "terms_html": "<h4>Terms and conditions</h4>\n<p>By clicking &quot;Agree,&quot; and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as described in the Privacy Policy.\nIf you do not wish to have your conversations recorded, please refrain from using this service.</p>\n",
+            "show_avatar_when_collapsed": false,
+            "disable_banner": false,
+            "mic_muting_enabled": false,
+            "transcript_enabled": false,
+            "text_input_enabled": true,
+            "default_expanded": false,
+            "always_expanded": false,
+            "text_contents": {},
+            "styles": {},
+            "language_selector": false,
+            "supports_text_only": true,
+            "language_presets": {}
+        },
+        "data_collection": {},
+        "overrides": {
+            "conversation_config_override": {
+                "tts": {
+                    "voice_id": false,
+                    "stability": false,
+                    "speed": false,
+                    "similarity_boost": false
+                },
+                "conversation": {
+                    "text_only": true
+                },
+                "agent": {
+                    "first_message": true,
+                    "language": true,
+                    "prompt": {
+                        "prompt": false,
+                        "native_mcp_server_ids": false
+                    }
+                }
+            },
+            "custom_llm_extra_body": false,
+            "enable_conversation_initiation_client_data_from_webhook": true
+        },
+        "call_limits": {
+            "agent_concurrency_limit": -1,
+            "daily_limit": 100000,
+            "bursting_enabled": true
+        },
+        "ban": null,
+        "privacy": {
+            "record_voice": true,
+            "retention_days": -1,
+            "delete_transcript_and_pii": false,
+            "delete_audio": false,
+            "apply_to_existing_conversations": false,
+            "zero_retention_mode": false
+        },
+        "workspace_overrides": {
+            "conversation_initiation_client_data_webhook": {
+                "url": "https://bici-voice-agent.onrender.com/webhooks/elevenlabs/conversation-initiation",
+                "request_headers": {}
+            },
+            "webhooks": {
+                "post_call_webhook_id": "c230c94e692e42acbf01cb4cc5f56fe0",
+                "send_audio": false
+            }
+        },
+        "testing": {
+            "attached_tests": [],
+            "referenced_tests_ids": []
+        },
+        "safety": {
+            "is_blocked_ivc": false,
+            "is_blocked_non_ivc": false,
+            "ignore_safety_evaluation": false
+        }
+    },
+    "tags": []
+}

@@ -1,0 +1,16 @@
+{
+    "agents": [
+        {
+            "name": "Bici Voice Agent - New",
+            "environments": {
+                "prod": {
+                    "config": "agent_configs/prod/bici_voice_agent_-_new.json"
+                }
+            }
+        },
+        {
+            "name": "Bici Voice Agent - New_1",
+            "config": "agent_configs/bici_voice_agent_-_new_1.json"
+        }
+    ]
+}

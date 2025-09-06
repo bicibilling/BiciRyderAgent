@@ -200,10 +200,9 @@ async function generateElevenLabsTextResponse(
       // Generate greeting context for dynamic first message
       const greetingContext = generateGreetingContext(lead);
       
-      // Send conversation initialization with ONLY dynamic variables - NO overrides
+      // Send conversation initialization using Jack Automotive pattern
       const initMessage = {
         type: 'conversation_initiation_client_data',
-        // Pass ALL context through dynamic variables only
         dynamic_variables: {
           // Customer info
           customer_name: lead.customer_name || 'Unknown',
@@ -220,34 +219,25 @@ async function generateElevenLabsTextResponse(
           location_address: storeInfo.address,
           business_hours: getTodaysHours(),
           
-          // SMS specific flag
-          conversation_mode: 'sms_text_only',
-          is_sms: 'true',
-          
           // Additional context
           last_interaction_date: lead.last_contact_at || 'First contact',
           customer_sentiment: lead.sentiment || 'neutral',
           
           // Add greeting context for dynamic first message
           ...greetingContext
+        },
+        client_data: {
+          conversation_context: conversationContext,
+          phone_number: lead.phone_number,
+          customer_phone: lead.phone_number,
+          channel: 'sms',
+          lead_id: lead.id,
+          organization_id: lead.organization_id
         }
       };
       
       ws.send(JSON.stringify(initMessage));
       conversationStarted = true;
-      
-      // Send user message immediately after init
-      setTimeout(() => {
-        const userMessage = {
-          type: 'user_message',
-          text: message
-        };
-        ws.send(JSON.stringify(userMessage));
-        logger.info('Sent user message to ElevenLabs:', { 
-          message: message.substring(0, 50),
-          customer_name: lead.customer_name 
-        });
-      }, 500); // Reduced delay
     });
 
     ws.on('message', (data) => {
@@ -267,6 +257,25 @@ async function generateElevenLabsTextResponse(
           ws.close();
           reject(new Error(response.error.message || 'ElevenLabs error'));
           return;
+        }
+
+        // Handle conversation initiation - critical delay pattern from Jack Automotive
+        if (response.type === 'conversation_initiation_metadata') {
+          logger.info('Conversation initialized successfully. Adding delay for dynamic variable processing...');
+          
+          // Critical delay to allow ElevenLabs to process dynamic variables
+          setTimeout(() => {
+            logger.info('Sending user message after dynamic variable processing delay');
+            const userMessage = {
+              type: 'user_message',
+              text: message
+            };
+            ws.send(JSON.stringify(userMessage));
+            logger.info('Sent user message to ElevenLabs:', { 
+              message: message.substring(0, 50),
+              customer_name: lead.customer_name 
+            });
+          }, 1500); // Use Jack Automotive's delay timing
         }
 
         // Handle agent response
@@ -298,11 +307,6 @@ async function generateElevenLabsTextResponse(
           });
           
           resolve(aiResponse);
-        }
-        
-        // Log other message types for debugging
-        if (response.type === 'conversation_initiation_metadata') {
-          logger.info('Conversation initialized successfully');
         }
       } catch (error) {
         logger.error('Error parsing ElevenLabs WebSocket response:', error);
