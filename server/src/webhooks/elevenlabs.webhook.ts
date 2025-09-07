@@ -398,7 +398,17 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       return res.status(403).json({ error: 'Invalid signature' });
     }
     
-    const { caller_id, called_number, conversation_id, call_sid, agent_id, conversation_initiation_client_data } = req.body;
+    // Extract fields from both root and data levels for compatibility
+    const rootFields = req.body;
+    const { data, analysis: rootAnalysis } = req.body;
+    const dataFields = data || {};
+    
+    const caller_id = rootFields.caller_id || dataFields.caller_id;
+    const called_number = rootFields.called_number || dataFields.called_number;
+    const conversation_id = rootFields.conversation_id || dataFields.conversation_id;
+    const call_sid = rootFields.call_sid || dataFields.call_sid || dataFields.metadata?.phone_call?.call_sid;
+    const agent_id = rootFields.agent_id || dataFields.agent_id;
+    const conversation_initiation_client_data = rootFields.conversation_initiation_client_data || dataFields.conversation_initiation_client_data;
     
     // Detect if this is an outbound call
     const isOutbound = conversation_initiation_client_data?.initiated_by === 'agent';
@@ -564,7 +574,19 @@ export async function handlePostCall(req: Request, res: Response) {
   try {
     logger.info('ElevenLabs post-call webhook received', {
       body: req.body,
-      headers: req.headers
+      headers: req.headers,
+      bodyKeys: Object.keys(req.body || {}),
+      bodyType: typeof req.body
+    });
+    
+    // DEBUG: Log the exact webhook structure
+    logger.info('Post-call webhook debug info:', {
+      hasData: 'data' in req.body,
+      hasAnalysis: 'analysis' in req.body,
+      hasConversationId: 'conversation_id' in req.body,
+      hasCallerId: 'caller_id' in req.body,
+      hasCalledNumber: 'called_number' in req.body,
+      fullBody: JSON.stringify(req.body, null, 2)
     });
     
     // Verify webhook signature - ENABLED FOR PRODUCTION
@@ -573,9 +595,19 @@ export async function handlePostCall(req: Request, res: Response) {
       return res.status(403).json({ error: 'Invalid signature' });
     }
     
-    // ElevenLabs sends a different structure than expected
-    // Analysis is actually inside the data object
+    // Extract fields from both root and data levels for compatibility  
+    const rootFields = req.body;
     const { data, analysis: rootAnalysis } = req.body;
+    const dataFields = data || {};
+    
+    const caller_id = rootFields.caller_id || dataFields.caller_id;
+    const called_number = rootFields.called_number || dataFields.called_number; 
+    const conversation_id = rootFields.conversation_id || dataFields.conversation_id;
+    const call_sid = rootFields.call_sid || dataFields.call_sid || dataFields.metadata?.phone_call?.call_sid;
+    const agent_id = rootFields.agent_id || dataFields.agent_id;
+    const conversation_initiation_client_data = rootFields.conversation_initiation_client_data || dataFields.conversation_initiation_client_data;
+    
+    // Analysis is actually inside the data object
     const analysis = rootAnalysis || data?.analysis;
     
     logger.info('Post-call webhook body structure:', {
@@ -589,17 +621,9 @@ export async function handlePostCall(req: Request, res: Response) {
       full_body_sample: JSON.stringify(req.body).substring(0, 500) + '...'
     });
     
-    if (!data) {
-      logger.error('No data field in post-call webhook');
-      return res.status(400).json({ error: 'No data field found' });
-    }
-    
-    const { 
-      conversation_id, 
-      transcript = [], 
-      metadata = {},
-      conversation_initiation_client_data = {}
-    } = data;
+    // Extract transcript and metadata from appropriate location
+    const transcript = data?.transcript || rootFields.transcript || [];
+    const metadata = data?.metadata || rootFields.metadata || {};
     
     const sessionId = conversation_id || metadata?.phone_call?.call_sid;
     // For SMS/text conversations, phone number might be in dynamic_variables

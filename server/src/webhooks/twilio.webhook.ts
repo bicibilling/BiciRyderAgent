@@ -203,34 +203,37 @@ async function generateElevenLabsTextResponse(
       // Create the complete dynamic greeting that the agent expects using the comprehensive function
       const dynamicGreeting = createDynamicGreeting(lead, new Date().toISOString(), new Date().toLocaleDateString('en-US', { weekday: 'long' }), getTodaysHours());
       
-      // Send conversation initialization - remove invalid client_data field
+      // Send conversation initialization - fixed format to prevent "invalid message" error
       const initMessage = {
         type: 'conversation_initiation_client_data',
         dynamic_variables: {
-          // Customer info
-          customer_name: lead.customer_name || 'Unknown',
+          // Customer info (sanitized)
+          customer_name: (lead.customer_name || 'Unknown').substring(0, 50),
           customer_phone: lead.phone_number,
-          lead_status: lead.status,
-          bike_interest: JSON.stringify(lead.bike_interest),
+          lead_status: lead.status || 'new',
+          bike_interest: typeof lead.bike_interest === 'string' ? lead.bike_interest : JSON.stringify(lead.bike_interest || {}),
           
-          // Conversation context
-          conversation_context: conversationContext,
-          previous_summary: previousSummary?.summary || 'First interaction',
+          // Conversation context (truncated to prevent size issues)  
+          conversation_context: (conversationContext || '').substring(0, 500),
+          previous_summary: (previousSummary?.summary || 'First interaction').substring(0, 200),
           
           // Store info
           organization_name: 'BICI Bike Store',
           location_address: storeInfo.address,
           business_hours: getTodaysHours(),
           
-          // Additional context
-          last_interaction_date: lead.last_contact_at || 'First contact',
+          // Additional context (sanitized)
+          last_interaction_date: lead.last_contact_at || new Date().toISOString(),
           customer_sentiment: lead.sentiment || 'neutral',
           
-          // CRITICAL: Add the dynamic_greeting that the agent expects
-          dynamic_greeting: dynamicGreeting,
+          // CRITICAL: Sanitize dynamic greeting to prevent JSON issues
+          dynamic_greeting: String(dynamicGreeting || 'Hi there! Thanks for texting BICI!').replace(/[^\w\s.,!?()-]/g, ''),
           
-          // Add greeting context for dynamic first message
-          ...greetingContext,
+          // Add greeting context (sanitized)
+          ...Object.entries(greetingContext || {}).reduce((acc, [key, value]) => {
+            acc[key] = typeof value === 'string' ? value.substring(0, 100) : String(value);
+            return acc;
+          }, {} as any),
           
           // Move client context into dynamic_variables (valid location)
           channel: 'sms',
@@ -238,6 +241,14 @@ async function generateElevenLabsTextResponse(
           organization_id: lead.organization_id
         }
       };
+      
+      logger.info('Sending SMS initMessage to ElevenLabs:', {
+        messageType: initMessage.type,
+        messageSize: JSON.stringify(initMessage).length,
+        hasCustomerName: !!initMessage.dynamic_variables.customer_name,
+        hasDynamicGreeting: !!initMessage.dynamic_variables.dynamic_greeting,
+        fullMessage: JSON.stringify(initMessage, null, 2)
+      });
       
       ws.send(JSON.stringify(initMessage));
       conversationStarted = true;
@@ -253,9 +264,15 @@ async function generateElevenLabsTextResponse(
           hasError: !!response.error
         });
 
-        // Check for errors
+        // Check for errors - this is likely where "invalid message" comes from
         if (response.error) {
-          logger.error('ElevenLabs error:', response.error);
+          logger.error('ElevenLabs SMS WebSocket error - THIS IS THE INVALID MESSAGE ERROR:', {
+            error: response.error,
+            fullResponse: JSON.stringify(response, null, 2),
+            originalMessage: message,
+            customerName: lead.customer_name,
+            leadId: lead.id
+          });
           clearTimeout(timeout);
           ws.close();
           reject(new Error(response.error.message || 'ElevenLabs error'));
