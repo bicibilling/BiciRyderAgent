@@ -331,7 +331,7 @@ export class RedisMonitoringService extends EventEmitter {
       
       this.metrics.connectionLatency = latency;
       
-      if (healthCheck.connected && healthCheck.status === 'healthy') {
+      if (healthCheck.status === 'healthy') {
         if (this.metrics.connectionStatus !== 'connected') {
           this.metrics.connectionStatus = 'connected';
           this.lastConnectionTime = new Date();
@@ -487,4 +487,3 @@ export function getRedisMonitoringService(): RedisMonitoringService {
   return monitoringService;
 }
 
-export { RedisMonitoringService };

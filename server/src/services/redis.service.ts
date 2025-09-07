@@ -711,6 +711,45 @@ export class RedisService {
   }
 
   /**
+   * Generic Redis operations for testing and monitoring
+   */
+  public async get(key: string): Promise<string | null> {
+    return this.executeWithFallback(
+      async (redis) => {
+        return await redis.get(key);
+      },
+      () => null,
+      `get key: ${key}`
+    );
+  }
+
+  public async set(key: string, value: string, ttl?: number): Promise<boolean> {
+    return this.executeWithFallback(
+      async (redis) => {
+        if (ttl) {
+          await redis.setex(key, ttl, value);
+        } else {
+          await redis.set(key, value);
+        }
+        return true;
+      },
+      () => false,
+      `set key: ${key}`
+    );
+  }
+
+  public async delete(key: string): Promise<boolean> {
+    return this.executeWithFallback(
+      async (redis) => {
+        const result = await redis.del(key);
+        return result > 0;
+      },
+      () => false,
+      `delete key: ${key}`
+    );
+  }
+
+  /**
    * Cleanup resources
    */
   public async cleanup(): Promise<void> {

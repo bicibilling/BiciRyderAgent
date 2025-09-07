@@ -43,7 +43,6 @@ router.get('/health/redis', async (req, res) => {
       redis: {
         enabled: status.enabled,
         connected: status.connected,
-        configuration: status.config,
         connectionTest,
         lastHealthCheck: new Date().toISOString()
       },
@@ -169,7 +168,8 @@ router.get('/status/connection', async (req, res) => {
         
         // Test basic operations
         const setStart = performance.now();
-        await redisService.set(testKey, { test: true }, 10);
+        const testValue = JSON.stringify({ test: true });
+        await redisService.set(testKey, testValue, 10);
         const setTime = performance.now() - setStart;
         
         const getStart = performance.now();
@@ -178,12 +178,20 @@ router.get('/status/connection', async (req, res) => {
         
         await redisService.delete(testKey);
         
+        let testSuccess = false;
+        try {
+          const parsedValue = getValue ? JSON.parse(getValue) : null;
+          testSuccess = parsedValue?.test === true;
+        } catch (e) {
+          testSuccess = false;
+        }
+        
         connectionDetails = {
           ...healthCheck,
           operationTest: {
             setTime: Math.round(setTime * 100) / 100,
             getTime: Math.round(getTime * 100) / 100,
-            success: getValue?.test === true
+            success: testSuccess
           }
         };
       } catch (error) {
