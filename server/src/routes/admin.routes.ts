@@ -1,6 +1,7 @@
 import { Express, Request, Response } from 'express';
 import { HumanControlService } from '../services/humanControl.service';
 import { CallSessionService } from '../services/callSession.service';
+import { broadcastToClients } from '../services/realtime.service';
 import { logger } from '../utils/logger';
 
 const humanControlService = new HumanControlService();
@@ -89,6 +90,27 @@ export function setupAdminRoutes(app: Express) {
     } catch (error) {
       logger.error('Error clearing lead sessions:', error);
       res.status(500).json({ error: 'Failed to clear lead sessions' });
+    }
+  });
+
+  // Test broadcast functionality (for debugging)
+  app.post('/api/admin/test-broadcast', async (req: Request, res: Response) => {
+    try {
+      const { type = 'test_message', lead_id = 'test-lead-123', message = 'Broadcast test from admin' } = req.body;
+      
+      broadcastToClients({
+        type,
+        lead_id,
+        message,
+        test: true,
+        timestamp: new Date().toISOString()
+      });
+      
+      logger.info('Test broadcast sent:', { type, lead_id, message });
+      res.json({ success: true, message: 'Broadcast sent successfully' });
+    } catch (error) {
+      logger.error('Error sending test broadcast:', error);
+      res.status(500).json({ error: 'Failed to send broadcast' });
     }
   });
 }

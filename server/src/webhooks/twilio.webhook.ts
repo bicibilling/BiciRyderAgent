@@ -203,7 +203,7 @@ async function generateElevenLabsTextResponse(
       // Create the complete dynamic greeting that the agent expects using the comprehensive function
       const dynamicGreeting = createDynamicGreeting(lead, new Date().toISOString(), new Date().toLocaleDateString('en-US', { weekday: 'long' }), getTodaysHours());
       
-      // Send conversation initialization using Jack Automotive pattern
+      // Send conversation initialization - remove invalid client_data field
       const initMessage = {
         type: 'conversation_initiation_client_data',
         dynamic_variables: {
@@ -230,12 +230,9 @@ async function generateElevenLabsTextResponse(
           dynamic_greeting: dynamicGreeting,
           
           // Add greeting context for dynamic first message
-          ...greetingContext
-        },
-        client_data: {
-          conversation_context: conversationContext,
-          phone_number: lead.phone_number,
-          customer_phone: lead.phone_number,
+          ...greetingContext,
+          
+          // Move client context into dynamic_variables (valid location)
           channel: 'sms',
           lead_id: lead.id,
           organization_id: lead.organization_id
