@@ -8,6 +8,14 @@
                     "agent_id": "agent_01jy5s8gwnfw5v3bpr1ep6bj1c"
                 }
             }
+        },
+        {
+            "name": "Bike Agent New",
+            "environments": {
+                "prod": {
+                    "config": "agent_configs/prod/bike_agent_new.json"
+                }
+            }
         }
     ]
 }

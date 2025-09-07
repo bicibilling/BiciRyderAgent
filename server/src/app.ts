@@ -52,6 +52,11 @@ app.get('/api/test', (req: Request, res: Response) => {
 
 // Database health check
 app.get('/health/db', async (req: Request, res: Response) => {
+  const healthResults: any = {
+    timestamp: new Date().toISOString()
+  };
+
+  // Check Supabase connection
   try {
     const supabaseModule = await import('./config/supabase.config');
     const { data, error } = await supabaseModule.supabase
@@ -61,22 +66,43 @@ app.get('/health/db', async (req: Request, res: Response) => {
     
     if (error) throw error;
     
-    res.json({
-      status: 'healthy',
-      database: 'connected',
+    healthResults.database = {
+      status: 'connected',
       organizations_count: data?.length || 0,
-      organizations: data,
-      timestamp: new Date().toISOString()
-    });
+      organizations: data
+    };
   } catch (error) {
     logger.error('Database health check failed:', error);
-    res.status(500).json({
-      status: 'unhealthy',
-      database: 'disconnected',
-      error: (error as Error).message,
-      timestamp: new Date().toISOString()
-    });
+    healthResults.database = {
+      status: 'disconnected',
+      error: (error as Error).message
+    };
   }
+
+  // Check Redis connection
+  try {
+    const { redisHealthCheck } = await import('./config/redis.config');
+    const redisHealth = await redisHealthCheck();
+    healthResults.redis = redisHealth;
+  } catch (error) {
+    logger.error('Redis health check failed:', error);
+    healthResults.redis = {
+      status: 'error',
+      error: (error as Error).message
+    };
+  }
+
+  // Determine overall status
+  const dbHealthy = healthResults.database?.status === 'connected';
+  const redisHealthy = healthResults.redis?.status === 'healthy' || healthResults.redis?.status === 'disabled';
+  
+  const overallStatus = dbHealthy && redisHealthy ? 'healthy' : 'unhealthy';
+  const statusCode = overallStatus === 'healthy' ? 200 : 500;
+
+  res.status(statusCode).json({
+    status: overallStatus,
+    ...healthResults
+  });
 });
 
 // Initialize services
@@ -101,8 +127,35 @@ httpServer.listen(PORT, () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   logger.info('SIGTERM signal received: closing HTTP server');
+  
+  // Close Redis connection
+  try {
+    const { closeRedisConnection } = await import('./config/redis.config');
+    await closeRedisConnection();
+  } catch (error) {
+    logger.error('Error closing Redis connection:', error);
+  }
+  
+  httpServer.close(() => {
+    logger.info('HTTP server closed');
+    process.exit(0);
+  });
+});
+
+// Handle SIGINT for development (Ctrl+C)
+process.on('SIGINT', async () => {
+  logger.info('SIGINT signal received: closing HTTP server');
+  
+  // Close Redis connection
+  try {
+    const { closeRedisConnection } = await import('./config/redis.config');
+    await closeRedisConnection();
+  } catch (error) {
+    logger.error('Error closing Redis connection:', error);
+  }
+  
   httpServer.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);

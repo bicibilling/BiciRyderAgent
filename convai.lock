@@ -11,6 +11,12 @@
                 "id": "agent_4101k4e2k0z6f65a1cxha527ydmv",
                 "hash": "cc2f253a7302e745c8b645c4c93d51eb"
             }
+        },
+        "Bike Agent New": {
+            "prod": {
+                "id": "agent_3801k4e43akwffn88rhkjq9z97nd",
+                "hash": "1d27aef4276b5d204e152e45eff3ffd4"
+            }
         }
     },
     "tools": {}
