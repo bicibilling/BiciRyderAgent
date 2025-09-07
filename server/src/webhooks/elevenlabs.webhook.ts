@@ -9,6 +9,7 @@ import { broadcastToClients } from '../services/realtime.service';
 import { businessHours, storeInfo } from '../config/elevenlabs.config';
 import { ElevenLabsDynamicVariables, ConversationInsights, Lead, CallSession } from '../types';
 import { generateGreetingContext, createDynamicGreeting } from '../utils/greeting.helper';
+import { redisService } from '../services/redis.service';
 
 const leadService = new LeadService();
 const conversationService = new ConversationService();
@@ -149,6 +150,17 @@ function getTodaysHours(): string {
 
 // Build comprehensive conversation context with summaries and recent messages
 export async function buildConversationContext(leadId: string): Promise<string> {
+  // Try to get cached context first (1 minute TTL for fast-changing contexts)
+  try {
+    const cachedContext = await redisService.getCachedContext(leadId);
+    if (cachedContext) {
+      logger.debug(`Context cache hit for lead ${leadId}`);
+      return cachedContext;
+    }
+  } catch (redisError) {
+    logger.warn('Context cache error, building fresh context:', redisError);
+  }
+  
   // Run queries in parallel to reduce latency
   const [previousSummaries, allHistory, recentMessages] = await Promise.all([
     conversationService.getAllSummaries(leadId),
@@ -157,7 +169,16 @@ export async function buildConversationContext(leadId: string): Promise<string> 
   ]);
   
   if (!allHistory || allHistory.length === 0) {
-    return "This is the first interaction with this customer.";
+    const firstTimeContext = "This is the first interaction with this customer.";
+    
+    // Cache the first-time result briefly (still cache to avoid repeated DB calls)
+    try {
+      await redisService.cacheContext(leadId, firstTimeContext);
+    } catch (redisError) {
+      logger.warn('Failed to cache first-time context, continuing:', redisError);
+    }
+    
+    return firstTimeContext;
   }
   
   let context = `=== COMPREHENSIVE CUSTOMER CONTEXT ===\n\n`;
@@ -225,6 +246,14 @@ export async function buildConversationContext(leadId: string): Promise<string> 
   context += `💬 MATCH ENERGY: Use customer's communication style (${getCustomerStyle(customerMessages)})\n`;
   context += `🤝 BE HUMAN: Sound natural, not robotic - use conversation summaries to show you remember\n`;
   context += `⚡ FOCUS: Address what they were just talking about in the recent messages\n`;
+  
+  // Cache the built context for future requests (1 minute TTL for fast-changing data)
+  try {
+    await redisService.cacheContext(leadId, context);
+    logger.debug(`Cached context for lead ${leadId}`);
+  } catch (redisError) {
+    logger.warn('Failed to cache context, continuing:', redisError);
+  }
   
   return context;
 }
@@ -444,7 +473,7 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     const businessHoursStatus = getTodaysHours();
     
     // Create complete dynamic greeting
-    const dynamicGreeting = createDynamicGreeting(lead, currentTime, dayOfWeek, businessHoursStatus);
+    const dynamicGreeting = await createDynamicGreeting(lead, currentTime, dayOfWeek, businessHoursStatus);
     
     // Generate greeting context for additional variables
     const greetingContext = generateGreetingContext(lead, isOutbound, previousSummary);

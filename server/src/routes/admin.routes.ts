@@ -13,7 +13,7 @@ export function setupAdminRoutes(app: Express) {
       const organizationId = req.headers['x-organization-id'] as string || 'b0c1b1c1-0000-0000-0000-000000000001';
       
       // Clear human control sessions from memory
-      const activeSessions = humanControlService.getActiveSessions();
+      const activeSessions = await humanControlService.getActiveSessions();
       for (const session of activeSessions) {
         await humanControlService.leaveConversation(session.lead_id);
       }

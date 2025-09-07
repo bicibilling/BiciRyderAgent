@@ -2,6 +2,7 @@ import { supabase, handleSupabaseError } from '../config/supabase.config';
 import { CallSession } from '../types';
 import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { redisService } from './redis.service';
 
 export class CallSessionService {
   async createSession(sessionData: Partial<CallSession>): Promise<CallSession> {
@@ -22,6 +23,9 @@ export class CallSessionService {
         handleSupabaseError(error, 'create call session');
       }
       
+      // Cache the session for fast lookups
+      await redisService.cacheCallSession(data.id, data);
+      
       logger.info('Created call session:', { 
         id: data.id, 
         lead_id: sessionData.lead_id 
@@ -41,39 +45,66 @@ export class CallSessionService {
     try {
       logger.info('Updating call session with ID:', conversationId);
       
-      // Try multiple approaches to find the session
-      // 1. Direct match by elevenlabs_conversation_id
-      let { data, error } = await supabase
-        .from('call_sessions')
-        .update(updates)
-        .eq('elevenlabs_conversation_id', conversationId)
-        .select()
-        .single();
+      // First try to get session ID from cache by conversation ID
+      let sessionId = await redisService.getCachedCallSessionIdByConversation(conversationId);
+      let data: CallSession | null = null;
       
-      if (data) {
-        logger.info('Found session by elevenlabs_conversation_id:', data.id);
-        return data;
-      }
-      
-      // 2. Try to find by call_sid (stored in metadata)
-      const { data: sessionsByCallSid, error: callSidError } = await supabase
-        .from('call_sessions')
-        .select('*')
-        .eq('metadata->>call_sid', conversationId);
-      
-      if (sessionsByCallSid && sessionsByCallSid.length > 0) {
-        const session = sessionsByCallSid[0];
-        const { data: updatedSession, error: updateError } = await supabase
+      if (sessionId) {
+        // Update the session directly using the cached session ID
+        const { data: updatedData, error } = await supabase
           .from('call_sessions')
           .update(updates)
-          .eq('id', session.id)
+          .eq('id', sessionId)
           .select()
           .single();
         
-        if (updatedSession) {
-          logger.info('Found and updated session by call_sid:', updatedSession.id);
-          return updatedSession;
+        if (updatedData && !error) {
+          data = updatedData;
+          logger.info('Updated session using cached ID:', data.id);
         }
+      }
+      
+      if (!data) {
+        // Fallback to original database-based lookup
+        // 1. Direct match by elevenlabs_conversation_id
+        let { data: directData, error } = await supabase
+          .from('call_sessions')
+          .update(updates)
+          .eq('elevenlabs_conversation_id', conversationId)
+          .select()
+          .single();
+        
+        if (directData) {
+          data = directData;
+          logger.info('Found session by elevenlabs_conversation_id:', data.id);
+        } else {
+          // 2. Try to find by call_sid (stored in metadata)
+          const { data: sessionsByCallSid, error: callSidError } = await supabase
+            .from('call_sessions')
+            .select('*')
+            .eq('metadata->>call_sid', conversationId);
+          
+          if (sessionsByCallSid && sessionsByCallSid.length > 0) {
+            const session = sessionsByCallSid[0];
+            const { data: updatedSession, error: updateError } = await supabase
+              .from('call_sessions')
+              .update(updates)
+              .eq('id', session.id)
+              .select()
+              .single();
+            
+            if (updatedSession) {
+              data = updatedSession;
+              logger.info('Found and updated session by call_sid:', data.id);
+            }
+          }
+        }
+      }
+      
+      if (data) {
+        // Update cache with new data
+        await redisService.cacheCallSession(data.id, data);
+        return data;
       }
       
       logger.warn('No session found by conversation_id or call_sid, will try phone-based lookup');
@@ -87,6 +118,17 @@ export class CallSessionService {
   
   async getActiveSession(leadId: string): Promise<CallSession | null> {
     try {
+      // Try to get cached session ID first
+      const cachedSessionId = await redisService.getCachedCallSessionIdByLead(leadId);
+      if (cachedSessionId) {
+        const cachedSession = await redisService.getCachedCallSession(cachedSessionId);
+        if (cachedSession && ['initiated', 'active'].includes(cachedSession.status)) {
+          logger.debug('Retrieved active session from cache:', cachedSession.id);
+          return cachedSession;
+        }
+      }
+      
+      // Fallback to database lookup
       const { data, error } = await supabase
         .from('call_sessions')
         .select('*')
@@ -98,6 +140,11 @@ export class CallSessionService {
       
       if (error && error.code !== 'PGRST116') {
         handleSupabaseError(error, 'get active session');
+      }
+      
+      // Cache the session if found
+      if (data) {
+        await redisService.cacheCallSession(data.id, data);
       }
       
       return data;
@@ -128,6 +175,17 @@ export class CallSessionService {
 
   async getSessionByConversationId(conversationId: string): Promise<CallSession | null> {
     try {
+      // Try cache first by conversation ID
+      const cachedSessionId = await redisService.getCachedCallSessionIdByConversation(conversationId);
+      if (cachedSessionId) {
+        const cachedSession = await redisService.getCachedCallSession(cachedSessionId);
+        if (cachedSession) {
+          logger.debug('Retrieved session by conversation ID from cache:', cachedSession.id);
+          return cachedSession;
+        }
+      }
+      
+      // Fallback to database lookup
       const { data, error } = await supabase
         .from('call_sessions')
         .select('*')
@@ -136,6 +194,11 @@ export class CallSessionService {
       
       if (error && error.code !== 'PGRST116') {
         handleSupabaseError(error, 'get session by conversation id');
+      }
+      
+      // Cache the session if found
+      if (data) {
+        await redisService.cacheCallSession(data.id, data);
       }
       
       return data;
@@ -213,6 +276,16 @@ export class CallSessionService {
       }
       
       if (data) {
+        // Update cache with new data
+        await redisService.cacheCallSession(data.id, data);
+        
+        // If session is completed, remove from cache after a short delay
+        if (updates.status === 'completed') {
+          setTimeout(async () => {
+            await redisService.removeCachedCallSession(data.id, data);
+          }, 30000); // 30 second delay
+        }
+        
         logger.info('Updated recent call session:', { 
           id: data.id, 
           status: updates.status 

@@ -3,6 +3,7 @@ import { ConversationService } from './conversation.service';
 import { SMSAutomationService } from './sms.service';
 import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { redisService } from './redis.service';
 
 const conversationService = new ConversationService();
 const smsService = new SMSAutomationService();
@@ -18,8 +19,45 @@ interface HumanControlSession {
 
 export class HumanControlService {
   private activeSessions = new Map<string, HumanControlSession>();
+  private isInitialized = false;
   
+  /**
+   * Initialize service by restoring sessions from Redis
+   */
+  private async initializeIfNeeded(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+    
+    try {
+      // Restore sessions from Redis cache
+      const cachedLeadIds = await redisService.getCachedHumanSessionLeads();
+      
+      for (const leadId of cachedLeadIds) {
+        const cachedSession = await redisService.getCachedHumanSession(leadId);
+        if (cachedSession) {
+          // Restore to in-memory map
+          this.activeSessions.set(leadId, {
+            ...cachedSession,
+            started_at: new Date(cachedSession.started_at)
+          });
+          logger.info('Restored human control session from cache:', { leadId, sessionId: cachedSession.id });
+        }
+      }
+      
+      if (cachedLeadIds.length > 0) {
+        logger.info(`Restored ${cachedLeadIds.length} human control sessions from Redis cache`);
+      }
+      
+      this.isInitialized = true;
+    } catch (error) {
+      logger.error('Error initializing human control service from cache:', error);
+      this.isInitialized = true; // Continue even if cache restore fails
+    }
+  }
+
   async isUnderHumanControl(leadId: string): Promise<boolean> {
+    await this.initializeIfNeeded();
     return this.activeSessions.has(leadId);
   }
   
@@ -29,6 +67,8 @@ export class HumanControlService {
     organizationId: string
   ): Promise<HumanControlSession> {
     try {
+      await this.initializeIfNeeded();
+      
       // Check if already under control
       if (this.activeSessions.has(leadId)) {
         throw new Error('Conversation already under human control');
@@ -44,8 +84,11 @@ export class HumanControlService {
         message_queue: []
       };
       
-      // Store in memory
+      // Store in memory (primary storage)
       this.activeSessions.set(leadId, session);
+      
+      // Store in Redis for persistence across server restarts
+      await redisService.cacheHumanSession(leadId, session);
       
       // Store in database
       await supabase
@@ -83,6 +126,8 @@ export class HumanControlService {
   
   async leaveConversation(leadId: string): Promise<void> {
     try {
+      await this.initializeIfNeeded();
+      
       const session = this.activeSessions.get(leadId);
       if (!session) {
         throw new Error('No active human control session');
@@ -106,8 +151,11 @@ export class HumanControlService {
         type: 'system'  // Use 'system' for system messages
       });
       
-      // Remove from memory
+      // Remove from memory (primary storage)
       this.activeSessions.delete(leadId);
+      
+      // Remove from Redis cache
+      await redisService.removeCachedHumanSession(leadId);
       
       logger.info('Human control session ended:', { 
         sessionId: session.id, 
@@ -125,6 +173,8 @@ export class HumanControlService {
     phoneNumber: string
   ): Promise<void> {
     try {
+      await this.initializeIfNeeded();
+      
       const session = this.activeSessions.get(leadId);
       if (!session) {
         throw new Error('No active human control session');
@@ -143,13 +193,16 @@ export class HumanControlService {
         type: 'sms'
       });
       
-      // Update session
+      // Update session in database
       await supabase
         .from('human_control_sessions')
         .update({
           messages_handled: session.message_queue.length + 1
         })
         .eq('id', session.id);
+      
+      // Update session in Redis (sync with any changes)
+      await redisService.cacheHumanSession(leadId, session);
       
       logger.info('Human message sent:', { 
         sessionId: session.id, 
@@ -162,9 +215,15 @@ export class HumanControlService {
   }
   
   async queueMessage(leadId: string, message: string): Promise<void> {
+    await this.initializeIfNeeded();
+    
     const session = this.activeSessions.get(leadId);
     if (session) {
       session.message_queue.push(message);
+      
+      // Update Redis cache with new queue
+      await redisService.cacheHumanSession(leadId, session);
+      
       logger.info('Message queued for human agent:', { 
         sessionId: session.id, 
         queueLength: session.message_queue.length 
@@ -173,20 +232,29 @@ export class HumanControlService {
   }
   
   async getQueuedMessages(leadId: string): Promise<string[]> {
+    await this.initializeIfNeeded();
+    
     const session = this.activeSessions.get(leadId);
     if (session) {
       const messages = [...session.message_queue];
       session.message_queue = [];
+      
+      // Update Redis cache with cleared queue
+      await redisService.cacheHumanSession(leadId, session);
+      
       return messages;
     }
     return [];
   }
   
-  getActiveSessions(): HumanControlSession[] {
+  async getActiveSessions(): Promise<HumanControlSession[]> {
+    await this.initializeIfNeeded();
     return Array.from(this.activeSessions.values());
   }
   
   async clearAllSessions(): Promise<void> {
+    await this.initializeIfNeeded();
+    
     // Clear all sessions from memory
     const sessions = Array.from(this.activeSessions.values());
     for (const session of sessions) {
@@ -196,8 +264,15 @@ export class HumanControlService {
         logger.error('Error clearing session:', error);
       }
     }
-    // Force clear the map
+    // Force clear the map and Redis cache
     this.activeSessions.clear();
-    logger.info('All human control sessions cleared from memory');
+    
+    // Clear all cached sessions from Redis
+    const cachedLeadIds = await redisService.getCachedHumanSessionLeads();
+    for (const leadId of cachedLeadIds) {
+      await redisService.removeCachedHumanSession(leadId);
+    }
+    
+    logger.info('All human control sessions cleared from memory and cache');
   }
 }

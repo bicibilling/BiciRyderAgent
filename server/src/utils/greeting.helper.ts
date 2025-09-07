@@ -2,6 +2,9 @@
  * Helper functions for generating dynamic greetings
  */
 
+import { redisService } from '../services/redis.service';
+import { logger } from './logger';
+
 /**
  * Get time-based greeting (Pacific Time)
  */
@@ -112,7 +115,23 @@ export function getCustomerGreeting(customerName?: string, lastVisit?: Date | st
  * @param dayOfWeek - Current day of the week
  * @param businessHours - Current store hours status
  */
-export function createDynamicGreeting(lead?: any, currentTime?: string, dayOfWeek?: string, businessHours?: string): string {
+export async function createDynamicGreeting(lead?: any, currentTime?: string, dayOfWeek?: string, businessHours?: string): Promise<string> {
+  const leadId = lead?.id;
+  
+  // Try to get cached greeting first (1 minute TTL for time-sensitive content)
+  if (leadId) {
+    try {
+      const cachedGreeting = await redisService.getCachedGreeting(leadId);
+      if (cachedGreeting) {
+        logger.debug(`Greeting cache hit for lead ${leadId}`);
+        return cachedGreeting;
+      }
+    } catch (redisError) {
+      logger.warn('Greeting cache error, generating fresh greeting:', redisError);
+    }
+  }
+  
+  // Generate fresh greeting
   const timeGreeting = getTimeBasedGreeting();
   const dayContext = getDayContext();
   const customerName = lead?.customer_name || "";
@@ -139,6 +158,16 @@ export function createDynamicGreeting(lead?: any, currentTime?: string, dayOfWee
   
   // Add introduction
   greeting += ` I'm Ryder from BICI Bike Store. How can I help you today?`;
+  
+  // Cache the generated greeting
+  if (leadId) {
+    try {
+      await redisService.cacheGreeting(leadId, greeting);
+      logger.debug(`Cached greeting for lead ${leadId}`);
+    } catch (redisError) {
+      logger.warn('Failed to cache greeting, continuing:', redisError);
+    }
+  }
   
   return greeting;
 }

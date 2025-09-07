@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import { CallSession, ConversationInsights } from '../types';
 import { broadcastToClients } from './realtime.service';
 import { storeInfo, businessHours } from '../config/elevenlabs.config';
+import { redisService } from './redis.service';
 
 const conversationService = new ConversationService();
 
@@ -80,6 +81,19 @@ export class SMSAutomationService {
         broadcast_will_send: !!lead
       });
       
+      // Cache SMS session state if lead exists
+      if (lead) {
+        const smsSession = {
+          lead_id: lead.id,
+          last_message_sent: new Date().toISOString(),
+          message_count: await this.getRecentMessageCount(lead.id),
+          last_message_content: message,
+          last_message_type: this.detectTemplateType(message)
+        };
+        
+        await redisService.cacheSMSSession(lead.id, smsSession);
+      }
+      
       // Broadcast SMS sent event
       if (lead) {
         broadcastToClients({
@@ -109,6 +123,19 @@ export class SMSAutomationService {
       if (!lead || !lead.phone_number) {
         logger.error('Lead or phone number not found for SMS automation');
         return;
+      }
+      
+      // Check cached SMS session to prevent duplicate automation
+      const cachedSMSSession = await redisService.getCachedSMSSession(session.lead_id);
+      const lastAutomation = cachedSMSSession?.last_automation_trigger;
+      
+      // Don't run automation if we've run it recently (within 30 minutes)
+      if (lastAutomation) {
+        const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
+        if (new Date(lastAutomation).getTime() > thirtyMinutesAgo) {
+          logger.info('Skipping SMS automation - recently triggered for lead:', session.lead_id);
+          return;
+        }
       }
       
       const { triggers, classification } = insights;
@@ -153,6 +180,19 @@ export class SMSAutomationService {
         if (messages.length > 1) {
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
+      }
+      
+      // Update SMS session cache with automation trigger timestamp
+      if (messages.length > 0) {
+        const updatedSMSSession = {
+          ...cachedSMSSession,
+          lead_id: session.lead_id,
+          last_automation_trigger: new Date().toISOString(),
+          automation_message_count: (cachedSMSSession?.automation_message_count || 0) + messages.length,
+          last_automation_triggers: triggers
+        };
+        
+        await redisService.cacheSMSSession(session.lead_id, updatedSMSSession);
       }
       
       logger.info('SMS automation triggered:', { 
@@ -202,6 +242,28 @@ export class SMSAutomationService {
     }
   }
   
+  /**
+   * Get recent message count for a lead (for session caching)
+   */
+  private async getRecentMessageCount(leadId: string): Promise<number> {
+    try {
+      const { supabase } = await import('../config/supabase.config');
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      
+      const { count } = await supabase
+        .from('conversations')
+        .select('*', { count: 'exact', head: true })
+        .eq('lead_id', leadId)
+        .eq('type', 'sms')
+        .gte('created_at', oneHourAgo.toISOString());
+      
+      return count || 0;
+    } catch (error) {
+      logger.error('Error getting recent message count:', error);
+      return 0;
+    }
+  }
+
   private detectTemplateType(message: string): string {
     if (message.includes('hours')) return 'store_hours';
     if (message.includes('appointment')) return 'appointment_confirmation';

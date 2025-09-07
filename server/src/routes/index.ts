@@ -1,5 +1,5 @@
 import { Express, Request, Response } from 'express';
-import { setupSSEConnection } from '../services/realtime.service';
+import { setupSSEConnection, getCachedDashboardStats, getCachedDashboardLeads, invalidateDashboardCache } from '../services/realtime.service';
 import { HumanControlService } from '../services/humanControl.service';
 import { LeadService } from '../services/lead.service';
 import { ConversationService } from '../services/conversation.service';
@@ -32,17 +32,11 @@ export function setupAPIRoutes(app: Express) {
       
       logger.info('Fetching leads for organization:', { organizationId });
       
-      const supabaseModule = await import('../config/supabase.config');
-      const { data, error } = await supabaseModule.supabase
-        .from('leads')
-        .select('*')
-        .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false });
+      // Try cached leads first
+      const leads = await getCachedDashboardLeads(organizationId);
       
-      if (error) throw error;
-      
-      logger.info('Found leads:', { count: data?.length || 0, leads: data });
-      res.json(data);
+      logger.info('Found leads:', { count: leads?.length || 0, cached: true });
+      res.json(leads || []);
     } catch (error) {
       logger.error('Error fetching leads:', error);
       res.status(500).json({ error: 'Failed to fetch leads' });
@@ -395,35 +389,32 @@ export function setupAPIRoutes(app: Express) {
   app.get('/api/dashboard/stats', async (req: Request, res: Response) => {
     try {
       const organizationId = req.headers['x-organization-id'] as string || 'b0c1b1c1-0000-0000-0000-000000000001';
-      const { supabase } = await import('../config/supabase.config');
       
-      // Clean up stale sessions first
-      await callSessionService.cleanupStaleSessions(organizationId);
+      // Try cached dashboard stats first
+      const stats = await getCachedDashboardStats(organizationId);
       
-      // Get counts
-      const [leads, calls, conversations, activeCalls] = await Promise.all([
-        supabase.from('leads').select('count').eq('organization_id', organizationId),
-        supabase.from('call_sessions').select('count').eq('organization_id', organizationId),
-        supabase.from('conversations').select('count').eq('organization_id', organizationId),
-        supabase.from('call_sessions')
-          .select('count')
-          .eq('organization_id', organizationId)
-          .in('status', ['initiated', 'active'])
-      ]);
-      
-      // Count both human control sessions and active calls
-      const humanSessions = humanControlService.getActiveSessions().length;
-      const activeCallSessions = activeCalls.data?.[0]?.count || 0;
-      
-      res.json({
-        total_leads: leads.data?.[0]?.count || 0,
-        total_calls: calls.data?.[0]?.count || 0,
-        total_conversations: conversations.data?.[0]?.count || 0,
-        active_sessions: humanSessions + activeCallSessions
-      });
+      if (stats) {
+        res.json(stats);
+      } else {
+        res.status(500).json({ error: 'Failed to fetch stats' });
+      }
     } catch (error) {
       logger.error('Error fetching dashboard stats:', error);
       res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+  });
+  
+  // Cache invalidation endpoint for dashboard (admin use)
+  app.post('/api/dashboard/invalidate-cache', async (req: Request, res: Response) => {
+    try {
+      const organizationId = req.headers['x-organization-id'] as string || 'b0c1b1c1-0000-0000-0000-000000000001';
+      
+      await invalidateDashboardCache(organizationId);
+      
+      res.json({ success: true, message: 'Dashboard cache invalidated' });
+    } catch (error) {
+      logger.error('Error invalidating dashboard cache:', error);
+      res.status(500).json({ error: 'Failed to invalidate cache' });
     }
   });
   

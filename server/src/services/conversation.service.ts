@@ -3,6 +3,7 @@ import { Conversation } from '../types';
 import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { broadcastToClients } from './realtime.service';
+import { redisService } from './redis.service';
 
 export class ConversationService {
   private conversationCache = new Map<string, Conversation[]>();
@@ -25,11 +26,22 @@ export class ConversationService {
         handleSupabaseError(error, 'store conversation');
       }
       
-      // Update cache
+      // Update in-memory cache (preserve existing behavior)
       if (data.lead_id) {
         const cached = this.conversationCache.get(data.lead_id) || [];
         cached.push(stored);
         this.conversationCache.set(data.lead_id, cached);
+      }
+      
+      // Invalidate Redis caches when new conversation is stored
+      if (data.lead_id) {
+        try {
+          // Clear context cache (will be rebuilt with new conversation)
+          await redisService.clearLeadCache(data.lead_id);
+          logger.debug(`Invalidated cache for lead ${data.lead_id} after storing conversation`);
+        } catch (redisError) {
+          logger.warn('Failed to invalidate cache after storing conversation:', redisError);
+        }
       }
       
       logger.info('Stored conversation:', { 
@@ -38,7 +50,7 @@ export class ConversationService {
         type: data.type 
       });
       
-      // Broadcast real-time update
+      // Broadcast real-time update (preserve existing SSE behavior)
       broadcastToClients({
         type: 'conversation_added',
         lead_id: data.lead_id,
@@ -56,7 +68,20 @@ export class ConversationService {
   
   async getRecentConversations(leadId: string, limit: number = 6): Promise<Conversation[]> {
     try {
-      // Always fetch from database for accuracy
+      // Try to get cached conversations first (2 minute TTL for recent messages)
+      try {
+        const cachedConversations = await redisService.getCachedConversations(leadId, limit);
+        if (cachedConversations) {
+          logger.debug(`Conversations cache hit for lead ${leadId}, limit ${limit}`);
+          // Also update in-memory cache for consistency
+          this.conversationCache.set(leadId, cachedConversations);
+          return cachedConversations;
+        }
+      } catch (redisError) {
+        logger.warn('Conversations cache error, fetching from database:', redisError);
+      }
+      
+      // Fetch from database
       const { data, error } = await supabase
         .from('conversations')
         .select('*')
@@ -71,8 +96,16 @@ export class ConversationService {
       // Reverse to get chronological order
       const conversations = (data || []).reverse();
       
-      // Update cache
+      // Update in-memory cache (preserve existing behavior)
       this.conversationCache.set(leadId, conversations);
+      
+      // Cache in Redis for future requests
+      try {
+        await redisService.cacheConversations(leadId, conversations, limit);
+        logger.debug(`Cached conversations for lead ${leadId}, limit ${limit}`);
+      } catch (redisError) {
+        logger.warn('Failed to cache conversations, continuing:', redisError);
+      }
       
       return conversations;
     } catch (error) {
@@ -147,6 +180,17 @@ export class ConversationService {
         handleSupabaseError(error, 'create conversation summary');
       }
       
+      // Invalidate cache when new summary is created
+      if (summaryData.lead_id) {
+        try {
+          // Clear summaries cache and context cache (will be rebuilt with new summary)
+          await redisService.clearLeadCache(summaryData.lead_id);
+          logger.debug(`Invalidated cache for lead ${summaryData.lead_id} after creating summary`);
+        } catch (redisError) {
+          logger.warn('Failed to invalidate cache after creating summary:', redisError);
+        }
+      }
+      
       logger.info('Created conversation summary:', { 
         id: data.id, 
         lead_id: summaryData.lead_id 
@@ -182,6 +226,18 @@ export class ConversationService {
 
   async getAllSummaries(leadId: string): Promise<any[]> {
     try {
+      // Try to get cached summaries first (5 minute TTL for more stable summary data)
+      try {
+        const cachedSummaries = await redisService.getCachedSummaries(leadId);
+        if (cachedSummaries) {
+          logger.debug(`Summaries cache hit for lead ${leadId}`);
+          return cachedSummaries;
+        }
+      } catch (redisError) {
+        logger.warn('Summaries cache error, fetching from database:', redisError);
+      }
+      
+      // Fetch from database
       const { data, error } = await supabase
         .from('conversation_summaries')
         .select('*')
@@ -193,7 +249,17 @@ export class ConversationService {
         handleSupabaseError(error, 'get all summaries');
       }
       
-      return data || [];
+      const summaries = data || [];
+      
+      // Cache the summaries for future requests
+      try {
+        await redisService.cacheSummaries(leadId, summaries);
+        logger.debug(`Cached summaries for lead ${leadId}`);
+      } catch (redisError) {
+        logger.warn('Failed to cache summaries, continuing:', redisError);
+      }
+      
+      return summaries;
     } catch (error) {
       logger.error('Error getting all summaries:', error);
       return [];

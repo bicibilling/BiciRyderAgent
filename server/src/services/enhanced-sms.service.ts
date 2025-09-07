@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import { CallSession, ConversationInsights } from '../types';
 import { broadcastToClients } from './realtime.service';
 import { storeInfo, businessHours } from '../config/elevenlabs.config';
+import { redisService } from './redis.service';
 
 const conversationService = new ConversationService();
 
@@ -86,15 +87,26 @@ export class EnhancedSMSAutomationService {
         return;
       }
 
+      // Check cached SMS automation state to prevent duplicate messages
+      const cachedAutomationState = await redisService.getCachedSMSAutomationState(session.lead_id);
+      const recentlySent = cachedAutomationState?.recentMessages || [];
+      
+      // Filter out messages sent in the last hour
+      const oneHourAgo = Date.now() - (60 * 60 * 1000);
+      const validRecentMessages = recentlySent.filter((msg: any) => 
+        new Date(msg.sent_at).getTime() > oneHourAgo
+      );
+
       logger.info('SMS Automation Debug:', {
         followUpNeeded: insights.followUpNeeded,
         triggers: insights.triggers,
         triggersType: typeof insights.triggers,
         triggersLength: insights.triggers?.length,
-        classification: insights.classification
+        classification: insights.classification,
+        recentMessageCount: validRecentMessages.length
       });
 
-      const scheduledMessages: Array<{message: string, delay: number}> = [];
+      const scheduledMessages: Array<{message: string, delay: number, template?: string}> = [];
 
       // Only send automated SMS if there's a specific reason to do so
       // First, check if ElevenLabs has recommended a specific follow-up
@@ -116,11 +128,20 @@ export class EnhancedSMSAutomationService {
         };
         
         const recommendedMessage = elevenLabsTemplates[insights.followUpNeeded];
-        if (recommendedMessage) {
+        const templateType = insights.followUpNeeded.includes('hours') ? 'store_hours' :
+                            insights.followUpNeeded.includes('directions') ? 'directions' : 'general';
+        
+        // Check if we've recently sent this type of message
+        const alreadySent = validRecentMessages.some((msg: any) => msg.template === templateType);
+        
+        if (recommendedMessage && !alreadySent) {
           scheduledMessages.push({
             message: recommendedMessage(),
-            delay: insights.followUpNeeded.includes('manager') ? 0 : 2 * 60 * 1000 // Immediate for escalations
+            delay: insights.followUpNeeded.includes('manager') ? 0 : 2 * 60 * 1000, // Immediate for escalations
+            template: templateType
           });
+        } else if (alreadySent) {
+          logger.info(`Skipping ${templateType} message - already sent recently for lead ${session.lead_id}`);
         }
       }
       
@@ -152,10 +173,21 @@ export class EnhancedSMSAutomationService {
           for (const template of sortedTemplates) {
             if (template.condition(insights, transcript)) {
               const message = template.message(insights);
-              scheduledMessages.push({
-                message,
-                delay: template.delay || 0
-              });
+              const templateType = message.includes('hours') ? 'store_hours' :
+                                 message.includes('Directions') ? 'directions' : 'general';
+              
+              // Check if we've recently sent this type of message
+              const alreadySent = validRecentMessages.some((msg: any) => msg.template === templateType);
+              
+              if (!alreadySent) {
+                scheduledMessages.push({
+                  message,
+                  delay: template.delay || 0,
+                  template: templateType
+                });
+              } else {
+                logger.info(`Skipping ${templateType} template message - already sent recently for lead ${session.lead_id}`);
+              }
               
               // Only send ONE message for actionable triggers
               break;
@@ -166,22 +198,28 @@ export class EnhancedSMSAutomationService {
         }
       }
 
-      // Send scheduled messages
+      // Send scheduled messages and update automation state
+      const sentMessages: Array<{template: string, sent_at: string}> = [];
+      
       for (const scheduled of scheduledMessages) {
-        if (scheduled.delay > 0) {
-          setTimeout(async () => {
-            await this.sendSMS(
-              lead.phone_number,
-              scheduled.message,
-              session.organization_id
-            );
-          }, scheduled.delay);
-        } else {
+        const sendMessage = async () => {
           await this.sendSMS(
             lead.phone_number,
             scheduled.message,
             session.organization_id
           );
+          
+          // Track sent message
+          sentMessages.push({
+            template: scheduled.template || 'general',
+            sent_at: new Date().toISOString()
+          });
+        };
+        
+        if (scheduled.delay > 0) {
+          setTimeout(sendMessage, scheduled.delay);
+        } else {
+          await sendMessage();
         }
         
         // Add delay between immediate messages
@@ -190,11 +228,23 @@ export class EnhancedSMSAutomationService {
         }
       }
 
+      // Update SMS automation state in cache
+      if (sentMessages.length > 0) {
+        const updatedAutomationState = {
+          recentMessages: [...validRecentMessages, ...sentMessages],
+          lastAutomationRun: new Date().toISOString(),
+          totalMessagesSent: (cachedAutomationState?.totalMessagesSent || 0) + sentMessages.length
+        };
+        
+        await redisService.cacheSMSAutomationState(session.lead_id, updatedAutomationState);
+      }
+
       logger.info('Smart SMS automation triggered:', {
         sessionId: session.id,
         messageCount: scheduledMessages.length,
         classification: insights.classification,
-        triggers: insights.triggers
+        triggers: insights.triggers,
+        sentMessageTemplates: sentMessages.map(m => m.template)
       });
 
     } catch (error) {
