@@ -567,7 +567,48 @@
             "supports_text_only": true,
             "language_presets": {}
         },
-        "data_collection": {},
+        "data_collection": {
+            "call_successful": {
+                "enabled": true,
+                "type": "boolean"
+            },
+            "user_satisfaction": {
+                "enabled": true,
+                "type": "string"
+            },
+            "call_summary": {
+                "enabled": true,
+                "type": "string"
+            },
+            "customer_intent": {
+                "enabled": true,
+                "type": "string"
+            },
+            "transcript_quality": {
+                "enabled": true,
+                "type": "string"
+            },
+            "conversation_duration": {
+                "enabled": true,
+                "type": "number"
+            },
+            "customer_name": {
+                "enabled": true,
+                "type": "string"
+            },
+            "bike_interest": {
+                "enabled": true,
+                "type": "string"
+            },
+            "phone_number": {
+                "enabled": true,
+                "type": "string"
+            },
+            "lead_status": {
+                "enabled": true,
+                "type": "string"
+            }
+        },
         "overrides": {
             "conversation_config_override": {
                 "tts": {

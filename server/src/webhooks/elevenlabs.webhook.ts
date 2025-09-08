@@ -541,9 +541,8 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     
     logger.info('Returning dynamic variables for conversation', { lead_id: lead.id });
     
-    // Build proper response structure for ElevenLabs
+    // Build proper response structure for ElevenLabs (just dynamic variables, no type field)
     const response = {
-      type: 'conversation_initiation_client_data',
       dynamic_variables: {
         ...dynamicVariables,
         // Add extracted customer name if available (check recent conversations for name)
@@ -558,14 +557,35 @@ export async function handleConversationInitiation(req: Request, res: Response) 
         greeting_opener: dynamicVariables.greeting_opener || (lead.customer_name ? `Hey ${lead.customer_name}!` : "Hey there!"),
         greeting_variation: dynamicVariables.greeting_variation || "How can I help you"
       }
-      // Removed conversation_config_override as first_message is not allowed
-      // The agent configuration should be done in ElevenLabs dashboard
     };
     
     res.json(response);
   } catch (error) {
     logger.error('Error in conversation initiation:', error);
-    res.status(500).json({ error: 'Failed to initialize conversation' });
+    
+    // Return minimal dynamic variables on error to prevent call failure
+    const fallbackResponse = {
+      dynamic_variables: {
+        conversation_context: '',
+        previous_summary: 'New customer',
+        customer_name: '',
+        customer_phone: '',
+        lead_status: 'new',
+        bike_interest: '{}',
+        organization_name: 'BICI Bike Store',
+        business_hours: getTodaysHours(),
+        current_datetime: new Date().toLocaleString('en-US', {
+          timeZone: 'America/Vancouver',
+          weekday: 'long',
+          timeStyle: 'short'
+        }),
+        dynamic_greeting: 'Hi there! Thanks for calling BICI, how can I help you today?',
+        has_customer_name: 'false'
+      }
+    };
+    
+    logger.info('Returning fallback response to prevent call failure');
+    res.json(fallbackResponse);
   }
 }
 
