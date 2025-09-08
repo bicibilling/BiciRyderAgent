@@ -226,8 +226,8 @@ async function generateElevenLabsTextResponse(
           last_interaction_date: lead.last_contact_at || new Date().toISOString(),
           customer_sentiment: lead.sentiment || 'neutral',
           
-          // CRITICAL: Sanitize dynamic greeting to prevent JSON issues
-          dynamic_greeting: String(dynamicGreeting || 'Hi there! Thanks for texting BICI!').replace(/[^\w\s.,!?()-]/g, ''),
+          // CRITICAL: Use a simple SMS greeting - not the full voice greeting
+          dynamic_greeting: `Hi ${(lead.customer_name || '').split(' ')[0] || 'there'}! I'm Ryder from BICI Bike Store. How can I help you today?`,
           
           // Add greeting context (sanitized)
           ...Object.entries(greetingContext || {}).reduce((acc, [key, value]) => {
