@@ -194,14 +194,14 @@ async function generateElevenLabsTextResponse(
       }
     }, timeoutMs);
 
-    ws.on('open', () => {
+    ws.on('open', async () => {
       logger.info('ElevenLabs WebSocket connected for SMS');
       
       // Generate greeting context for dynamic first message
       const greetingContext = generateGreetingContext(lead);
       
-      // Create the complete dynamic greeting that the agent expects using the comprehensive function
-      const dynamicGreeting = createDynamicGreeting(lead, new Date().toISOString(), new Date().toLocaleDateString('en-US', { weekday: 'long' }), getTodaysHours());
+      // Create the complete dynamic greeting that the agent expects using the comprehensive function (AWAIT THE PROMISE!)
+      const dynamicGreeting = await createDynamicGreeting(lead, new Date().toISOString(), new Date().toLocaleDateString('en-US', { weekday: 'long' }), getTodaysHours());
       
       // Send conversation initialization - fixed format to prevent "invalid message" error
       const initMessage = {
