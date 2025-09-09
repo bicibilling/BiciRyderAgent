@@ -67,9 +67,16 @@ function App() {
       case 'sms_sent':
       case 'conversation_user':
       case 'conversation_agent':
+      case 'lead_updated':  // Listen for lead updates (like customer name)
         // Reload data on important events
         loadLeads();
         loadStats();
+        
+        // If the updated lead is currently selected, update it immediately
+        if (data.type === 'lead_updated' && data.lead_id && selectedLead?.id === data.lead_id) {
+          // Update the selected lead with new data
+          setSelectedLead(prev => prev ? {...prev, customer_name: data.customer_name, ...data.updates} : null);
+        }
         break;
       default:
         break;
