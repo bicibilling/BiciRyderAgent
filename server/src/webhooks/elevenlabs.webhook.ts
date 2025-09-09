@@ -808,12 +808,19 @@ export async function handlePostCall(req: Request, res: Response) {
                          metadata?.conversation_initiation_source === 'widget';
         
         if (isWebCall) {
-          // Create or get a web user lead
+          // Create a short identifier for web users (max 20 chars for phone field)
+          // Use last 8 chars of conversation ID or user ID for uniqueness
+          const userId = conversation_initiation_client_data?.user_id || sessionId || 'unknown';
+          const shortId = userId.slice(-8); // Take last 8 characters
+          const webPhone = `web-${shortId}`.substring(0, 20); // Ensure max 20 chars
+          
+          logger.info('Creating web user lead with phone identifier:', webPhone);
+          
           lead = await leadService.findOrCreateLead(
-            `web-${conversation_initiation_client_data?.user_id || sessionId}`,
+            webPhone,
             organizationId
           );
-          logger.info('Created/found web user lead:', { lead_id: lead.id });
+          logger.info('Created/found web user lead:', { lead_id: lead.id, phone: webPhone });
         }
       }
       
