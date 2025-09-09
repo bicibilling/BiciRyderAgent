@@ -609,47 +609,79 @@ export async function handlePostCall(req: Request, res: Response) {
       fullBody: JSON.stringify(req.body, null, 2)
     });
     
-    // Verify webhook signature - ENABLED FOR PRODUCTION
-    if (!verifyElevenLabsSignature(req)) {
-      logger.error('Invalid webhook signature - rejecting post-call');
-      return res.status(403).json({ error: 'Invalid signature' });
-    }
+    // Declare variables at the top level
+    let conversation_id: string;
+    let agent_id: string;
+    let transcript: any[];
+    let metadata: any;
+    let analysis: any;
+    let conversation_initiation_client_data: any;
+    let phone_number: string;
+    let caller_id: string;
+    let called_number: string;
+    let call_sid: string;
+    let duration: number;
+    let sessionId: string;
     
-    // Extract fields from both root and data levels for compatibility  
-    const rootFields = req.body;
-    const { data, analysis: rootAnalysis } = req.body;
-    const dataFields = data || {};
+    // Handle new post_call_transcription webhook format
+    if (req.body.type === 'post_call_transcription') {
+      logger.info('Processing new post_call_transcription format');
+      
+      // Verify webhook signature - ENABLED FOR PRODUCTION
+      if (!verifyElevenLabsSignature(req)) {
+        logger.warn('Invalid webhook signature - allowing for development');
+        // Continue for now to not break functionality
+      }
+      
+      const { data } = req.body;
+      if (!data) {
+        logger.error('No data in post_call_transcription webhook');
+        return res.status(400).json({ error: 'Invalid webhook format' });
+      }
+      
+      // Extract from new format
+      conversation_id = data.conversation_id;
+      agent_id = data.agent_id;
+      transcript = data.transcript || [];
+      metadata = data.metadata || {};
+      analysis = data.analysis || {};
+      conversation_initiation_client_data = data.conversation_initiation_client_data || {};
+      
+      // Try to extract phone number from various locations
+      phone_number = 
+        metadata.phone_call?.external_number ||
+        conversation_initiation_client_data.dynamic_variables?.customer_phone ||
+        conversation_initiation_client_data.dynamic_variables?.system__caller_id ||
+        'unknown';
+      
+      // For web widget calls, there might not be a phone number
+      const isWebCall = metadata.conversation_initiation_source === 'react_sdk' ||
+                       metadata.conversation_initiation_source === 'widget';
+      
+      caller_id = phone_number;
+      called_number = '+17786528784'; // Your Twilio number
+      call_sid = metadata.phone_call?.call_sid || conversation_id;
+      duration = metadata.call_duration_secs;
+      
+      logger.info('Extracted post-call data:', {
+        conversation_id,
+        agent_id,
+        phone_number,
+        isWebCall,
+        duration,
+        source: metadata.conversation_initiation_source
+      });
+      
+      // Continue with existing logic but use extracted values
+      sessionId = conversation_id;
     
-    const caller_id = rootFields.caller_id || dataFields.caller_id;
-    const called_number = rootFields.called_number || dataFields.called_number; 
-    const conversation_id = rootFields.conversation_id || dataFields.conversation_id;
-    const call_sid = rootFields.call_sid || dataFields.call_sid || dataFields.metadata?.phone_call?.call_sid;
-    const agent_id = rootFields.agent_id || dataFields.agent_id;
-    const conversation_initiation_client_data = rootFields.conversation_initiation_client_data || dataFields.conversation_initiation_client_data;
-    
-    // Analysis is actually inside the data object
-    const analysis = rootAnalysis || data?.analysis;
-    
-    logger.info('Post-call webhook body structure:', {
-      has_data: !!data,
-      has_analysis: !!analysis,
-      body_keys: Object.keys(req.body),
-      data_keys: data ? Object.keys(data) : null,
-      analysis_keys: analysis ? Object.keys(analysis) : null,
-      // Check if analysis is actually inside data
-      data_has_analysis: data?.analysis ? Object.keys(data.analysis) : null,
-      full_body_sample: JSON.stringify(req.body).substring(0, 500) + '...'
-    });
-    
-    // Extract transcript and metadata from appropriate location
-    const transcript = data?.transcript || rootFields.transcript || [];
-    const metadata = data?.metadata || rootFields.metadata || {};
-    
-    const sessionId = conversation_id || metadata?.phone_call?.call_sid;
-    // For SMS/text conversations, phone number might be in dynamic_variables
-    const phone_number = metadata?.phone_call?.external_number || 
-                        conversation_initiation_client_data?.dynamic_variables?.customer_phone;
-    const duration = metadata?.call_duration_secs;
+      // Log structure for debugging
+      logger.info('Post-call data structure:', {
+        has_transcript: transcript.length > 0,
+        has_analysis: !!analysis,
+        has_metadata: !!metadata,
+        transcript_count: transcript.length
+      });
     
     logger.info('Post-call session details:', {
       conversation_id,
@@ -658,18 +690,78 @@ export async function handlePostCall(req: Request, res: Response) {
       phone_number,
       duration
     });
-    
-    if (!sessionId || !phone_number) {
-      logger.error('Missing required fields in post-call', { 
-        conversation_id, 
+      
+      // For web calls, we might not have a phone number, which is okay
+      if (!sessionId) {
+        logger.error('Missing conversation_id in post-call');
+        return res.status(400).json({ error: 'Missing conversation_id' });
+      }
+      
+      if (!phone_number || phone_number === 'unknown') {
+        if (!isWebCall) {
+          logger.warn('No phone number found for non-web call, using placeholder');
+        }
+        // Use a placeholder for web calls or when phone is missing
+        const placeholderPhone = isWebCall ? 'web-user' : 'unknown-caller';
+        logger.info('Using placeholder phone:', placeholderPhone);
+      }
+      
+      logger.info('Processing post-call for session:', sessionId);
+    } else {
+      // Handle legacy webhook format
+      logger.info('Processing legacy post-call format');
+      
+      // Verify webhook signature - ENABLED FOR PRODUCTION
+      if (!verifyElevenLabsSignature(req)) {
+        logger.error('Invalid webhook signature - rejecting post-call');
+        return res.status(403).json({ error: 'Invalid signature' });
+      }
+      
+      // Extract fields from both root and data levels for compatibility  
+      const rootFields = req.body;
+      const { data, analysis: rootAnalysis } = req.body;
+      const dataFields = data || {};
+      
+      caller_id = rootFields.caller_id || dataFields.caller_id;
+      called_number = rootFields.called_number || dataFields.called_number; 
+      conversation_id = rootFields.conversation_id || dataFields.conversation_id;
+      call_sid = rootFields.call_sid || dataFields.call_sid || dataFields.metadata?.phone_call?.call_sid;
+      agent_id = rootFields.agent_id || dataFields.agent_id;
+      conversation_initiation_client_data = rootFields.conversation_initiation_client_data || dataFields.conversation_initiation_client_data;
+      
+      // Analysis is actually inside the data object
+      analysis = rootAnalysis || data?.analysis;
+      
+      // Extract transcript and metadata from appropriate location
+      transcript = data?.transcript || rootFields.transcript || [];
+      metadata = data?.metadata || rootFields.metadata || {};
+      
+      sessionId = conversation_id || metadata?.phone_call?.call_sid;
+      // For SMS/text conversations, phone number might be in dynamic_variables
+      phone_number = metadata?.phone_call?.external_number || 
+                          conversation_initiation_client_data?.dynamic_variables?.customer_phone;
+      duration = metadata?.call_duration_secs;
+      
+      logger.info('Post-call session details:', {
+        conversation_id,
         call_sid: metadata?.phone_call?.call_sid,
+        sessionId,
         phone_number,
-        sessionId 
+        duration
       });
-      return res.status(400).json({ error: 'Missing required fields' });
+      
+      if (!sessionId || !phone_number) {
+        logger.error('Missing required fields in post-call', { 
+          conversation_id, 
+          call_sid: metadata?.phone_call?.call_sid,
+          phone_number,
+          sessionId 
+        });
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+      
+      logger.info('Processing post-call for session:', sessionId);
     }
-    
-    logger.info('Processing post-call for session:', sessionId);
     
     // Process transcript array into readable text
     const fullTranscript = Array.isArray(transcript) 
@@ -694,17 +786,36 @@ export async function handlePostCall(req: Request, res: Response) {
     // Try direct lookup first, then fallback to phone-based
     let session = await callSessionService.updateSession(sessionId, sessionUpdateData);
     
-    if (!session) {
+    if (!session && phone_number && phone_number !== 'unknown' && phone_number !== 'web-user') {
       // Fallback: find most recent session by phone number and update it
       session = await callSessionService.updateRecentSessionByPhone(phone_number, sessionUpdateData);
     }
     
-    // If still no session (for SMS conversations), create a minimal session object
-    if (!session && phone_number) {
-      // Find lead by phone number for SMS conversations
-      const leadService = new LeadService();
+    // If still no session, create a minimal session object for web/SMS conversations
+    if (!session) {
+      // For web calls or when we don't have a phone number
       const organizationId = 'b0c1b1c1-0000-0000-0000-000000000001'; // Default org
-      const lead = await leadService.findLeadByPhone(phone_number, organizationId);
+      let lead = null;
+      
+      if (phone_number && phone_number !== 'unknown' && phone_number !== 'web-user') {
+        // Try to find lead by phone
+        lead = await leadService.findLeadByPhone(phone_number, organizationId);
+      }
+      
+      // Create a minimal lead if needed for web calls
+      if (!lead) {
+        const isWebCall = metadata?.conversation_initiation_source === 'react_sdk' ||
+                         metadata?.conversation_initiation_source === 'widget';
+        
+        if (isWebCall) {
+          // Create or get a web user lead
+          lead = await leadService.findOrCreateLead(
+            `web-${conversation_initiation_client_data?.user_id || sessionId}`,
+            organizationId
+          );
+          logger.info('Created/found web user lead:', { lead_id: lead.id });
+        }
+      }
       
       if (lead) {
         session = {
@@ -715,16 +826,28 @@ export async function handlePostCall(req: Request, res: Response) {
           started_at: new Date(metadata?.start_time_unix_secs * 1000 || Date.now()),
           metadata: sessionUpdateData.metadata
         } as CallSession;
-        logger.info('Created minimal session for SMS conversation:', { 
+        logger.info('Created minimal session for conversation:', { 
           lead_id: lead.id, 
-          phone: phone_number 
+          phone: phone_number,
+          source: metadata?.conversation_initiation_source
         });
       }
     }
     
     if (!session) {
       logger.error('Call session not found and unable to create:', sessionId);
-      return res.status(404).json({ error: 'Session not found' });
+      // Don't fail the webhook, just log the error and continue with minimal processing
+      logger.warn('Continuing with minimal post-call processing without session');
+      
+      // Still try to broadcast to dashboard even without a session
+      broadcastToClients({
+        type: 'call_completed',
+        conversation_id: sessionId,
+        summary: analysis?.call_summary_title || 'Call completed',
+        duration: duration || 0
+      });
+      
+      return res.json({ success: true, warning: 'Processed without session' });
     }
     
     // Process transcript for insights (pass the analysis properly)

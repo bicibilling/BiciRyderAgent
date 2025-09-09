@@ -16,6 +16,15 @@
                     "config": "agent_configs/prod/bike_agent_new.json"
                 }
             }
+        },
+        {
+            "name": "BICI Unified Agent",
+            "environments": {
+                "prod": {
+                    "config": "agent_configs/prod/bici_unified_agent.json",
+                    "agent_id": "agent_6801k4r2aegae1gavzmrmy5qdap4"
+                }
+            }
         }
     ]
 }

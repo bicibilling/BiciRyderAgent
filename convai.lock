@@ -17,6 +17,12 @@
                 "id": "agent_3801k4e43akwffn88rhkjq9z97nd",
                 "hash": "1d27aef4276b5d204e152e45eff3ffd4"
             }
+        },
+        "BICI Unified Agent": {
+            "prod": {
+                "id": "agent_6801k4r2aegae1gavzmrmy5qdap4",
+                "hash": "pending_sync"
+            }
         }
     },
     "tools": {}

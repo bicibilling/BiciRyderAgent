@@ -582,9 +582,7 @@
           "voicemail_detection": null
         },
         "mcp_server_ids": [],
-        "native_mcp_server_ids": [
-          "OyNiXwp5cYZBZbOKbpk8"
-        ],
+        "native_mcp_server_ids": [],
         "knowledge_base": [],
         "custom_llm": null,
         "ignore_default_personality": false,
