@@ -18,8 +18,7 @@ app.use('/api/webhooks/twilio', require('./webhooks/twilio'));
 app.use('/api/tools', require('./routes/tools'));
 app.use('/api/agent', require('./routes/agent'));
 app.use('/api/human-control', require('./routes/humanControl'));
-app.use('/api/shopify', require('./routes/shopify'));
-app.use('/api/orders', require('./routes/orders'));
+app.use('/api/mcp', require('./routes/mcp'));
 
 // Health check
 app.get('/health', (req, res) => {
