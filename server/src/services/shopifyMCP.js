@@ -14,8 +14,16 @@ class ShopifyMCPClient {
     try {
       console.log('🔌 Connecting to Shopify MCP server...');
       
-      // Path to the MCP server
-      const mcpServerPath = path.join(__dirname, '../../mcp-servers/shopify/index.js');
+      // Path to the MCP server - use absolute path
+      const mcpServerPath = path.resolve(__dirname, '../../mcp-servers/shopify/index.js');
+      
+      console.log('🔍 MCP server path:', mcpServerPath);
+      
+      // Check if the file exists
+      const fs = require('fs');
+      if (!fs.existsSync(mcpServerPath)) {
+        throw new Error(`MCP server file not found at: ${mcpServerPath}`);
+      }
       
       // Spawn the MCP server process
       const serverProcess = spawn('node', [mcpServerPath], {
