@@ -101,7 +101,7 @@
                 "disable_interruptions": false,
                 "force_pre_tool_speech": false,
                 "api_schema": {
-                    "url": "https://bici-voice-agent.onrender.com/api/shopify/search",
+                    "url": "https://bici-ryder-api.onrender.com/api/shopify/search",
                     "method": "POST",
                     "request_headers": {
                         "Content-Type": "application/json"
@@ -134,7 +134,7 @@
                 "disable_interruptions": false,
                 "force_pre_tool_speech": false,
                 "api_schema": {
-                    "url": "https://bici-voice-agent.onrender.com/api/shopify/policies",
+                    "url": "https://bici-ryder-api.onrender.com/api/shopify/policies",
                     "method": "POST",
                     "request_headers": {
                         "Content-Type": "application/json"
@@ -159,7 +159,7 @@
                 "disable_interruptions": false,
                 "force_pre_tool_speech": false,
                 "api_schema": {
-                    "url": "https://bici-voice-agent.onrender.com/api/orders/lookup",
+                    "url": "https://bici-ryder-api.onrender.com/api/orders/lookup",
                     "method": "POST",
                     "request_headers": {
                         "Content-Type": "application/json"
