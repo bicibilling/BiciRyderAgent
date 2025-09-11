@@ -26,8 +26,9 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Increase body size limits for ElevenLabs webhooks with large transcripts
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static files (dashboard)
 app.use(express.static(path.join(__dirname, '../public')));
