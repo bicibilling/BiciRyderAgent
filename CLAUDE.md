@@ -332,3 +332,161 @@ interface Lead {
 - **Database**: Uses Supabase with RLS policies for multi-tenancy
 - **Deployment**: Uses Render.com with `render-build.sh` for atomic deployments
 - **Static Assets**: Client built and served from `server/public/`
+
+## System Improvement Plan (Next Steps)
+
+### Current System State Analysis
+
+**✅ IMPLEMENTED:**
+- **2-Layer Cache System**: Redis cache + in-memory Map cache (NOT 3-layer LRU)
+- **Supabase Long-Term Memory**: Complete conversation history, lead profiles, summaries
+- **Context Building**: Sophisticated voice/SMS context with zero-latency injection
+- **Performance**: ~35ms webhook response (from 200ms), 60-80% DB query reduction
+
+**❌ NOT IMPLEMENTED:**
+- **3-Layer LRU Cache**: Uses TTL strategy instead
+- **SMS Conversation ID Persistence**: New WebSocket per message (no continuity)
+- **Conversation ID Reuse**: SMS sessions don't maintain ElevenLabs conversation state
+
+### 🎯 Phase 1: SMS Conversation ID Persistence (Priority: HIGH)
+
+**Goal**: Maintain ElevenLabs conversation context across multiple SMS messages
+
+**Database Schema Addition:**
+```sql
+CREATE TABLE IF NOT EXISTS sms_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID REFERENCES organizations(id),
+  lead_id UUID REFERENCES leads(id),
+  elevenlabs_conversation_id VARCHAR(255) UNIQUE,
+  phone_number VARCHAR(20) NOT NULL,
+  status VARCHAR(50) DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  last_message_at TIMESTAMPTZ DEFAULT now(),
+  expires_at TIMESTAMPTZ DEFAULT (now() + interval '30 minutes'),
+  metadata JSONB DEFAULT '{}'::jsonb,
+  INDEX idx_sms_sessions_lead (lead_id),
+  INDEX idx_sms_sessions_phone (phone_number)
+);
+```
+
+**Code Changes:**
+- Modify `twilio.webhook.ts` to check for existing SMS sessions
+- Store conversation_id after first ElevenLabs response
+- Cache session IDs in Redis for fast lookup
+- 30-minute session expiry to prevent stale conversations
+
+**Safety Measures:**
+- Feature flag: `ENABLE_SMS_SESSION_PERSISTENCE=true`
+- Fallback to new conversation if session lookup fails
+- Additive changes only - won't break existing flow
+
+### 🎯 Phase 2: Cache TTL Optimization (Priority: MEDIUM)
+
+**Goal**: Reduce database load while maintaining data freshness
+
+**Environment Variables:**
+```bash
+REDIS_TTL_CONTEXT=300     # Increase from 60s to 5min
+REDIS_TTL_CONVERSATIONS=300  # Increase from 120s to 5min  
+REDIS_TTL_SUMMARIES=600   # Increase from 300s to 10min
+```
+
+**Smart Cache Warming:**
+- Preload frequently accessed lead data
+- Warm cache during conversation initiation
+- Background refresh for hot data
+
+### 🎯 Phase 3: Metrics & Monitoring (Priority: HIGH)
+
+**Goal**: Visibility into cache performance and system health
+
+**New Metrics Service:**
+```typescript
+interface SystemMetrics {
+  cacheHitRate: number;
+  avgWebhookLatency: number;
+  smsSessionReuseRate: number;
+  dbQueryReduction: number;
+  errorRate: number;
+}
+```
+
+**Monitoring Endpoints:**
+- `/api/monitoring/metrics` - Real-time performance data
+- `/api/monitoring/cache` - Cache hit/miss statistics
+- `/api/monitoring/sms-sessions` - SMS session reuse metrics
+
+**Dashboard Integration:**
+- Cache performance graphs
+- SMS conversation continuity tracking
+- Webhook latency monitoring
+
+### 🎯 Phase 4: Session Cleanup & Maintenance (Priority: LOW)
+
+**Goal**: Prevent database bloat and maintain performance
+
+**Automated Cleanup:**
+- Hourly job to remove expired SMS sessions
+- Archive old conversation summaries
+- Cache size monitoring and alerts
+
+### 📋 Implementation Timeline
+
+**Week 1: Preparation**
+- Deploy database migration for `sms_sessions`
+- Add environment variables (features OFF)
+- Deploy passive metrics collection
+
+**Week 2: SMS Session Persistence**
+- Enable for 10% traffic → monitor → 100% rollout
+- Target: >80% session reuse rate for conversations <30min
+
+**Week 3: Cache Optimization**
+- Gradual TTL increases with monitoring
+- Target: >70% cache hit rate improvement
+
+**Week 4: Full Deployment**
+- Enable all features
+- Performance documentation
+- Set up alerting thresholds
+
+### 🔄 Rollback Strategy
+
+Each phase is independently reversible:
+1. **SMS Sessions**: `ENABLE_SMS_SESSION_PERSISTENCE=false`
+2. **Cache TTLs**: Revert environment variables
+3. **Metrics**: Remove instrumentation (no functional impact)
+4. **Database**: Keep tables or migrate down if needed
+
+### 📊 Success Metrics
+
+- **SMS Session Reuse**: >80% for conversations within 30min
+- **Cache Hit Rate**: >70% for lead lookups
+- **Webhook Latency**: Maintain <50ms p95
+- **Context Continuity**: Customer feedback improvements
+- **Error Rate**: No increase from baseline
+
+### 🧪 Testing Requirements
+
+**Unit Tests:**
+- SMS session creation/retrieval logic
+- Cache TTL configuration handling
+- Metrics collection accuracy
+
+**Integration Tests:**
+- End-to-end SMS conversation flow with session reuse
+- Cache invalidation on data updates
+- Monitoring endpoint responses
+
+**Load Tests:**
+- 100 concurrent SMS conversations
+- Cache performance under load
+- Memory leak verification
+
+**Manual Verification:**
+- Multi-message SMS conversations from same number
+- Context preservation across messages
+- Metrics dashboard functionality
+
+This plan ensures safe, incremental improvements with comprehensive monitoring and easy rollback capabilities.

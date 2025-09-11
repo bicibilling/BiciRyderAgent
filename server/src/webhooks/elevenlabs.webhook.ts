@@ -489,12 +489,17 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     const greetingContext = generateGreetingContext(lead, isOutbound, previousSummary);
     
     const dynamicVariables: ElevenLabsDynamicVariables = {
-      conversation_context: conversationContext,
-      previous_summary: previousSummary?.summary || "First time caller - no previous interactions",
-      customer_name: lead.customer_name || "",  // Pass existing name if any
+      // Customer info (with length limits like SMS)
+      customer_name: (lead.customer_name || "").substring(0, 50),
       customer_phone: caller_id,
-      lead_status: lead.status,
-      bike_interest: JSON.stringify(lead.bike_interest),
+      lead_status: lead.status || 'new',
+      bike_interest: typeof lead.bike_interest === 'string' ? lead.bike_interest : JSON.stringify(lead.bike_interest || {}),
+      
+      // Conversation context (increased limit to match SMS implementation)
+      conversation_context: (conversationContext || '').substring(0, 1500),
+      previous_summary: (previousSummary?.summary || 'First time caller - no previous interactions').substring(0, 500),
+      
+      // Store info and timing context
       organization_name: organization.name,
       organization_id: organization.id,
       location_address: storeInfo.address,
@@ -502,17 +507,33 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       current_time: currentTime,
       current_day: dayOfWeek,
       current_datetime: `${dayOfWeek} ${currentTime} Pacific Time`,
-      has_customer_name: lead.customer_name ? "true" : "false",  // Flag to check if name exists
-      // Add the complete dynamic greeting that ElevenLabs expects
+      has_customer_name: lead.customer_name ? "true" : "false",
+      
+      // Dynamic greeting (complete and processed)
       dynamic_greeting: dynamicGreeting,
-      // Add greeting context for additional variables
+      
+      // Additional greeting context variables
       ...greetingContext
     };
     
-    logger.info('Dynamic variables for ElevenLabs:', {
+    logger.info('Voice Call Dynamic variables for ElevenLabs:', {
       customer_name: dynamicVariables.customer_name,
       has_customer_name: dynamicVariables.has_customer_name,
-      lead_status: dynamicVariables.lead_status
+      lead_status: dynamicVariables.lead_status,
+      hasCustomerName: !!dynamicVariables.customer_name,
+      hasDynamicGreeting: !!dynamicVariables.dynamic_greeting,
+      contextLength: dynamicVariables.conversation_context?.length || 0,
+      summaryLength: dynamicVariables.previous_summary?.length || 0,
+      bikeInterest: dynamicVariables.bike_interest
+    });
+    
+    // Log the context preview for debugging (like SMS does)
+    logger.info('Voice Call Context Preview:', {
+      conversation_context_preview: dynamicVariables.conversation_context?.substring(0, 200) + '...',
+      previous_summary_preview: dynamicVariables.previous_summary?.substring(0, 100) + '...',
+      lead_status: dynamicVariables.lead_status,
+      bike_interest: dynamicVariables.bike_interest,
+      dynamic_greeting_preview: dynamicVariables.dynamic_greeting?.substring(0, 100) + '...'
     });
     
     // Create call session record
