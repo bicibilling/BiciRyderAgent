@@ -9,13 +9,10 @@ import { logger } from './logger';
  * Get time-based greeting (Pacific Time)
  */
 export function getTimeBasedGreeting(): string {
-  // Get current time in Pacific timezone
-  const pacificTime = new Date().toLocaleString("en-US", {
-    timeZone: "America/Vancouver",
-    hour12: false,
-    hour: "2-digit"
-  });
-  const hour = parseInt(pacificTime.substring(0, 2));
+  // Get current time in Pacific timezone using consistent method
+  const now = new Date();
+  const pacificTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  const hour = pacificTime.getHours();
   
   if (hour < 5) return "Thanks for calling so late!";
   if (hour < 12) return "Good morning!";
@@ -28,13 +25,11 @@ export function getTimeBasedGreeting(): string {
  * Get day-specific context (Pacific Time)
  */
 export function getDayContext(): string {
-  // Get current date in Pacific timezone
-  const pacificDate = new Date().toLocaleString("en-US", {
-    timeZone: "America/Vancouver"
-  });
-  const date = new Date(pacificDate);
-  const day = date.getDay();
-  const hour = date.getHours();
+  // Get current date in Pacific timezone using proper method
+  const now = new Date();
+  const pacificTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  const day = pacificTime.getDay();
+  const hour = pacificTime.getHours();
   
   // Weekend
   if (day === 0 || day === 6) {
@@ -46,9 +41,28 @@ export function getDayContext(): string {
     return "Hope you had a great weekend!";
   }
   
+  // Tuesday
+  if (day === 2) {
+    return "Hope your Tuesday is going great!";
+  }
+  
+  // Wednesday
+  if (day === 3) {
+    return "Hump day! How's your Wednesday going?";
+  }
+  
+  // Thursday
+  if (day === 4) {
+    return "Almost there! How's your Thursday?";
+  }
+  
   // Friday
-  if (day === 5 && hour > 12) {
-    return "Happy Friday!";
+  if (day === 5) {
+    if (hour >= 15) { // 3 PM or later
+      return "Happy Friday! Almost weekend time!";
+    } else {
+      return "Happy Friday!";
+    }
   }
   
   return "";
@@ -139,25 +153,25 @@ export async function createDynamicGreeting(lead?: any, currentTime?: string, da
   
   let greeting = "";
   
-  // Start with time-based greeting
+  // Create a natural, conversational greeting
   if (hasName) {
-    greeting = `${timeGreeting} ${customerName}!`;
+    greeting = `Hey ${customerName}! Thanks for calling BICI.`;
   } else {
-    greeting = `${timeGreeting}`;
+    greeting = `Hey! Thanks for calling BICI.`;
   }
   
-  // Add day context if available
-  if (dayContext) {
-    greeting += ` ${dayContext}`;
-  }
-  
-  // Add store hours if relevant
+  // Add store status in a natural way
   if (businessHours && (businessHours.includes("Closed") || businessHours.includes("Opens at"))) {
-    greeting += ` Just so you know, we're ${businessHours.toLowerCase()}.`;
+    greeting += ` We're actually closed right now but I'm happy to help you out.`;
+  } else {
+    // Add day context for open hours only
+    if (dayContext) {
+      greeting += ` ${dayContext}`;
+    }
   }
   
-  // Add introduction
-  greeting += ` I'm Ryder from BICI Bike Store. How can I help you today?`;
+  // Natural ending
+  greeting += ` What's up?`;
   
   // Cache the generated greeting
   if (leadId) {
