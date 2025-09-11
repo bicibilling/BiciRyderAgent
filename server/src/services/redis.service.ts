@@ -28,7 +28,9 @@ export class RedisService {
     SMS_SESSION: (leadId: string) => `bici:sess:sms:${leadId}`,
     SMS_AUTOMATION_STATE: (leadId: string) => `bici:sms:auto:${leadId}`,
     DASHBOARD_STATS: (orgId: string) => `bici:dashboard:stats:${orgId}`,
-    DASHBOARD_LEADS: (orgId: string) => `bici:dashboard:leads:${orgId}`
+    DASHBOARD_LEADS: (orgId: string) => `bici:dashboard:leads:${orgId}`,
+    // MCP result caching
+    MCP_RESULT: (tool: string, queryHash: string) => `bici:mcp:${tool}:${queryHash}`
   };
 
   // Cache TTL settings (in seconds)
@@ -46,7 +48,8 @@ export class RedisService {
     SMS_SESSIONS: 300,       // 5 minutes (SMS conversations span longer)
     SMS_AUTOMATION: 600,     // 10 minutes (automation state)
     DASHBOARD_STATS: 30,     // 30 seconds (balance freshness with performance)
-    DASHBOARD_LEADS: 60      // 1 minute (lead lists change frequently)
+    DASHBOARD_LEADS: 60,     // 1 minute (lead lists change frequently)
+    MCP_RESULTS: 300         // 5 minutes (product/price data can change)
   };
 
   constructor() {
@@ -697,6 +700,83 @@ export class RedisService {
       },
       () => false,
       `Invalidate dashboard cache for org ${orgId}`
+    );
+  }
+
+  /**
+   * Cache MCP result with query hash
+   */
+  public async cacheMCPResult(tool: string, query: string, result: any): Promise<boolean> {
+    return this.executeWithFallback(
+      async (redis) => {
+        const queryHash = this.createQueryHash(query);
+        const key = RedisService.CACHE_KEYS.MCP_RESULT(tool, queryHash);
+        const cacheData = {
+          query,
+          result,
+          timestamp: Date.now(),
+          tool
+        };
+        await redis.setex(key, RedisService.TTL.MCP_RESULTS, JSON.stringify(cacheData));
+        return true;
+      },
+      () => false,
+      `Cache MCP result for tool ${tool}`
+    );
+  }
+
+  /**
+   * Get cached MCP result by query hash
+   */
+  public async getCachedMCPResult(tool: string, query: string): Promise<any | null> {
+    return this.executeWithFallback(
+      async (redis) => {
+        const queryHash = this.createQueryHash(query);
+        const key = RedisService.CACHE_KEYS.MCP_RESULT(tool, queryHash);
+        const cached = await redis.get(key);
+        if (cached) {
+          const data = JSON.parse(cached);
+          // Add cache metadata
+          return {
+            ...data.result,
+            _cache: {
+              hit: true,
+              age: Date.now() - data.timestamp,
+              tool: data.tool,
+              query: data.query
+            }
+          };
+        }
+        return null;
+      },
+      () => null,
+      `Get cached MCP result for tool ${tool}`
+    );
+  }
+
+  /**
+   * Create hash for MCP query (for consistent cache keys)
+   */
+  private createQueryHash(query: string): string {
+    const crypto = require('crypto');
+    return crypto.createHash('md5').update(JSON.stringify(query)).digest('hex').substring(0, 16);
+  }
+
+  /**
+   * Invalidate all MCP cache (for manual refresh)
+   */
+  public async invalidateMCPCache(): Promise<boolean> {
+    return this.executeWithFallback(
+      async (redis) => {
+        const pattern = `bici:mcp:*`;
+        const keys = await redis.keys(pattern);
+        if (keys.length > 0) {
+          await redis.del(...keys);
+        }
+        return true;
+      },
+      () => false,
+      'Invalidate all MCP cache'
     );
   }
 

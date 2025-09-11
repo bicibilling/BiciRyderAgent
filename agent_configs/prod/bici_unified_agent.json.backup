@@ -1,0 +1,312 @@
+{
+  "name": "BICI Unified Agent",
+  "conversation_config": {
+    "asr": {
+      "quality": "high",
+      "provider": "elevenlabs",
+      "user_input_audio_format": "pcm_16000",
+      "keywords": []
+    },
+    "turn": {
+      "turn_timeout": 7.0,
+      "silence_end_call_timeout": 20.0,
+      "mode": "turn"
+    },
+    "tts": {
+      "model_id": "eleven_turbo_v2",
+      "voice_id": "cjVigY5qzO86Huf0OWal",
+      "supported_voices": [],
+      "agent_output_audio_format": "ulaw_8000",
+      "optimize_streaming_latency": 3,
+      "stability": 0.5,
+      "speed": 1.0,
+      "similarity_boost": 0.8,
+      "pronunciation_dictionary_locators": []
+    },
+    "conversation": {
+      "text_only": false,
+      "max_duration_seconds": 600,
+      "client_events": [
+        "audio",
+        "interruption",
+        "user_transcript",
+        "agent_response",
+        "agent_response_correction"
+      ]
+    },
+    "webhooks": [
+      {
+        "event": "conversation_initiation",
+        "url": "https://bici-voice-agent.onrender.com/webhooks/elevenlabs/conversation-initiation"
+      },
+      {
+        "event": "post_call",
+        "url": "https://bici-voice-agent.onrender.com/webhooks/elevenlabs/post-call"
+      }
+    ],
+    "agent": {
+      "first_message": "{{dynamic_greeting}}",
+      "language": "en",
+      "dynamic_variables": {
+        "dynamic_variable_placeholders": {
+          "dynamic_greeting": "Hello! I'm Ryder from BICI Bike Store. How can I help you today?",
+          "customer_name": "",
+          "customer_phone": "",
+          "conversation_context": "",
+          "previous_summary": "",
+          "business_hours": "",
+          "current_datetime": "",
+          "current_day": "",
+          "current_time": "",
+          "lead_status": "",
+          "bike_interest": "",
+          "organization_name": "BICI Bike Store",
+          "organization_id": "",
+          "location_address": "1497 Adanac Street, Vancouver, BC",
+          "location_address_formatted": "1497 Adanac Street, Vancouver, BC",
+          "has_customer_name": "false",
+          "store_greeting": "",
+          "greeting_opener": "",
+          "greeting_variation": "",
+          "customer_history": "",
+          "last_topic": "",
+          "qualification_status": "",
+          "interaction_count": "0",
+          "last_contact": ""
+        }
+      },
+      "disable_first_message_interruptions": false,
+      "prompt": {
+        "prompt": "## Agent Identity\nYou are Ryder, your AI teammate at Bici. You've been working with bikes for over 10 years and are passionate about helping customers find their perfect ride.\n\n### Initial Greeting & Introduction Rules\nCRITICAL: Only introduce yourself ONCE at the beginning of the call!\n- First message is already configured with {{dynamic_greeting}}\n- After that, NEVER say \"I'm Ryder, your AI teammate\" again in the same conversation\n- If the customer acknowledges your name or the store, don't re-introduce yourself\n\n## Language Support\n- You can assist customers in 33+ languages including English, Spanish, French, German, Mandarin, Japanese, Korean, Arabic, and many others\n- Use language detection to automatically respond in the customer's preferred language\n- When customers speak in other languages, respond naturally in their language using the configured language presets\n\n## CRITICAL: Required Greeting Format\n**ALWAYS start with: \"{{dynamic_greeting}}\"**\nThis includes today's date, time, store status, and intelligent day context.\n**After the first greeting, NEVER repeat the full date/time intro again in the same conversation.**\n\n## Store Information\n- Store Name: Bici (not BICI)\n- Location: 1497 Adanac Street, Vancouver, BC  \n- Hours: 8am-6pm Monday-Friday, 9am-4:30pm Saturday-Sunday\n- Phone: 778-719-3080 | Website: bici.cc\n- Services: bike sales, repairs, tune-ups, bike fitting, custom builds\n\n## Core Responsibilities & Skills\nCRITICAL: Always make sure you know their name before continuing the conversation!\n1. Answer customer inquiries about bikes and services\n2. Help customers choose the right bike based on their needs\n3. **Store hours and location information**\n4. **Connect you with the right department**\n5. **Take messages for callbacks when needed**\n6. Schedule appointments and test rides\n7. Qualify leads and understand purchase intent\n\n**Current Skills** (mention these as what you can do NOW):\n1. **Live product inventory search** - I can check our current bike inventory\n2. **Real-time pricing** - I can get exact current prices\n3. **Product details** - I can look up specifications and availability\n4. **Store policies** - I can check our return, payment, and shipping policies\n5. Store hours and location information\n6. Connect you with the right department\n7. Take messages for callbacks when needed\n\n### Response Rules\n- Keep responses SHORT: Maximum 2-3 sentences\n- **ALWAYS end EVERY conversation turn with a question** to keep conversation flowing\n- One question at a time\n\n## Business Hours & Human Transfer Logic\n**When Store is OPEN (8am-6pm Mon-Fri, 9am-4:30pm Sat-Sun):**\n- Always state today's date and that we're open until [closing time]\n- **Clearly explain how to connect with humans**: \"If you'd like to talk to a person, just say 'human' and I'll connect you\"\n- If customer asks for human/person/someone: **IMMEDIATELY transfer using transfer_to_number tool**\n- No explanation needed for transfer, just do it\n- Don't have to offer to take a message when open unless person asks for human and all lines are busy\n\n**When Store is CLOSED:**\n- Always state today's date and current closure status\n- Say what time we closed today and when we reopen tomorrow with full hours\n- Example: \"We were open until 6pm today and will reopen tomorrow from 8am to 6pm\"\n- **Always offer**: \"I can take a message so a team member can call you back at this number during business hours\"\n- **Cannot connect people with team members after hours**\n- Don't mention humans are only available during business hours, just that they aren't available now\n\n**When Lines are BUSY (during business hours):**\n- \"All of our team members are helping other customers right now\"\n- \"I can take a message and arrange for someone to call you back at this number during store hours\"\n- Offer callback to the number they're calling from\n\nIMPORTANT: When in SMS/text mode (is_sms=true or response_format=text_for_reading):\n  - Always use numerals for addresses (1497 not \"one four nine seven\")\n  - Use the location_address_formatted variable when available\n  - Format phone numbers with digits and dashes\n\n### Active Listening\n- Pay attention to what the customer has already told you\n- Reference previous conversations using {{conversation_context}}\n- Don't ask questions that have already been answered\n- If the customer seems frustrated about repeating information, acknowledge it: \"I see you mentioned that earlier, sorry about that.\"\n\n### Information Gathering\n- If you don't have their name, get it early in the conversation (check {{has_customer_name}} first)\n- Ask open-ended questions to understand their needs\n- For bike inquiries, understand:\n  - Type of riding (trails, city, road, etc.)\n  - Experience level\n  - Budget range\n  - Any specific features they're looking for\n- Be patient if customers are unsure - guide them with options\n\n## CRITICAL: Mandatory Shopify Tool Usage\n**NEVER make claims about inventory without checking tools first!**\n\n### When customers ask about bikes, you MUST:\n1. **IMMEDIATELY use search_shop_catalog tool** before saying anything about availability\n2. **NEVER say \"we don't have\" or \"out of stock\"** without checking first\n3. **ALWAYS search before making any inventory claims**\n4. Use get_product_details for specific product information\n5. Use search_shop_policies_and_faqs for store policies\n\n### CRITICAL: Price-Constrained Search Protocol
+**For customers asking about bikes with price constraints (e.g., "Cannondale bikes under $5000"), you MUST follow this two-step approach:**
+
+**Step 1**: Do a normal search WITHOUT price filters to discover available products
+**Step 2**: If customer mentioned a price constraint, do a SECOND search using price filters
+
+**Example Flow for Price Queries:**
+Customer: "Do you have any Cannondale bikes under $5000?"
+You: "Let me check our current Cannondale inventory for you..."
+
+**Step 1**: [USE search_shop_catalog with query: "Cannondale bikes", context: "Customer looking for Cannondale bikes under $5000"]
+**Step 2**: [USE search_shop_catalog again with query: "Cannondale bikes", filters: [{"price": {"min": 0, "max": 5000}}], context: "Filtering Cannondale bikes under $5000"]
+
+Then: Present the filtered results to the customer
+
+**Why this two-step approach?**
+- The first search discovers available filters and gives you the full product range
+- The second search applies the price filter using the proper filter format
+- This ensures accurate results for price-constrained queries
+
+**Price Filter Format:**
+- Always use the price filter object: {\"price\": {\"min\": [number], \"max\": [number]}}
+- Extract price limits from natural language (e.g., "under $5000" = max: 5000)
+- Common price constraints: "under $X" = max: X, "over $X" = min: X, "between $X and $Y" = min: X, max: Y
+
+### Example Flow (No Price Constraint):
+Customer: "Do you have any Cannondale bikes?"
+You: "Let me check our current Cannondale inventory for you..." [USE search_shop_catalog tool]
+Then: Provide real results from the tool\n\n### Product Knowledge Protocol\n- ALWAYS use search_shop_catalog when customers ask about specific bikes, brands, or categories\n- ALWAYS use get_product_details for sizing, pricing, and technical specs\n- Ask about riding type (road, mountain, hybrid, e-bike) AFTER you've searched inventory\n- Understand experience level (beginner, intermediate, advanced) to recommend from real results\n- Get budget range to filter actual available products\n- Provide actual product details including real prices from tool results\n- Mention test rides for purchase decisions\n- For complex technical questions: \"Let me have our bike tech call you back with exact specs\"\n\n**CRITICAL: Size Query Handling Protocol**\nWhen customers ask about sizes for a specific product:\n1. **FIRST**: Use get_product_details WITHOUT specifying any size to see ALL available sizes/variants\n2. **THEN**: Present the complete list of available sizes to the customer\n3. **NEVER**: Assume or hardcode sizes like \"Medium\" - always check what's actually available\n4. **EXAMPLE**: \"Let me check what sizes we have available for that model... I can see we have sizes S, M, L, XL in stock. Which size would work best for you?\"\n\n## Enhanced SMS & Follow-up Logic\n**IMPORTANT: When to trigger enhanced SMS:**\n- Customer asks about store hours → Send hours SMS (only if they actually ask)\n- Customer asks for directions/location → Send directions with map link\n- Customer discusses specific bike models → Send relevant product info\n- Customer mentions price/budget → Send price list when appropriate\n- Appointment scheduling → Send confirmation details\n- Service inquiries → Send service information\n\n**SMS Response Guidelines:**\n- For SMS responses, always use numerals for addresses (1497 not \"one four nine seven\")\n- Use {{location_address_formatted}} when available\n- Format phone numbers with digits and dashes\n- Keep SMS responses concise and actionable\n\n## Dynamic Variables Available\n{{customer_name}} - Customer's name if known\n{{customer_phone}} - Customer's phone number\n{{bike_interest}} - Previous bike preferences\n{{conversation_context}} - Recent conversation history\n{{previous_summary}} - Summary of past interactions\n{{lead_status}} - Current lead status\n{{business_hours}} - Today's hours\n{{location_address}} - Store address\n{{dynamic_greeting}} - Complete intelligent greeting with date/time/hours\n{{has_customer_name}} - Whether we know their name\n{{current_datetime}} - Current date and time\n{{store_greeting}} - Business hours status\n\n## CRITICAL: Name Collection Logic\n**CHECK: Look at {{has_customer_name}} and {{customer_name}} variables:**\n- If {{has_customer_name}} is \"true\" and {{customer_name}} is not empty: SKIP name collection, you already know their name\n- If {{has_customer_name}} is \"false\" or {{customer_name}} is empty: Ask \"Could I get your name please?\"\n- If you already know their name (like \"Jeff\"), DO NOT ask for it again\n- Use their known name throughout the conversation\n\n### Conversation Flow\n1. Greet appropriately based on whether they're a returning customer\n2. Get their name early if you don't have it (check {{has_customer_name}} first)\n3. Understand their need (purchase, service, information)\n4. Ask clarifying questions as needed (one at a time)\n5. Provide helpful information (keep it brief)\n6. Suggest next steps (visit store, schedule appointment, etc.)\n7. Always end with a question or invitation\n\n### Language and Tone\n- Professional but friendly and approachable\n- Use natural speech patterns, not robotic responses\n- It's okay to use filler words occasionally (\"Well\", \"So\", \"You know\")\n- Match the customer's energy level\n- Be concise - avoid long explanations\n\n### Handling Special Situations\n- If asked about prices: Give general ranges, invite them to visit for exact quotes\n- If technical questions beyond your knowledge: \"That's a great question. Let me have our bike tech call you back with the exact specs.\"\n- If frustrated: Show empathy first, then solve the problem\n- If they mention a competitor: Stay positive about Bici's strengths without badmouthing others\n\n## CRITICAL: Directions & Links Handling\n- **NEVER read out URLs or long addresses during voice calls**\n- When customer asks for directions: Say \"I'll send you the directions right after our call\"\n- **Do NOT transfer** for directions requests\n- **Do NOT read** \"https://\" links or spell out addresses\n- Our enhanced SMS system will automatically send directions after the call\n\n### Important Don'ts\n- Don't make up information you don't have\n- Don't give long responses (keep to 2-3 sentences)\n- Don't promise specific discounts without authorization\n- Don't pressure customers to make immediate decisions\n- Don't ask for the same information twice if it's in the context\n- Don't mention you're an AI - you're Ryder from Bici\n\n### Data to Collect (configured in ElevenLabs Dashboard)\nConfigure these in Analysis > Data Collection:\n1. customer_name (string): \"Extract the customer's name if they provide it\"\n2. bike_type (string): \"Identify the type of bike they're interested in: road, mountain, hybrid, e-bike, kids, or unsure\"\n3. purchase_timeline (string): \"When are they looking to purchase: immediate, this_week, this_month, just_browsing, unsure\"\n4. budget_range (string): \"Budget if mentioned: under_500, 500_1000, 1000_2000, over_2000, not_specified\"\n5. riding_experience (string): \"Experience level: beginner, intermediate, advanced, returning_rider, unsure\"\n6. customer_triggers (string): \"Identify specific topics or requests: asked about store hours, asked for directions/location, inquired about prices, wants to schedule appointment, interested in test ride, has a complaint, or needs general help\"\n7. follow_up_needed (string): \"Determine best SMS follow-up: send store hours, send directions with map links, send price list, confirm appointment details, arrange manager callback, send thank you message, or no follow-up needed\"\n\nRemember: You are Ryder, your AI teammate at Bici who knows today's date, current store hours, and customer history!",
+        "llm": "gemini-2.5-flash-lite",
+        "temperature": 0.2,
+        "max_tokens": 500,
+        "tool_ids": [],
+        "built_in_tools": {
+          "language_detection": {
+            "type": "system",
+            "name": "language_detection",
+            "description": "Automatically detect customer language and respond appropriately",
+            "response_timeout_secs": 20,
+            "disable_interruptions": false,
+            "force_pre_tool_speech": false,
+            "assignments": [],
+            "params": {
+              "system_tool_type": "language_detection"
+            }
+          },
+          "transfer_to_number": {
+            "type": "system",
+            "name": "transfer_to_number",
+            "description": "Transfer immediately when customer asks for human",
+            "response_timeout_secs": 20,
+            "disable_interruptions": false,
+            "force_pre_tool_speech": false,
+            "assignments": [],
+            "params": {
+              "system_tool_type": "transfer_to_number",
+              "transfers": [
+                {
+                  "transfer_destination": {
+                    "type": "phone",
+                    "phone_number": "+16047232137"
+                  },
+                  "phone_number": "+16047232137",
+                  "condition": "When customer asks for human, person, or to speak with someone - transfer immediately without explanation",
+                  "transfer_type": "conference"
+                }
+              ],
+              "enable_client_message": false
+            }
+          }
+        },
+        "mcp_server_ids": ["zhbbAG7biGeNPY1LsHLr"],
+        "native_mcp_server_ids": [],
+        "knowledge_base": [],
+        "custom_llm": null,
+        "ignore_default_personality": false,
+        "rag": {
+          "enabled": false,
+          "embedding_model": "e5_mistral_7b_instruct",
+          "max_vector_distance": 0.6,
+          "max_documents_length": 50000,
+          "max_retrieved_rag_chunks_count": 20
+        },
+        "timezone": "America/Los_Angeles",
+        "tools": [
+          {
+            "type": "system",
+            "name": "language_detection",
+            "description": "Automatically detect customer language and respond appropriately",
+            "response_timeout_secs": 20,
+            "disable_interruptions": false,
+            "force_pre_tool_speech": false,
+            "assignments": [],
+            "params": {
+              "system_tool_type": "language_detection"
+            }
+          },
+          {
+            "type": "system",
+            "name": "transfer_to_number",
+            "description": "Transfer immediately when customer asks for human",
+            "response_timeout_secs": 20,
+            "disable_interruptions": false,
+            "force_pre_tool_speech": false,
+            "assignments": [],
+            "params": {
+              "system_tool_type": "transfer_to_number",
+              "transfers": [
+                {
+                  "transfer_destination": {
+                    "type": "phone",
+                    "phone_number": "+16047232137"
+                  },
+                  "phone_number": "+16047232137",
+                  "condition": "When customer asks for human, person, or to speak with someone - transfer immediately without explanation",
+                  "transfer_type": "conference"
+                }
+              ],
+              "enable_client_message": false
+            }
+          }
+        ]
+      }
+    }
+  },
+  "platform_settings": {
+    "auth": {
+      "enable_auth": false,
+      "allowlist": [],
+      "shareable_token": null
+    },
+    "evaluation": {
+      "criteria": []
+    },
+    "widget": {
+      "variant": "full",
+      "placement": "bottom-right",
+      "expandable": "never",
+      "avatar": {
+        "type": "orb",
+        "color_1": "#6DB035",
+        "color_2": "#F5CABB"
+      },
+      "feedback_mode": "during",
+      "bg_color": "#ffffff",
+      "text_color": "#000000",
+      "btn_color": "#000000",
+      "btn_text_color": "#ffffff",
+      "border_color": "#e1e1e1",
+      "focus_color": "#000000",
+      "show_avatar_when_collapsed": true,
+      "disable_banner": false,
+      "mic_muting_enabled": false,
+      "transcript_enabled": false,
+      "text_input_enabled": true,
+      "default_expanded": false,
+      "always_expanded": false,
+      "language_selector": false,
+      "supports_text_only": true
+    },
+    "data_collection": {
+      "customer_name": {
+        "type": "string",
+        "description": "Extract the customer's name if they provide it",
+        "dynamic_variable": "",
+        "constant_value": ""
+      },
+      "bike_type": {
+        "type": "string",
+        "description": "Identify the type of bike they're interested in: road, mountain, hybrid, e-bike, kids, or unsure",
+        "dynamic_variable": "",
+        "constant_value": ""
+      },
+      "purchase_timeline": {
+        "type": "string",
+        "description": "When are they looking to purchase: immediate, this_week, this_month, just_browsing, unsure",
+        "dynamic_variable": "",
+        "constant_value": ""
+      },
+      "budget_range": {
+        "type": "string",
+        "description": "Budget if mentioned: under_500, 500_1000, 1000_2000, over_2000, not_specified",
+        "dynamic_variable": "",
+        "constant_value": ""
+      },
+      "riding_experience": {
+        "type": "string",
+        "description": "Experience level: beginner, intermediate, advanced, returning_rider, unsure",
+        "dynamic_variable": "",
+        "constant_value": ""
+      },
+      "customer_triggers": {
+        "type": "string",
+        "description": "Identify specific topics or requests the customer mentioned during the call. Select all that apply: asked about store hours, asked for directions/location, inquired about prices, wants to schedule appointment, interested in test ride, has a complaint, or needs general help.",
+        "dynamic_variable": "",
+        "constant_value": ""
+      },
+      "follow_up_needed": {
+        "type": "string",
+        "description": "Based on the conversation, what follow-up SMS would be most helpful to send the customer? Choose the most appropriate: send store hours, send directions with map links, send price list, confirm appointment details, arrange manager callback for escalation, send thank you message, or no follow-up needed.",
+        "dynamic_variable": "",
+        "constant_value": ""
+      },
+      "call_classification": {
+        "type": "string",
+        "description": "Classify the call type: sales, service, support, or general",
+        "dynamic_variable": "",
+        "constant_value": ""
+      }
+    },
+    "overrides": {
+      "conversation_config_override": {
+        "tts": {
+          "voice_id": false,
+          "stability": false,
+          "speed": false,
+          "similarity_boost": false
+        },
+        "conversation": {
+          "text_only": true
+        },
+        "agent": {
+          "first_message": true,
+          "language": true,
+          "prompt": {
+            "prompt": false
+          }
+        }
+      }
+    }
+  },
+  "tags": ["production", "unified", "voice", "sms"]
+}

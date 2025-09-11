@@ -1,6 +1,7 @@
 import fetch from 'node-fetch';
 import { logger } from '../utils/logger';
 import { getShopifyStorefrontMCPConfig } from '../config/shopify.storefront.config';
+import { redisService } from './redis.service';
 
 type Json = any;
 
@@ -38,13 +39,60 @@ export class ShopifyStorefrontMCPService {
 
   async callTool(name: string, args: Record<string, any> = {}, signal?: AbortSignal): Promise<Json> {
     this.ensureConfigured();
+    
+    // Create cache key from tool name and arguments
+    const cacheKey = JSON.stringify({ name, args });
+    
+    // Check cache first (only for specific tools that benefit from caching)
+    const cacheableTools = ['search_shop_catalog', 'get_product_details', 'search_shop_policies_and_faqs'];
+    if (cacheableTools.includes(name)) {
+      try {
+        const cachedResult = await redisService.getCachedMCPResult(name, cacheKey);
+        if (cachedResult) {
+          logger.debug(`MCP cache hit for ${name}`, { 
+            tool: name, 
+            cacheAge: cachedResult._cache?.age 
+          });
+          return cachedResult;
+        }
+      } catch (cacheError) {
+        logger.warn('MCP cache read error, proceeding with API call:', cacheError);
+      }
+    }
+    
+    // Make API call
     const req: JsonRpcRequest = {
       jsonrpc: '2.0',
       method: 'tools/call',
       id: Date.now(),
       params: { name, arguments: args },
     };
-    return this.send<Json>(req, signal);
+    
+    const result = await this.send<Json>(req, signal);
+    
+    // Cache successful results (only for cacheable tools)
+    if (cacheableTools.includes(name) && result && !result.error) {
+      try {
+        await redisService.cacheMCPResult(name, cacheKey, result);
+        logger.debug(`MCP result cached for ${name}`);
+        
+        // Add cache metadata to result
+        const resultWithCache = {
+          ...result,
+          _cache: {
+            hit: false,
+            age: 0,
+            tool: name,
+            query: cacheKey
+          }
+        };
+        return resultWithCache;
+      } catch (cacheError) {
+        logger.warn('MCP cache write error, returning result anyway:', cacheError);
+      }
+    }
+    
+    return result;
   }
 
   private ensureConfigured() {

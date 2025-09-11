@@ -33,6 +33,7 @@ export const elevenLabsConfig = {
 };
 
 // Business hours configuration for BICI
+// Monday-Friday: 8am-6pm, Saturday-Sunday: 9am-4:30pm
 export const businessHours = {
   monday: { open: '08:00', close: '18:00' },
   tuesday: { open: '08:00', close: '18:00' },
@@ -48,7 +49,7 @@ export const storeInfo = {
   name: process.env.STORE_NAME || 'BICI Bike Store',
   address: process.env.STORE_ADDRESS || '1497 Adanac Street, Vancouver, BC',  // Default BICI address
   phone: process.env.TWILIO_PHONE_NUMBER!,
-  email: process.env.STORE_EMAIL || 'info@bici.cc',
+  email: process.env.STORE_EMAIL || 'hello@bici.cc',
   website: process.env.STORE_WEBSITE || 'https://www.bici.cc',
   services: [
     'Bike Sales (Road, Mountain, Hybrid, E-Bikes)',
