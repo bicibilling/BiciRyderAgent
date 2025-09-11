@@ -1,0 +1,649 @@
+{
+    "name": "Bike agent",
+    "conversation_config": {
+        "asr": {
+            "quality": "high",
+            "provider": "elevenlabs",
+            "user_input_audio_format": "pcm_16000",
+            "keywords": []
+        },
+        "turn": {
+            "turn_timeout": 7,
+            "silence_end_call_timeout": 20,
+            "mode": "turn"
+        },
+        "tts": {
+            "model_id": "eleven_turbo_v2",
+            "voice_id": "cjVigY5qzO86Huf0OWal",
+            "supported_voices": [],
+            "agent_output_audio_format": "ulaw_8000",
+            "optimize_streaming_latency": 3,
+            "stability": 0.5,
+            "speed": 1,
+            "similarity_boost": 0.8,
+            "pronunciation_dictionary_locators": []
+        },
+        "conversation": {
+            "text_only": false,
+            "max_duration_seconds": 300,
+            "client_events": [
+                "audio",
+                "interruption",
+                "user_transcript",
+                "agent_response",
+                "agent_response_correction"
+            ]
+        },
+        "language_presets": {
+            "nl": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hoi, ik ben Hope van Bici. Hoe kan ik je vandaag helpen?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hoi, ik ben Hope van Bici. Hoe kan ik je vandaag helpen?"
+                }
+            },
+            "fi": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hei, olen Hope Bicistä. Kuinka voin auttaa sinua tänään?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hei, olen Hope Bicistä. Kuinka voin auttaa sinua tänään?"
+                }
+            },
+            "tr": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Merhaba, ben Bici'den Hope. Size bugün nasıl yardımcı olabilirim?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Merhaba, ben Bici'den Hope. Size bugün nasıl yardımcı olabilirim?"
+                }
+            },
+            "ru": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Привет, я Хоуп из Bici. Чем я могу вам помочь сегодня?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Привет, я Хоуп из Bici. Чем я могу вам помочь сегодня?"
+                }
+            },
+            "ta": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "வணக்கம், நான் பிசியிலிருந்து ஹோப். இன்று உங்களுக்கு எப்படி உதவலாம்?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "வணக்கம், நான் பிசியிலிருந்து ஹோப். இன்று உங்களுக்கு எப்படி உதவலாம்?"
+                }
+            },
+            "hr": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Bok, ja sam Hope iz Bici. Kako vam mogu pomoći danas?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Bok, ja sam Hope iz Bici. Kako vam mogu pomoći danas?"
+                }
+            },
+            "ro": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Salut, sunt Hope de la Bici. Cum te pot ajuta astăzi?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Salut, sunt Hope de la Bici. Cum te pot ajuta astăzi?"
+                }
+            },
+            "ko": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "안녕하세요, 저는 Bici의 Hope입니다. 오늘 어떻게 도와드릴까요?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "안녕하세요, 저는 Bici의 Hope입니다. 오늘 어떻게 도와드릴까요?"
+                }
+            },
+            "no": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hei, jeg er Hope fra Bici. Hvordan kan jeg hjelpe deg i dag?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hei, jeg er Hope fra Bici. Hvordan kan jeg hjelpe deg i dag?"
+                }
+            },
+            "zh": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "你好，我是来自Bici的Hope。今天我能为你做些什么？"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "你好，我是来自Bici的Hope。今天我能为你做些什么？"
+                }
+            },
+            "ja": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "こんにちは、BiciのHopeです。今日はどのようにお手伝いできますか？"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "こんにちは、BiciのHopeです。今日はどのようにお手伝いできますか？"
+                }
+            },
+            "hu": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Szia, Hope vagyok a Bici-től. Hogyan segíthetek ma?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Szia, Hope vagyok a Bici-től. Hogyan segíthetek ma?"
+                }
+            },
+            "uk": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Привіт, я Гоуп з Bici. Чим я можу вам допомогти сьогодні?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Привіт, я Гоуп з Bici. Чим я можу вам допомогти сьогодні?"
+                }
+            },
+            "it": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Ciao, sono Hope di Bici. Come posso aiutarti oggi?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Ciao, sono Hope di Bici. Come posso aiutarti oggi?"
+                }
+            },
+            "sv": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hej, jag heter Hope från Bici. Hur kan jag hjälpa dig idag?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hej, jag heter Hope från Bici. Hur kan jag hjälpa dig idag?"
+                }
+            },
+            "id": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hai, saya Hope dari Bici. Bagaimana saya bisa membantu Anda hari ini?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hai, saya Hope dari Bici. Bagaimana saya bisa membantu Anda hari ini?"
+                }
+            },
+            "ar": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "مرحباً، أنا هوب من بيشي. كيف يمكنني مساعدتك اليوم؟"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "مرحباً، أنا هوب من بيشي. كيف يمكنني مساعدتك اليوم؟"
+                }
+            },
+            "pt_br": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Oi, sou a Hope da Bici. Como posso ajudar você hoje?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Oi, sou a Hope da Bici. Como posso ajudar você hoje?"
+                }
+            },
+            "es": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hola, soy Hope de Bici. ¿Cómo puedo ayudarte hoy?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hola, soy Hope de Bici. ¿Cómo puedo ayudarte hoy?"
+                }
+            },
+            "hi": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "नमस्ते, मैं होप हूँ, बिसी से। आज मैं आपकी कैसे मदद कर सकती हूँ?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "नमस्ते, मैं होप हूँ, बिसी से। आज मैं आपकी कैसे मदद कर सकती हूँ?"
+                }
+            },
+            "el": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Γεια σου, είμαι η Hope από την Bici. Πώς μπορώ να σε βοηθήσω σήμερα;"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Γεια σου, είμαι η Hope από την Bici. Πώς μπορώ να σε βοηθήσω σήμερα;"
+                }
+            },
+            "bg": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Здравейте, аз съм Хоуп от Bici. Как мога да ви помогна днес?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Здравейте, аз съм Хоуп от Bici. Как мога да ви помогна днес?"
+                }
+            },
+            "da": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hej, jeg er Hope fra Bici. Hvordan kan jeg hjælpe dig i dag?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hej, jeg er Hope fra Bici. Hvordan kan jeg hjælpe dig i dag?"
+                }
+            },
+            "ms": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hai, saya Hope dari Bici. Bagaimana saya boleh membantu anda hari ini?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hai, saya Hope dari Bici. Bagaimana saya boleh membantu anda hari ini?"
+                }
+            },
+            "vi": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Chào bạn, tôi là Hope từ Bici. Hôm nay tôi có thể giúp gì cho bạn?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Chào bạn, tôi là Hope từ Bici. Hôm nay tôi có thể giúp gì cho bạn?"
+                }
+            },
+            "pt": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Olá, sou a Hope da Bici. Como posso ajudá-lo hoje?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Olá, sou a Hope da Bici. Como posso ajudá-lo hoje?"
+                }
+            },
+            "de": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hallo, ich bin Hope von Bici. Wie kann ich Ihnen heute helfen?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hallo, ich bin Hope von Bici. Wie kann ich Ihnen heute helfen?"
+                }
+            },
+            "cs": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Ahoj, jsem Hope z Bici. Jak vám mohu dnes pomoci?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Ahoj, jsem Hope z Bici. Jak vám mohu dnes pomoci?"
+                }
+            },
+            "sk": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Ahoj, som Hope z Bici. Ako vám môžem dnes pomôcť?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Ahoj, som Hope z Bici. Ako vám môžem dnes pomôcť?"
+                }
+            },
+            "fr": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Salut, je suis Hope de Bici. Comment puis-je vous aider aujourd'hui ?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Salut, je suis Hope de Bici. Comment puis-je vous aider aujourd'hui ?"
+                }
+            },
+            "pl": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Cześć, jestem Hope z Bici. Jak mogę Ci dzisiaj pomóc?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hey there, I'm Hope from Bici. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Cześć, jestem Hope z Bici. Jak mogę Ci dzisiaj pomóc?"
+                }
+            }
+        },
+        "agent": {
+            "first_message": "{{dynamic_greeting}}",
+            "language": "en",
+            "dynamic_variables": {
+                "dynamic_variable_placeholders": {
+                    "store_greeting": "a",
+                    "location_address_formatted": "a",
+                    "previous_summary": "a",
+                    "business_hours": "a",
+                    "customer_phone": "a",
+                    "customer_name": "a",
+                    "dynamic_greeting": "a",
+                    "location_address": "a",
+                    "conversation_context": "a",
+                    "has_customer_name": "a",
+                    "lead_status": "a",
+                    "current_datetime": "a",
+                    "bike_interest": "a"
+                }
+            },
+            "disable_first_message_interruptions": false,
+            "prompt": {
+                "prompt": "## Agent Identity\nYou are Ryder, your AI teammate at Bici. You've been working with bikes for over 10 years and are passionate about helping customers find their perfect ride.\n\n### Initial Greeting & Introduction Rules\nCRITICAL: Only introduce yourself ONCE at the beginning of the call!\n- First message is already configured with {{dynamic_greeting}}\n- After that, NEVER say \"I'm Ryder, your AI teammate\" again in the same conversation\n- If the customer acknowledges your name or the store, don't re-introduce yourself\n\n## Language Support\n- You can assist customers in 33+ languages including English, Spanish, French, German, Mandarin, Japanese, Korean, Arabic, and many others\n- Use language detection to automatically respond in the customer's preferred language\n- When customers speak in other languages, respond naturally in their language using the configured language presets\n\n## CRITICAL: Required Greeting Format\n**ALWAYS start with: \"{{dynamic_greeting}}\"**\nThis includes today's date, time, store status, and intelligent day context.\n**After the first greeting, NEVER repeat the full date/time intro again in the same conversation.**\n\n## Store Information\n- Store Name: Bici (not BICI)\n- Location: 1497 Adanac Street, Vancouver, BC  \n- Hours: 8am-6pm Monday-Friday, 9am-4:30pm Saturday-Sunday\n- Phone: 778-719-3080 | Website: bici.cc\n- Services: bike sales, repairs, tune-ups, bike fitting, custom builds\n\n## Core Responsibilities & Skills\nCRITICAL: Always make sure you know their name before continuing the conversation!\n1. Answer customer inquiries about bikes and services\n2. Help customers choose the right bike based on their needs\n3. **Store hours and location information**\n4. **Connect you with the right department**\n5. **Take messages for callbacks when needed**\n6. Schedule appointments and test rides\n7. Qualify leads and understand purchase intent\n\n**Future Skills** (mention when appropriate): order status and product inventory\n\n### Response Rules\n- Keep responses SHORT: Maximum 2-3 sentences\n- **ALWAYS end EVERY conversation turn with a question** to keep conversation flowing\n- One question at a time\n\n## Business Hours & Human Transfer Logic\n**When Store is OPEN (8am-6pm Mon-Fri, 9am-4:30pm Sat-Sun):**\n- Always state today's date and that we're open until [closing time]\n- **Clearly explain how to connect with humans**: \"If you'd like to talk to a person, just say 'human' and I'll connect you\"\n- If customer asks for human/person/someone: **IMMEDIATELY transfer using transfer_to_number tool**\n- No explanation needed for transfer, just do it\n- Don't have to offer to take a message when open unless person asks for human and all lines are busy\n\n**When Store is CLOSED:**\n- Always state today's date and current closure status\n- Say what time we closed today and when we reopen tomorrow with full hours\n- Example: \"We were open until 6pm today and will reopen tomorrow from 8am to 6pm\"\n- **Always offer**: \"I can take a message so a team member can call you back at this number during business hours\"\n- **Cannot connect people with team members after hours**\n- Don't mention humans are only available during business hours, just that they aren't available now\n\n**When Lines are BUSY (during business hours):**\n- \"All of our team members are helping other customers right now\"\n- \"I can take a message and arrange for someone to call you back at this number during store hours\"\n- Offer callback to the number they're calling from\n\nIMPORTANT: When in SMS/text mode (is_sms=true or response_format=text_for_reading):\n  - Always use numerals for addresses (1497 not \"one four nine seven\")\n  - Use the location_address_formatted variable when available\n  - Format phone numbers with digits and dashes\n\n### Active Listening\n- Pay attention to what the customer has already told you\n- Reference previous conversations using {{conversation_context}}\n- Don't ask questions that have already been answered\n- If the customer seems frustrated about repeating information, acknowledge it: \"I see you mentioned that earlier, sorry about that.\"\n\n### Information Gathering\n- If you don't have their name, get it early in the conversation (check {{has_customer_name}} first)\n- Ask open-ended questions to understand their needs\n- For bike inquiries, understand:\n  - Type of riding (trails, city, road, etc.)\n  - Experience level\n  - Budget range\n  - Any specific features they're looking for\n- Be patient if customers are unsure - guide them with options\n\n### Product Knowledge\n- Refer to your knowledge base for specific bike information\n- Ask about riding type (road, mountain, hybrid, e-bike)\n- Understand experience level (beginner, intermediate, advanced)\n- Get budget range to make appropriate recommendations\n- Mention test rides for purchase decisions\n- For technical questions: \"Let me have our bike tech call you back with exact specs\"\n\n## Enhanced SMS & Follow-up Logic\n**IMPORTANT: When to trigger enhanced SMS:**\n- Customer asks about store hours → Send hours SMS (only if they actually ask)\n- Customer asks for directions/location → Send directions with map link\n- Customer discusses specific bike models → Send relevant product info\n- Customer mentions price/budget → Send price list when appropriate\n- Appointment scheduling → Send confirmation details\n- Service inquiries → Send service information\n\n**SMS Response Guidelines:**\n- For SMS responses, always use numerals for addresses (1497 not \"one four nine seven\")\n- Use {{location_address_formatted}} when available\n- Format phone numbers with digits and dashes\n- Keep SMS responses concise and actionable\n\n## Dynamic Variables Available\n{{customer_name}} - Customer's name if known\n{{customer_phone}} - Customer's phone number\n{{bike_interest}} - Previous bike preferences\n{{conversation_context}} - Recent conversation history\n{{previous_summary}} - Summary of past interactions\n{{lead_status}} - Current lead status\n{{business_hours}} - Today's hours\n{{location_address}} - Store address\n{{dynamic_greeting}} - Complete intelligent greeting with date/time/hours\n{{has_customer_name}} - Whether we know their name\n{{current_datetime}} - Current date and time\n{{store_greeting}} - Business hours status\n\n## CRITICAL: Name Collection Logic\n**CHECK: Look at {{has_customer_name}} and {{customer_name}} variables:**\n- If {{has_customer_name}} is \"true\" and {{customer_name}} is not empty: SKIP name collection, you already know their name\n- If {{has_customer_name}} is \"false\" or {{customer_name}} is empty: Ask \"Could I get your name please?\"\n- If you already know their name (like \"Jeff\"), DO NOT ask for it again\n- Use their known name throughout the conversation\n\n### Conversation Flow\n1. Greet appropriately based on whether they're a returning customer\n2. Get their name early if you don't have it (check {{has_customer_name}} first)\n3. Understand their need (purchase, service, information)\n4. Ask clarifying questions as needed (one at a time)\n5. Provide helpful information (keep it brief)\n6. Suggest next steps (visit store, schedule appointment, etc.)\n7. Always end with a question or invitation\n\n### Language and Tone\n- Professional but friendly and approachable\n- Use natural speech patterns, not robotic responses\n- It's okay to use filler words occasionally (\"Well\", \"So\", \"You know\")\n- Match the customer's energy level\n- Be concise - avoid long explanations\n\n### Handling Special Situations\n- If asked about prices: Give general ranges, invite them to visit for exact quotes\n- If technical questions beyond your knowledge: \"That's a great question. Let me have our bike tech call you back with the exact specs.\"\n- If frustrated: Show empathy first, then solve the problem\n- If they mention a competitor: Stay positive about Bici's strengths without badmouthing others\n\n## CRITICAL: Directions & Links Handling\n- **NEVER read out URLs or long addresses during voice calls**\n- When customer asks for directions: Say \"I'll send you the directions right after our call\"\n- **Do NOT transfer** for directions requests\n- **Do NOT read** \"https://\" links or spell out addresses\n- Our enhanced SMS system will automatically send directions after the call\n\n### Important Don'ts\n- Don't make up information you don't have\n- Don't give long responses (keep to 2-3 sentences)\n- Don't promise specific discounts without authorization\n- Don't pressure customers to make immediate decisions\n- Don't ask for the same information twice if it's in the context\n- Don't mention you're an AI - you're Ryder from Bici\n\n### Data to Collect (configured in ElevenLabs Dashboard)\nConfigure these in Analysis > Data Collection:\n1. customer_name (string): \"Extract the customer's name if they provide it\"\n2. bike_type (string): \"Identify the type of bike they're interested in: road, mountain, hybrid, e-bike, kids, or unsure\"\n3. purchase_timeline (string): \"When are they looking to purchase: immediate, this_week, this_month, just_browsing, unsure\"\n4. budget_range (string): \"Budget if mentioned: under_500, 500_1000, 1000_2000, over_2000, not_specified\"\n5. riding_experience (string): \"Experience level: beginner, intermediate, advanced, returning_rider, unsure\"\n6. customer_triggers (string): \"Identify specific topics or requests: asked about store hours, asked for directions/location, inquired about prices, wants to schedule appointment, interested in test ride, has a complaint, or needs general help\"\n7. follow_up_needed (string): \"Determine best SMS follow-up: send store hours, send directions with map links, send price list, confirm appointment details, arrange manager callback, send thank you message, or no follow-up needed\"\n\nRemember: You are Ryder, your AI teammate at Bici who knows today's date, current store hours, and customer history!",
+                "llm": "gemini-2.5-flash-lite",
+                "reasoning_effort": null,
+                "temperature": 0.2,
+                "max_tokens": 500,
+                "tool_ids": [],
+                "built_in_tools": {
+                    "language_detection": {
+                        "type": "system",
+                        "name": "language_detection",
+                        "description": "Automatically detect customer language and respond appropriately",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "language_detection"
+                        }
+                    },
+                    "transfer_to_number": {
+                        "type": "system",
+                        "name": "transfer_to_number",
+                        "description": "Transfer immediately when customer asks for human",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "transfer_to_number",
+                            "transfers": [
+                                {
+                                    "transfer_destination": {
+                                        "type": "phone",
+                                        "phone_number": "+16047232137"
+                                    },
+                                    "phone_number": "+16047232137",
+                                    "condition": "When customer asks for human, person, or to speak with someone - transfer immediately without explanation",
+                                    "transfer_type": "conference"
+                                }
+                            ],
+                            "enable_client_message": false
+                        }
+                    }
+                },
+                "mcp_server_ids": [],
+                "native_mcp_server_ids": [
+                    "OyNiXwp5cYZBZbOKbpk8"
+                ],
+                "knowledge_base": [],
+                "ignore_default_personality": false,
+                "rag": {
+                    "enabled": false,
+                    "embedding_model": "e5_mistral_7b_instruct",
+                    "max_vector_distance": 0.6,
+                    "max_documents_length": 50000,
+                    "max_retrieved_rag_chunks_count": 20
+                },
+                "timezone": "America/Los_Angeles",
+                "tools": [
+                    {
+                        "type": "system",
+                        "name": "language_detection",
+                        "description": "Automatically detect customer language and respond appropriately",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "language_detection"
+                        }
+                    },
+                    {
+                        "type": "system",
+                        "name": "transfer_to_number",
+                        "description": "Transfer immediately when customer asks for human",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "transfer_to_number",
+                            "transfers": [
+                                {
+                                    "transfer_destination": {
+                                        "type": "phone",
+                                        "phone_number": "+16047232137"
+                                    },
+                                    "phone_number": "+16047232137",
+                                    "condition": "When customer asks for human, person, or to speak with someone - transfer immediately without explanation",
+                                    "transfer_type": "conference"
+                                }
+                            ],
+                            "enable_client_message": false
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    "platform_settings": {
+        "auth": {
+            "enable_auth": false,
+            "allowlist": []
+        },
+        "evaluation": {
+            "criteria": []
+        },
+        "widget": {
+            "variant": "full",
+            "placement": "bottom-right",
+            "expandable": "never",
+            "avatar": {
+                "type": "orb",
+                "color1": "#6DB035",
+                "color2": "#F5CABB"
+            },
+            "feedback_mode": "during",
+            "bg_color": "#ffffff",
+            "text_color": "#000000",
+            "btn_color": "#000000",
+            "btn_text_color": "#ffffff",
+            "border_color": "#e1e1e1",
+            "focus_color": "#000000",
+            "shareable_page_show_terms": true,
+            "terms_text": "#### Terms and conditions\n\nBy clicking \"Agree,\" and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as described in the Privacy Policy.\nIf you do not wish to have your conversations recorded, please refrain from using this service.",
+            "terms_html": "<h4>Terms and conditions</h4>\n<p>By clicking &quot;Agree,&quot; and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as described in the Privacy Policy.\nIf you do not wish to have your conversations recorded, please refrain from using this service.</p>\n",
+            "show_avatar_when_collapsed": true,
+            "disable_banner": false,
+            "mic_muting_enabled": false,
+            "transcript_enabled": false,
+            "text_input_enabled": true,
+            "default_expanded": false,
+            "always_expanded": false,
+            "text_contents": {},
+            "styles": {},
+            "language_selector": false,
+            "supports_text_only": true,
+            "language_presets": {}
+        },
+        "data_collection": {
+            "customer_triggers": {
+                "type": "string",
+                "description": "Identify specific topics or requests the customer mentioned during the call. Select all that apply: asked about store hours, asked for directions/location, inquired about prices, wants to schedule appointment, interested in test ride, has a complaint, or needs general help.",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "riding_experience": {
+                "type": "string",
+                "description": "Experience level: beginner, intermediate, advanced, returning_rider, unsure",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "customer_name": {
+                "type": "string",
+                "description": "Extract the customer's name if they provide it",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "budget_range": {
+                "type": "string",
+                "description": "Budget if mentioned: under_500, 500_1000, 1000_2000, over_2000, not_specified",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "follow_up_needed": {
+                "type": "string",
+                "description": "Based on the conversation, what follow-up SMS would be most helpful to send the customer? Choose the most appropriate: send store hours, send directions with map links, send price list, confirm appointment details, arrange manager callback for escalation, send thank you message, or no follow-up needed.",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "purchase_timeline_": {
+                "type": "string",
+                "description": "When are they looking to purchase: immediate, this_week, this_month, just_browsing, unsure ",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "call_classification": {
+                "type": "string",
+                "description": "Classify the call type: sales, service, support, or general",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "bike_type": {
+                "type": "string",
+                "description": "Identify the type of bike they're interested in: road, mountain, hybrid, e-bike, kids, or unsure",
+                "dynamic_variable": "",
+                "constant_value": ""
+            }
+        },
+        "overrides": {
+            "conversation_config_override": {
+                "tts": {
+                    "voice_id": false,
+                    "stability": false,
+                    "speed": false,
+                    "similarity_boost": false
+                },
+                "conversation": {
+                    "text_only": true
+                },
+                "agent": {
+                    "first_message": true,
+                    "language": true,
+                    "prompt": {
+                        "prompt": false,
+                        "native_mcp_server_ids": false
+                    }
+                }
+            },
+            "custom_llm_extra_body": false,
+            "enable_conversation_initiation_client_data_from_webhook": true
+        },
+        "call_limits": {
+            "agent_concurrency_limit": -1,
+            "daily_limit": 100000,
+            "bursting_enabled": true
+        },
+        "ban": null,
+        "privacy": {
+            "record_voice": true,
+            "retention_days": 730,
+            "delete_transcript_and_pii": true,
+            "delete_audio": true,
+            "apply_to_existing_conversations": false,
+            "zero_retention_mode": false
+        },
+        "workspace_overrides": {
+            "webhooks": {
+                "send_audio": false
+            }
+        },
+        "testing": {
+            "attached_tests": [],
+            "referenced_tests_ids": []
+        },
+        "safety": {
+            "is_blocked_ivc": false,
+            "is_blocked_non_ivc": false,
+            "ignore_safety_evaluation": false
+        }
+    },
+    "tags": [
+        "environment:prod",
+        "store:bici",
+        "ryder-agent",
+        "prod"
+    ]
+}

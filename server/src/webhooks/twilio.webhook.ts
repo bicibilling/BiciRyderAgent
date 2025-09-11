@@ -154,7 +154,10 @@ async function generateAIResponse(message: string, lead: any): Promise<string> {
       lead_id: lead.id,
       customer_name: lead.customer_name,
       message_preview: message.substring(0, 50),
-      has_context: !!conversationContext
+      has_context: !!conversationContext,
+      context_length: conversationContext?.length || 0,
+      has_previous_summary: !!previousSummary,
+      summary_text: previousSummary?.summary?.substring(0, 100) || 'none'
     });
     
     // Use ElevenLabs WebSocket for text conversation
@@ -203,6 +206,11 @@ async function generateElevenLabsTextResponse(
       // Create the complete dynamic greeting that the agent expects using the comprehensive function (AWAIT THE PROMISE!)
       const dynamicGreeting = await createDynamicGreeting(lead, new Date().toISOString(), new Date().toLocaleDateString('en-US', { weekday: 'long' }), getTodaysHours());
       
+      // Create SMS-specific greeting (simpler than voice)
+      const smsGreeting = lead.customer_name 
+        ? `Hi ${lead.customer_name.split(' ')[0]}! I'm Ryder from BICI Bike Store. How can I help you today?`
+        : `Hi there! I'm Ryder from BICI Bike Store. How can I help you today?`;
+      
       // Send conversation initialization - fixed format to prevent "invalid message" error
       const initMessage = {
         type: 'conversation_initiation_client_data',
@@ -213,27 +221,41 @@ async function generateElevenLabsTextResponse(
           lead_status: lead.status || 'new',
           bike_interest: typeof lead.bike_interest === 'string' ? lead.bike_interest : JSON.stringify(lead.bike_interest || {}),
           
-          // Conversation context (truncated to prevent size issues)  
-          conversation_context: (conversationContext || '').substring(0, 500),
-          previous_summary: (previousSummary?.summary || 'First interaction').substring(0, 200),
+          // Conversation context (keep more context for SMS but still limit size)  
+          conversation_context: (conversationContext || '').substring(0, 1500),
+          previous_summary: (previousSummary?.summary || 'First interaction').substring(0, 500),
           
-          // Store info
+          // Store info and timing context (like voice calls)
           organization_name: 'BICI Bike Store',
           location_address: storeInfo.address,
           business_hours: getTodaysHours(),
+          current_time: new Date().toLocaleString('en-US', { 
+            timeZone: 'America/Los_Angeles',
+            timeStyle: 'short'
+          }),
+          current_day: new Date().toLocaleDateString('en-US', { 
+            timeZone: 'America/Los_Angeles',
+            weekday: 'long' 
+          }),
           
           // Additional context (sanitized)
           last_interaction_date: lead.last_contact_at || new Date().toISOString(),
           customer_sentiment: lead.sentiment || 'neutral',
           
-          // CRITICAL: Use a simple SMS greeting - not the full voice greeting
-          dynamic_greeting: `Hi ${(lead.customer_name || '').split(' ')[0] || 'there'}! I'm Ryder from BICI Bike Store. How can I help you today?`,
+          // CRITICAL: Use the properly generated SMS greeting
+          dynamic_greeting: smsGreeting,
           
           // Add greeting context (sanitized)
           ...Object.entries(greetingContext || {}).reduce((acc, [key, value]) => {
             acc[key] = typeof value === 'string' ? value.substring(0, 100) : String(value);
             return acc;
           }, {} as any),
+          
+          // Add rich customer context like voice calls
+          interaction_count: String(await conversationService.getConversationCount(lead.id) || 0),
+          last_contact: lead.last_contact_at ? new Date(lead.last_contact_at).toLocaleDateString() : 'First contact',
+          customer_history: previousSummary?.summary || 'New customer',
+          qualification_status: lead.qualification_data?.ready_to_buy ? 'ready to purchase' : 'exploring options',
           
           // Move client context into dynamic_variables (valid location)
           channel: 'sms',
@@ -247,7 +269,18 @@ async function generateElevenLabsTextResponse(
         messageSize: JSON.stringify(initMessage).length,
         hasCustomerName: !!initMessage.dynamic_variables.customer_name,
         hasDynamicGreeting: !!initMessage.dynamic_variables.dynamic_greeting,
-        fullMessage: JSON.stringify(initMessage, null, 2)
+        contextLength: initMessage.dynamic_variables.conversation_context?.length || 0,
+        summaryLength: initMessage.dynamic_variables.previous_summary?.length || 0,
+        greetingText: initMessage.dynamic_variables.dynamic_greeting,
+        customerName: initMessage.dynamic_variables.customer_name
+      });
+      
+      // Log the context preview for debugging
+      logger.info('SMS Context Preview:', {
+        conversation_context_preview: initMessage.dynamic_variables.conversation_context?.substring(0, 200) + '...',
+        previous_summary_preview: initMessage.dynamic_variables.previous_summary?.substring(0, 100) + '...',
+        lead_status: initMessage.dynamic_variables.lead_status,
+        bike_interest: initMessage.dynamic_variables.bike_interest
       });
       
       ws.send(JSON.stringify(initMessage));

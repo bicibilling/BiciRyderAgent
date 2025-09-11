@@ -11,6 +11,26 @@
         {
             "name": "Bici Voice Agent - New_1",
             "config": "agent_configs/bici_voice_agent_-_new_1.json"
+        },
+        {
+            "name": "BICI Unified Agent",
+            "config": "agent_configs/bici_unified_agent.json"
+        },
+        {
+            "name": "Ryder - Bici AI Teammate",
+            "config": "agent_configs/ryder_-_bici_ai_teammate.json"
+        },
+        {
+            "name": "Winnie",
+            "config": "agent_configs/winnie.json"
+        },
+        {
+            "name": "Bike agent",
+            "config": "agent_configs/bike_agent.json"
+        },
+        {
+            "name": "Sales agent",
+            "config": "agent_configs/sales_agent.json"
         }
     ]
 }

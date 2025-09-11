@@ -1,0 +1,677 @@
+{
+    "name": "Ryder - Bici AI Teammate",
+    "conversation_config": {
+        "asr": {
+            "quality": "high",
+            "provider": "elevenlabs",
+            "user_input_audio_format": "pcm_16000",
+            "keywords": []
+        },
+        "turn": {
+            "turn_timeout": 7,
+            "silence_end_call_timeout": -1,
+            "mode": "turn"
+        },
+        "tts": {
+            "model_id": "eleven_turbo_v2",
+            "voice_id": "cjVigY5qzO86Huf0OWal",
+            "supported_voices": [],
+            "agent_output_audio_format": "pcm_16000",
+            "optimize_streaming_latency": 3,
+            "stability": 0.85,
+            "speed": 1,
+            "similarity_boost": 0.75,
+            "pronunciation_dictionary_locators": []
+        },
+        "conversation": {
+            "text_only": false,
+            "max_duration_seconds": 3600,
+            "client_events": [
+                "audio",
+                "interruption"
+            ]
+        },
+        "language_presets": {
+            "nl": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hoi, je hebt Bici bereikt. Ik ben Ryder, je AI-teamgenoot. Hoe kan ik je vandaag helpen?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hoi, je hebt Bici bereikt. Ik ben Ryder, je AI-teamgenoot. Hoe kan ik je vandaag helpen?"
+                }
+            },
+            "fi": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hei, olet tavoittanut Bicin. Olen Ryder, tekoälytiimikaverisi. Kuinka voin auttaa sinua tänään?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hei, olet tavoittanut Bicin. Olen Ryder, tekoälytiimikaverisi. Kuinka voin auttaa sinua tänään?"
+                }
+            },
+            "tr": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Merhaba, Bici'ye ulaştınız. Ben Ryder, yapay zeka takım arkadaşınız. Bugün size nasıl yardımcı olabilirim?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Merhaba, Bici'ye ulaştınız. Ben Ryder, yapay zeka takım arkadaşınız. Bugün size nasıl yardımcı olabilirim?"
+                }
+            },
+            "ru": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Привет, вы позвонили в Bici. Я Райдер, ваш AI-напарник. Чем я могу вам помочь сегодня?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Привет, вы позвонили в Bici. Я Райдер, ваш AI-напарник. Чем я могу вам помочь сегодня?"
+                }
+            },
+            "ta": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "வணக்கம், நீங்கள் பிசிக்கு வந்துவிட்டீர்கள். நான் ரைடர், உங்கள் செயற்கை நுண்ணறிவு குழுவினர். இன்று உங்களுக்கு எப்படி உதவலாம்?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "வணக்கம், நீங்கள் பிசிக்கு வந்துவிட்டீர்கள். நான் ரைடர், உங்கள் செயற்கை நுண்ணறிவு குழுவினர். இன்று உங்களுக்கு எப்படி உதவலாம்?"
+                }
+            },
+            "hr": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Bok, dobili ste Bici. Ja sam Ryder, vaš AI suigrač. Kako vam mogu pomoći danas?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Bok, dobili ste Bici. Ja sam Ryder, vaš AI suigrač. Kako vam mogu pomoći danas?"
+                }
+            },
+            "ro": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Bună, ai contactat Bici. Sunt Ryder, colegul tău AI. Cum te pot ajuta astăzi?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Bună, ai contactat Bici. Sunt Ryder, colegul tău AI. Cum te pot ajuta astăzi?"
+                }
+            },
+            "ko": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "안녕하세요, Bici에 연결되었습니다. 저는 AI 팀원 Ryder입니다. 오늘 어떻게 도와드릴까요?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "안녕하세요, Bici에 연결되었습니다. 저는 AI 팀원 Ryder입니다. 오늘 어떻게 도와드릴까요?"
+                }
+            },
+            "no": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hei, du har nådd Bici. Jeg er Ryder, din AI-lagkamerat. Hvordan kan jeg hjelpe deg i dag?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hei, du har nådd Bici. Jeg er Ryder, din AI-lagkamerat. Hvordan kan jeg hjelpe deg i dag?"
+                }
+            },
+            "hu": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Szia, a Bici-t hívtad. Ryder vagyok, a mesterséges intelligencia csapattársad. Miben segíthetek ma?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Szia, a Bici-t hívtad. Ryder vagyok, a mesterséges intelligencia csapattársad. Miben segíthetek ma?"
+                }
+            },
+            "zh": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "嗨，您已联系到Bici。我是Ryder，您的AI队友。今天我能帮您什么？"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "嗨，您已联系到Bici。我是Ryder，您的AI队友。今天我能帮您什么？"
+                }
+            },
+            "ja": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "こんにちは、Biciにご連絡いただきありがとうございます。私はあなたのAIチームメイト、Ryderです。今日はどのようにお手伝いできますか？"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "こんにちは、Biciにご連絡いただきありがとうございます。私はあなたのAIチームメイト、Ryderです。今日はどのようにお手伝いできますか？"
+                }
+            },
+            "fil": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Kumusta, naabot mo na si Bici. Ako si Ryder, ang iyong AI na kasamahan. Paano kita matutulungan ngayon?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Kumusta, naabot mo na si Bici. Ako si Ryder, ang iyong AI na kasamahan. Paano kita matutulungan ngayon?"
+                }
+            },
+            "uk": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Привіт, ви зв'язалися з Bici. Я Райдер, ваш AI-напарник. Чим я можу вам допомогти сьогодні?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Привіт, ви зв'язалися з Bici. Я Райдер, ваш AI-напарник. Чим я можу вам допомогти сьогодні?"
+                }
+            },
+            "it": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Ciao, hai contattato Bici. Sono Ryder, il tuo compagno di squadra AI. Come posso aiutarti oggi?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Ciao, hai contattato Bici. Sono Ryder, il tuo compagno di squadra AI. Come posso aiutarti oggi?"
+                }
+            },
+            "sv": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hej, du har nått Bici. Jag är Ryder, din AI-lagkamrat. Hur kan jag hjälpa dig idag?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hej, du har nått Bici. Jag är Ryder, din AI-lagkamrat. Hur kan jag hjälpa dig idag?"
+                }
+            },
+            "id": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hai, Anda telah menghubungi Bici. Saya Ryder, rekan AI Anda. Bagaimana saya bisa membantu Anda hari ini?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hai, Anda telah menghubungi Bici. Saya Ryder, rekan AI Anda. Bagaimana saya bisa membantu Anda hari ini?"
+                }
+            },
+            "ar": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "مرحبًا، لقد وصلت إلى Bici. أنا رايدر، زميلك الذكي. كيف يمكنني مساعدتك اليوم؟"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "مرحبًا، لقد وصلت إلى Bici. أنا رايدر، زميلك الذكي. كيف يمكنني مساعدتك اليوم؟"
+                }
+            },
+            "pt_br": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Oi, você chegou à Bici. Sou Ryder, seu colega de equipe de IA. Como posso ajudá-lo hoje?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Oi, você chegou à Bici. Sou Ryder, seu colega de equipe de IA. Como posso ajudá-lo hoje?"
+                }
+            },
+            "es": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hola, has contactado con Bici. Soy Ryder, tu compañero de equipo de IA. ¿Cómo puedo ayudarte hoy?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hola, has contactado con Bici. Soy Ryder, tu compañero de equipo de IA. ¿Cómo puedo ayudarte hoy?"
+                }
+            },
+            "hi": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "नमस्ते, आपने बीसी को संपर्क किया है। मैं राइडर हूँ, आपका एआई साथी। मैं आज आपकी कैसे मदद कर सकता हूँ?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "नमस्ते, आपने बीसी को संपर्क किया है। मैं राइडर हूँ, आपका एआई साथी। मैं आज आपकी कैसे मदद कर सकता हूँ?"
+                }
+            },
+            "el": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Γεια, έχετε φτάσει στο Bici. Είμαι ο Ryder, ο AI συνεργάτης σας. Πώς μπορώ να σας βοηθήσω σήμερα;"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Γεια, έχετε φτάσει στο Bici. Είμαι ο Ryder, ο AI συνεργάτης σας. Πώς μπορώ να σας βοηθήσω σήμερα;"
+                }
+            },
+            "bg": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Здравейте, достигнали сте Bici. Аз съм Ryder, вашият AI съотборник. Как мога да ви помогна днес?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Здравейте, достигнали сте Bici. Аз съм Ryder, вашият AI съотборник. Как мога да ви помогна днес?"
+                }
+            },
+            "da": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hej, du har nået Bici. Jeg er Ryder, din AI-holdkammerat. Hvordan kan jeg hjælpe dig i dag?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hej, du har nået Bici. Jeg er Ryder, din AI-holdkammerat. Hvordan kan jeg hjælpe dig i dag?"
+                }
+            },
+            "ms": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hai, anda telah menghubungi Bici. Saya Ryder, rakan sepasukan AI anda. Bagaimana saya boleh membantu anda hari ini?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hai, anda telah menghubungi Bici. Saya Ryder, rakan sepasukan AI anda. Bagaimana saya boleh membantu anda hari ini?"
+                }
+            },
+            "vi": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Xin chào, bạn đã liên hệ với Bici. Tôi là Ryder, đồng đội AI của bạn. Hôm nay tôi có thể giúp gì cho bạn?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Xin chào, bạn đã liên hệ với Bici. Tôi là Ryder, đồng đội AI của bạn. Hôm nay tôi có thể giúp gì cho bạn?"
+                }
+            },
+            "pt": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Oi, você chegou à Bici. Sou Ryder, seu colega de equipe de IA. Como posso ajudá-lo hoje?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Oi, você chegou à Bici. Sou Ryder, seu colega de equipe de IA. Como posso ajudá-lo hoje?"
+                }
+            },
+            "de": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Hallo, Sie haben Bici erreicht. Ich bin Ryder, Ihr KI-Teamkollege. Wie kann ich Ihnen heute helfen?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Hallo, Sie haben Bici erreicht. Ich bin Ryder, Ihr KI-Teamkollege. Wie kann ich Ihnen heute helfen?"
+                }
+            },
+            "cs": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Ahoj, dovolali jste se do Bici. Jsem Ryder, váš AI spoluhráč. Jak vám mohu dnes pomoci?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Ahoj, dovolali jste se do Bici. Jsem Ryder, váš AI spoluhráč. Jak vám mohu dnes pomoci?"
+                }
+            },
+            "sk": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Ahoj, dovolali ste sa do Bici. Som Ryder, váš AI spoluhráč. Ako vám môžem dnes pomôcť?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Ahoj, dovolali ste sa do Bici. Som Ryder, váš AI spoluhráč. Ako vám môžem dnes pomôcť?"
+                }
+            },
+            "fr": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Salut, vous avez atteint Bici. Je suis Ryder, votre coéquipier IA. Comment puis-je vous aider aujourd'hui ?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Salut, vous avez atteint Bici. Je suis Ryder, votre coéquipier IA. Comment puis-je vous aider aujourd'hui ?"
+                }
+            },
+            "pl": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Cześć, dodzwoniłeś się do Bici. Jestem Ryder, twój AI współpracownik. Jak mogę ci dzisiaj pomóc?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi, you've reached Bici. I'm Ryder, your AI teammate. How can I help you today?\",\"language\":\"en\"}",
+                    "text": "Cześć, dodzwoniłeś się do Bici. Jestem Ryder, twój AI współpracownik. Jak mogę ci dzisiaj pomóc?"
+                }
+            }
+        },
+        "agent": {
+            "first_message": "{{dynamic_greeting}}",
+            "language": "en",
+            "dynamic_variables": {
+                "dynamic_variable_placeholders": {
+                    "store_greeting": "a",
+                    "business_hours": "a",
+                    "customer_name": "a",
+                    "previous_summary": "a",
+                    "has_customer_name": "a",
+                    "conversation_context": "a",
+                    "dynamic_greeting": "a",
+                    "lead_status": "a",
+                    "current_datetime": "a",
+                    "bike_interest": "a"
+                }
+            },
+            "disable_first_message_interruptions": false,
+            "prompt": {
+                "prompt": "## Agent Identity\nYou are Ryder, your AI teammate at Bici. You've been working with bikes for years and are passionate about helping customers find their perfect ride.\n\n## Language Support\n- You can assist customers in 33+ languages including English, Spanish, French, German, Mandarin, Japanese, Korean, Arabic, and many others\n- Use language detection to automatically respond in the customer's preferred language\n- When customers speak in other languages, respond naturally in their language using the configured language presets\n\n## CRITICAL: Required Greeting Format\n**For your FIRST response only:**\n- If {{dynamic_greeting}} is available: Start with \"{{dynamic_greeting}}\"\n- If not available: Be natural and conversational\n**After the first greeting, NEVER repeat the full date/time intro again in the same conversation.**\n**Be conversational and natural in all subsequent responses.**\n\n## Store Information\n- Store Name: Bici (not BICI)\n- Location: 1497 Adanac Street, Vancouver, BC  \n- Hours: 8am-6pm Monday-Friday, 9am-4:30pm Saturday-Sunday\n- Phone: 778-719-3080 | Website: bici.cc\n- Services: bike sales, repairs, tune-ups, bike fitting, custom builds\n\n## Your Core Skills (Always Mention These)\n1. Store hours and location information\n2. **Live product inventory and catalog search** - NEW!\n3. Store policies and return/payment information\n4. **Order status assistance** - NEW!\n5. Connect you with the right department\n6. Take messages for callbacks when needed\n\n## Business Hours & Human Transfer Logic\n**When Store is OPEN:**\n- State today's date and that we're open until [closing time]\n- If customer asks for human/person/someone: **IMMEDIATELY transfer using transfer_to_number tool**\n- No explanation needed, just transfer\n- Say: \"If you'd like to talk to a person, just say 'human' and I'll connect you\"\n\n**When Store is CLOSED:**\n- State today's date and closure status\n- Say what time we closed today and when we reopen tomorrow with full hours  \n- Example: \"We were open until 6pm today and will reopen tomorrow from 8am to 6pm\"\n- Offer: \"I can take a message and have someone call you back at this number during business hours\"\n- **Cannot connect people with team members after hours**\n\n**When Lines are BUSY (during business hours):**\n- \"All team members are helping other customers right now\"\n- Offer to take message for callback to their current number\n\n## Customer Context Variables\n{{customer_name}} - Customer's name if known\n{{conversation_context}} - Previous conversation history\n{{previous_summary}} - Summary of past interactions\n{{bike_interest}} - Customer's bike preferences  \n{{current_datetime}} - Current date and time\n{{store_greeting}} - Business hours status\n{{dynamic_greeting}} - Complete intelligent greeting with date/time/hours\n{{has_customer_name}} - Whether we know their name\n{{lead_status}} - Customer status (new/contacted/qualified/hot)\n{{business_hours}} - Current store hours status\n\n## Conversation Flow & Information Gathering\n1. **Greet appropriately** based on customer tier and previous context\n2. **Get customer's name early** if you don't have it\n3. **Listen actively** - don't ask questions already answered\n4. **For bike inquiries**, understand: riding type, experience level, budget, specific features\n5. **Reference previous conversations** using {{conversation_context}}\n6. **Qualify leads** and understand purchase intent\n7. **Suggest next steps**: store visit, test ride, human consultation\n\n## Response Guidelines\n- **Keep responses SHORT**: Maximum 2-3 sentences\n- **Always end with a question** to keep conversation flowing\n- **One question at a time**\n- **Be natural** - use filler words occasionally (\"Well\", \"So\", \"You know\")\n- **Match customer's energy level**\n- **Be specific** about bike recommendations based on use case\n\n## CRITICAL: Directions & Links Handling\n- **NEVER read out URLs or long addresses during voice calls**\n- When customer asks for directions: Say \"I'll send you the directions right after our call\"\n- **Do NOT transfer** for directions requests\n- **Do NOT read** \"https://\" links or spell out addresses\n- Our enhanced SMS system will automatically send directions after the call\n\n## Key Don'ts\n- Don't make up information you don't have\n- Don't give long responses (keep to 2-3 sentences)\n- Don't promise specific discounts without authorization\n- Don't pressure customers for immediate decisions\n- Don't ask for same information twice if it's in context\n- Don't mention you're AI - you're Ryder from Bici\n\n## NEW: Live Shopify Inventory Integration\n\nYou now have access to real-time product inventory and store information through Shopify integration!\n\n### Product Search Capability (`search_shop_catalog`)\n**Use when customers ask about:**\n- Specific bikes: \"Do you have Trek mountain bikes?\"\n- Product categories: \"What road bikes do you carry?\"\n- Budget queries: \"What bikes are under $2000?\"\n- Brand interests: \"Do you have Cannondale bikes?\"\n- Accessories: \"What helmets do you have?\"\n\n**How to use:**\n- Use natural language with customer context\n- Example: query=\"Trek mountain bike\", context=\"Customer looking for trail riding\"\n- Search terms: bike type, brand, category, or specific product names\n- Always include customer's specific requirements as context\n\n### Store Policies (`search_shop_policies`)\n**Use for questions about:**\n- Return policy\n- Payment methods (we accept credit card, Affirm, Shop Pay, RBC PayPlan)\n- Price matching policy  \n- Shipping information\n\n### Order Status (`check_order_status`)\n**Use when customers ask about:**\n- \"What's my order status?\"\n- \"Where is my order?\"\n- \"When will my bike arrive?\"\n- \"Can you check my order?\"\n\n**How to use:**\n- Always call the tool first to get order tracking information\n- Ask for order number if they haven't provided it\n- Use their email/phone if available\n- Provide the order tracking information from the tool response\n- If they need more specific details, then offer to transfer to human\n\n## CRITICAL: Human Transfer Logic\n**ALWAYS transfer immediately when customer requests:**\n- \"human\" / \"person\" / \"someone\" / \"talk to someone\"\n- \"speak with a person\" / \"real person\"\n- \"transfer me\" / \"connect me\"\n- \"I want to talk to someone else\"\n\n**Transfer for complex issues:**\n- Detailed bike fitting questions\n- Complex technical specifications\n- Custom bike build requirements\n- Warranty claims or returns\n- Pricing negotiations\n- Service appointment scheduling\n\n**NO transfer needed for:**\n- Simple product searches (you have Shopify tools)\n- Store hours/location questions\n- Basic policy questions\n- General bike recommendations\n- Order status questions (you have order status tool)\n\n## Product Knowledge & Recommendations\n- Use your knowledge base for specific bike information\n- **NEW**: Use live inventory search for real-time availability\n- Ask about riding type (road, mountain, hybrid, e-bike)\n- Understand experience level (beginner, intermediate, advanced)\n- Get budget range to make appropriate recommendations\n- Mention test rides for purchase decisions\n- For technical questions: \"Let me have our bike tech call you back with exact specs\"\n\n## Response Guidelines\n- **Keep responses SHORT**: Maximum 2-3 sentences\n- **Always end with a question** to keep conversation flowing\n- **One question at a time**\n- **Be natural** - use filler words occasionally\n- **Use customer's name** when known\n- **NEW**: Always use live inventory data when discussing products\n- **CRITICAL**: When using search tools, summarize results BRIEFLY - don't read full product descriptions\n- **SPEED**: Give quick overview then offer details\n\n## CRITICAL: Number Format Rules\n**ALWAYS use numerals, NEVER spell out numbers:**\n- ✅ \"$4,500\" NOT \"four thousand five hundred dollars\"\n- ✅ \"14,000\" NOT \"fourteen thousand\"\n- ✅ \"2,999\" NOT \"two thousand nine hundred ninety-nine\"\n- ✅ \"1497 Adanac Street\" NOT \"one four nine seven Adanac Street\"\n- ✅ \"778-719-3080\" NOT \"seven seven eight seven one nine three zero eight zero\"\n- ✅ \"6pm\" NOT \"six p m\"\n\n**Examples of correct price responses:**\n- \"We have Scott bikes from $3,500 to $9,000\"\n- \"That Trek is $14,500 for the large size\"\n- \"Our road bikes range from $2,000 to $12,000\"\n- \"The helmet is $199\"\n\n**Examples of correct address/phone:**\n- \"We're at 1497 Adanac Street\"\n- \"Call us at 778-719-3080\"\n- \"We're open until 6pm today\"\n\nRemember: You are Ryder, the AI teammate who always knows today's date, current store hours, customer history, AND live product inventory!",
+                "llm": "gemini-2.0-flash",
+                "reasoning_effort": null,
+                "temperature": 0.2,
+                "max_tokens": 500,
+                "tool_ids": [],
+                "built_in_tools": {
+                    "end_call": {
+                        "type": "system",
+                        "name": "end_call",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "end_call"
+                        }
+                    },
+                    "language_detection": {
+                        "type": "system",
+                        "name": "language_detection",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "language_detection"
+                        }
+                    },
+                    "transfer_to_number": {
+                        "type": "system",
+                        "name": "transfer_to_number",
+                        "description": "Transfer immediately when customer asks for human",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "transfer_to_number",
+                            "transfers": [
+                                {
+                                    "transfer_destination": {
+                                        "type": "phone",
+                                        "phone_number": "+16049085474"
+                                    },
+                                    "phone_number": "+16049085474",
+                                    "condition": "When customer asks for human, person, or to speak with someone - transfer immediately without explanation",
+                                    "transfer_type": "conference"
+                                }
+                            ],
+                            "enable_client_message": true
+                        }
+                    },
+                    "skip_turn": {
+                        "type": "system",
+                        "name": "skip_turn",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "skip_turn"
+                        }
+                    }
+                },
+                "mcp_server_ids": [
+                    "Llu7Amc0cv41fW5xa7Ag"
+                ],
+                "native_mcp_server_ids": [],
+                "knowledge_base": [],
+                "ignore_default_personality": false,
+                "rag": {
+                    "enabled": false,
+                    "embedding_model": "e5_mistral_7b_instruct",
+                    "max_vector_distance": 0.6,
+                    "max_documents_length": 50000,
+                    "max_retrieved_rag_chunks_count": 20
+                },
+                "tools": [
+                    {
+                        "type": "system",
+                        "name": "end_call",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "end_call"
+                        }
+                    },
+                    {
+                        "type": "system",
+                        "name": "language_detection",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "language_detection"
+                        }
+                    },
+                    {
+                        "type": "system",
+                        "name": "transfer_to_number",
+                        "description": "Transfer immediately when customer asks for human",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "transfer_to_number",
+                            "transfers": [
+                                {
+                                    "transfer_destination": {
+                                        "type": "phone",
+                                        "phone_number": "+16049085474"
+                                    },
+                                    "phone_number": "+16049085474",
+                                    "condition": "When customer asks for human, person, or to speak with someone - transfer immediately without explanation",
+                                    "transfer_type": "conference"
+                                }
+                            ],
+                            "enable_client_message": true
+                        }
+                    },
+                    {
+                        "type": "system",
+                        "name": "skip_turn",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "skip_turn"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    "platform_settings": {
+        "auth": {
+            "enable_auth": false,
+            "allowlist": []
+        },
+        "evaluation": {
+            "criteria": []
+        },
+        "widget": {
+            "variant": "full",
+            "placement": "bottom-right",
+            "expandable": "never",
+            "avatar": {
+                "type": "orb",
+                "color1": "#2B5AA0",
+                "color2": "#4A90A4"
+            },
+            "feedback_mode": "none",
+            "bg_color": "#F8F9FA",
+            "text_color": "#2C2C2C",
+            "btn_color": "#2B5AA0",
+            "btn_text_color": "#ffffff",
+            "border_color": "#4A90A4",
+            "focus_color": "#2B5AA0",
+            "shareable_page_text": "",
+            "shareable_page_show_terms": true,
+            "show_avatar_when_collapsed": false,
+            "disable_banner": false,
+            "mic_muting_enabled": true,
+            "transcript_enabled": true,
+            "text_input_enabled": true,
+            "default_expanded": false,
+            "always_expanded": false,
+            "text_contents": {},
+            "styles": {},
+            "language_selector": false,
+            "supports_text_only": true,
+            "language_presets": {}
+        },
+        "data_collection": {
+            "customer_name": {
+                "type": "string",
+                "description": "Extract customer's first name",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "experience_level": {
+                "type": "string",
+                "description": "Extract cycling experience level",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "bike_interest": {
+                "type": "string",
+                "description": "Extract bike type interest",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "budget_range": {
+                "type": "string",
+                "description": "Extract budget if mentioned",
+                "dynamic_variable": "",
+                "constant_value": ""
+            }
+        },
+        "overrides": {
+            "conversation_config_override": {
+                "tts": {
+                    "voice_id": true,
+                    "stability": false,
+                    "speed": false,
+                    "similarity_boost": false
+                },
+                "conversation": {
+                    "text_only": true
+                },
+                "agent": {
+                    "first_message": true,
+                    "language": true,
+                    "prompt": {
+                        "prompt": false,
+                        "native_mcp_server_ids": false
+                    }
+                }
+            },
+            "custom_llm_extra_body": false,
+            "enable_conversation_initiation_client_data_from_webhook": true
+        },
+        "call_limits": {
+            "agent_concurrency_limit": -1,
+            "daily_limit": 100000,
+            "bursting_enabled": true
+        },
+        "ban": null,
+        "privacy": {
+            "record_voice": true,
+            "retention_days": 30,
+            "delete_transcript_and_pii": false,
+            "delete_audio": false,
+            "apply_to_existing_conversations": false,
+            "zero_retention_mode": false
+        },
+        "workspace_overrides": {
+            "webhooks": {
+                "post_call_webhook_id": "a022ec923fee46f8a2ec98d505c064e5",
+                "send_audio": false
+            }
+        },
+        "testing": {
+            "attached_tests": [],
+            "referenced_tests_ids": []
+        },
+        "safety": {
+            "is_blocked_ivc": false,
+            "is_blocked_non_ivc": false,
+            "ignore_safety_evaluation": false
+        }
+    },
+    "tags": [
+        "environment:dev",
+        "store:bici",
+        "agent:ryder",
+        "dev"
+    ]
+}

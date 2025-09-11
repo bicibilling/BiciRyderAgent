@@ -1,0 +1,258 @@
+{
+    "name": "Winnie",
+    "conversation_config": {
+        "asr": {
+            "quality": "high",
+            "provider": "elevenlabs",
+            "user_input_audio_format": "ulaw_8000",
+            "keywords": []
+        },
+        "turn": {
+            "turn_timeout": 7,
+            "silence_end_call_timeout": -1,
+            "mode": "turn"
+        },
+        "tts": {
+            "model_id": "eleven_turbo_v2",
+            "voice_id": "56AoDkrOh6qfVPDXZ7Pt",
+            "supported_voices": [],
+            "agent_output_audio_format": "ulaw_8000",
+            "optimize_streaming_latency": 3,
+            "stability": 0.5,
+            "speed": 1,
+            "similarity_boost": 0.8,
+            "pronunciation_dictionary_locators": []
+        },
+        "conversation": {
+            "text_only": false,
+            "max_duration_seconds": 600,
+            "client_events": [
+                "audio",
+                "interruption"
+            ]
+        },
+        "language_presets": {
+            "zh": {
+                "overrides": {}
+            },
+            "hi": {
+                "overrides": {}
+            },
+            "fr": {
+                "overrides": {}
+            }
+        },
+        "agent": {
+            "first_message": "",
+            "language": "en",
+            "dynamic_variables": {
+                "dynamic_variable_placeholders": {
+                    "store_hours": "fsfs",
+                    "phone_number": "1234567890",
+                    "appointment_availability": "adadad",
+                    "style_preferences": "fsfs",
+                    "prom_date": "1245",
+                    "color_preferences": "sgsfsf",
+                    "budget_range": "2000",
+                    "customer_name": "DD",
+                    "designer_interests": "sfsfsf",
+                    "school_name": "er",
+                    "seasonal_collections": "sfsfsf"
+                }
+            },
+            "disable_first_message_interruptions": false,
+            "prompt": {
+                "prompt": "You are Winnie, a friendly and knowledgeable prom dress consultant assistant for a luxury formal wear boutique. Your role is to help students and parents find the perfect prom dress and provide exceptional customer service for this special milestone.\n\nPERSONALITY:\n- Enthusiastic, trendy, and genuinely excited about helping students find their dream prom dress\n- Professional yet relatable to teens and young adults\n- Patient and understanding about the importance of prom and looking perfect\n- Knowledgeable about current fashion trends, social media trends, and prom traditions\n- Supportive and confidence-building, especially for nervous first-time formal wear shoppers\n\nKNOWLEDGE AREAS:\n- Prom dress styles, silhouettes, and current trends\n- Fabric types, colors, and seasonal preferences\n- Sizing, alterations, and fit for young body types\n- Designer collections and trending brands\n- Pricing and payment plans (including parent financing)\n- Accessory coordination (shoes, jewelry, wraps)\n- Prom timeline and dress shopping best practices\n- Social media and photo considerations\n\nKEY OBJECTIVES:\n1. Qualify the lead by gathering:\n   - Prom date and school\n   - Style preferences and inspiration (TikTok, Pinterest, etc.)\n   - Budget range (student vs parent budget)\n   - Color preferences and restrictions\n   - Body type and fit concerns\n   - Group coordination needs (matching friends, dates)\n   - Contact information for follow-up\n\n2. Build rapport and trust through:\n   - Understanding the excitement and stress of prom\n   - Speaking their language (current trends, social media)\n   - Showing genuine interest in making their prom special\n   - Being supportive about budget and body image concerns\n\n3. Generate interest in our boutique by:\n   - Highlighting our trendy designer collections\n   - Mentioning our social media presence and styling services\n   - Emphasizing our alterations expertise for perfect fit\n   - Sharing success stories of happy prom customers\n\n4. Schedule appointments or gather contact information\n\nCONVERSATION FLOW:\n1. Warm, energetic greeting and introduction\n2. Ask about their prom and school\n3. Explore style inspirations (Instagram, TikTok, Pinterest)\n4. Discuss color preferences and any restrictions\n5. Talk about budget comfort level (tactfully)\n6. Highlight relevant designers/styles we carry\n7. Address fit, alterations, and timeline concerns\n8. Attempt to schedule appointment or gather contact info\n9. Provide next steps and follow-up timeline\n\nDYNAMIC VARIABLES AVAILABLE:\n- {{customer_name}}: The customer's name if known\n- {{phone_number}}: Customer's phone number\n- {{prom_date}}: Their prom date if provided\n- {{school_name}}: Their school name\n- {{budget_range}}: Budget range they've mentioned\n- {{style_preferences}}: Noted style preferences\n- {{color_preferences}}: Color choices and restrictions\n- {{designer_interests}}: Designers they've shown interest in\n- {{appointment_availability}}: Current appointment slots\n- {{store_hours}}: Current store hours\n- {{seasonal_collections}}: Current prom arrivals\n\nIMPORTANT GUIDELINES:\n- Remember this is often a first formal dress shopping experience\n- Be sensitive to budget concerns - many families save up for prom\n- Understand the social pressure and importance of looking perfect\n- Acknowledge if parents are involved in the conversation\n- If the customer seems ready to end the call but hasn't scheduled an appointment, offer to text them information or schedule a callback\n- For complex questions about specific dresses or technical details, offer to connect them with a human stylist\n- Always be honest about pricing, availability, and alterations timeline\n- Keep conversations natural, fun, and age-appropriate\n- If technical issues arise or the customer requests to speak with a human, gracefully transfer the call\n\nESCALATION TO HUMAN:\nRequest human assistance when:\n- Customer specifically asks to speak with a human\n- Complex alterations or sizing questions arise\n- Pricing negotiations or payment plan discussions needed\n- Customer or parent seems frustrated or dissatisfied\n- Technical dress details beyond your knowledge\n- Last-minute prom emergencies (less than 2 weeks out)\n- Group ordering or coordination needs\n- Payment or contract discussions\n- Sensitive body image or fit concerns",
+                "llm": "gemini-2.5-flash-lite",
+                "reasoning_effort": null,
+                "temperature": 0.5,
+                "max_tokens": -1,
+                "tool_ids": [],
+                "built_in_tools": {
+                    "end_call": {
+                        "type": "system",
+                        "name": "end_call",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "end_call"
+                        }
+                    },
+                    "language_detection": {
+                        "type": "system",
+                        "name": "language_detection",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "language_detection"
+                        }
+                    },
+                    "skip_turn": {
+                        "type": "system",
+                        "name": "skip_turn",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "skip_turn"
+                        }
+                    }
+                },
+                "mcp_server_ids": [],
+                "native_mcp_server_ids": [],
+                "knowledge_base": [],
+                "ignore_default_personality": false,
+                "rag": {
+                    "enabled": false,
+                    "embedding_model": "e5_mistral_7b_instruct",
+                    "max_vector_distance": 0.6,
+                    "max_documents_length": 50000,
+                    "max_retrieved_rag_chunks_count": 20
+                },
+                "tools": [
+                    {
+                        "type": "system",
+                        "name": "end_call",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "end_call"
+                        }
+                    },
+                    {
+                        "type": "system",
+                        "name": "language_detection",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "language_detection"
+                        }
+                    },
+                    {
+                        "type": "system",
+                        "name": "skip_turn",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "skip_turn"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    "platform_settings": {
+        "auth": {
+            "enable_auth": false,
+            "allowlist": []
+        },
+        "evaluation": {
+            "criteria": []
+        },
+        "widget": {
+            "variant": "full",
+            "placement": "bottom-right",
+            "expandable": "never",
+            "avatar": {
+                "type": "orb",
+                "color1": "#2792dc",
+                "color2": "#9ce6e6"
+            },
+            "feedback_mode": "during",
+            "bg_color": "#ffffff",
+            "text_color": "#000000",
+            "btn_color": "#000000",
+            "btn_text_color": "#ffffff",
+            "border_color": "#e1e1e1",
+            "focus_color": "#000000",
+            "shareable_page_show_terms": true,
+            "terms_text": "#### Terms and conditions\n\nBy clicking \"Agree,\" and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as described in the Privacy Policy.\nIf you do not wish to have your conversations recorded, please refrain from using this service.",
+            "terms_html": "<h4>Terms and conditions</h4>\n<p>By clicking &quot;Agree,&quot; and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as described in the Privacy Policy.\nIf you do not wish to have your conversations recorded, please refrain from using this service.</p>\n",
+            "show_avatar_when_collapsed": false,
+            "disable_banner": false,
+            "mic_muting_enabled": false,
+            "transcript_enabled": false,
+            "text_input_enabled": true,
+            "default_expanded": false,
+            "always_expanded": false,
+            "text_contents": {},
+            "styles": {},
+            "language_selector": false,
+            "supports_text_only": true,
+            "language_presets": {}
+        },
+        "data_collection": {},
+        "overrides": {
+            "conversation_config_override": {
+                "tts": {
+                    "voice_id": false,
+                    "stability": false,
+                    "speed": false,
+                    "similarity_boost": false
+                },
+                "conversation": {
+                    "text_only": true
+                },
+                "agent": {
+                    "first_message": true,
+                    "language": true,
+                    "prompt": {
+                        "prompt": true,
+                        "native_mcp_server_ids": false
+                    }
+                }
+            },
+            "custom_llm_extra_body": false,
+            "enable_conversation_initiation_client_data_from_webhook": true
+        },
+        "call_limits": {
+            "agent_concurrency_limit": -1,
+            "daily_limit": 100000,
+            "bursting_enabled": true
+        },
+        "ban": null,
+        "privacy": {
+            "record_voice": true,
+            "retention_days": -1,
+            "delete_transcript_and_pii": false,
+            "delete_audio": false,
+            "apply_to_existing_conversations": false,
+            "zero_retention_mode": false
+        },
+        "workspace_overrides": {
+            "webhooks": {
+                "post_call_webhook_id": "0a96e19d76cb43649d7e0fc62ec3aeb7",
+                "send_audio": false
+            }
+        },
+        "testing": {
+            "attached_tests": [],
+            "referenced_tests_ids": []
+        },
+        "safety": {
+            "is_blocked_ivc": false,
+            "is_blocked_non_ivc": false,
+            "ignore_safety_evaluation": false
+        }
+    },
+    "tags": [
+        "prod"
+    ]
+}

@@ -1,0 +1,629 @@
+{
+    "name": "Sales agent",
+    "conversation_config": {
+        "asr": {
+            "quality": "high",
+            "provider": "elevenlabs",
+            "user_input_audio_format": "ulaw_8000",
+            "keywords": []
+        },
+        "turn": {
+            "turn_timeout": 7,
+            "silence_end_call_timeout": 20,
+            "mode": "turn"
+        },
+        "tts": {
+            "model_id": "eleven_flash_v2",
+            "voice_id": "cjVigY5qzO86Huf0OWal",
+            "supported_voices": [],
+            "agent_output_audio_format": "ulaw_8000",
+            "optimize_streaming_latency": 3,
+            "stability": 0.5,
+            "speed": 1,
+            "similarity_boost": 0.8,
+            "pronunciation_dictionary_locators": []
+        },
+        "conversation": {
+            "text_only": false,
+            "max_duration_seconds": 300,
+            "client_events": [
+                "audio",
+                "interruption",
+                "user_transcript",
+                "agent_response",
+                "agent_response_correction"
+            ]
+        },
+        "language_presets": {
+            "zh": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "你好！我是来自ElevenLabs的Harper。ElevenLabs的会话式人工智能今天如何能帮助您的业务？"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! I'm Harper from ElevenLabs. How could ElevenLabs Conversational AI help your business today?\",\"language\":\"en\"}",
+                    "text": "你好！我是来自ElevenLabs的Harper。ElevenLabs的会话式人工智能今天如何能帮助您的业务？"
+                }
+            },
+            "hi": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "नमस्ते! मैं हार्पर हूँ ElevenLabs से। आज ElevenLabs Conversational AI आपके व्यवसाय में कैसे मदद कर सकता है?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! I'm Harper from ElevenLabs. How could ElevenLabs Conversational AI help your business today?\",\"language\":\"en\"}",
+                    "text": "नमस्ते! मैं हार्पर हूँ ElevenLabs से। आज ElevenLabs Conversational AI आपके व्यवसाय में कैसे मदद कर सकता है?"
+                }
+            },
+            "fr": {
+                "overrides": {
+                    "agent": {
+                        "first_message": "Salut ! Je suis Harper de ElevenLabs. Comment l'IA conversationnelle de ElevenLabs pourrait-elle aider votre entreprise aujourd'hui ?"
+                    }
+                },
+                "first_message_translation": {
+                    "source_hash": "{\"firstMessage\":\"Hi there! I'm Harper from ElevenLabs. How could ElevenLabs Conversational AI help your business today?\",\"language\":\"en\"}",
+                    "text": "Salut ! Je suis Harper de ElevenLabs. Comment l'IA conversationnelle de ElevenLabs pourrait-elle aider votre entreprise aujourd'hui ?"
+                }
+            }
+        },
+        "agent": {
+            "first_message": " {{greeting_opener}} {{time_greeting}} {{day_context}} {{greeting_variation}}?",
+            "language": "en",
+            "dynamic_variables": {
+                "dynamic_variable_placeholders": {
+                    "time_greeting": "a",
+                    "day_context": "a",
+                    "customer_name": "\"Valued Customer\"",
+                    "greeting_variation": "a",
+                    "previous_summary": " \"No previous calls\"",
+                    "greeting_opener": "a",
+                    "organization_name": "\"Valued organisation\"",
+                    "conversation_context": "\"No previous conversation\"",
+                    "lead_status": "\"New Inquiry\""
+                }
+            },
+            "disable_first_message_interruptions": false,
+            "prompt": {
+                "prompt": "OPENING MESSAGE - USE DYNAMIC VARIABLES DIRECTLY. DIFFERENTITATE BETWEEN OUTBOUND AND INBOUND CALLS PROPERLY SO YOUR INITIAL MESSAGE IS TAILORED ACCORDINGLY. Greet immediately, while you fetch context. \n\nCRITICAL: Your first message must use the context provided. Never give a generic response when you have conversation history or previous summary. \n\nIMPORTANT: Check the dynamic variables and respond accordingly:\n\nIf {{lead_status}} is \"Returning Customer\", always acknowledge the ongoing relationship\n\nIf {{previous_summary}} contains content (not empty), just continue based on {{previous_summary}} and the {{conversation_context}}. Continue as a person will continue a conversation naturally. Always maintain context and refer to previous conversation to continue further.\n\nONLY use generic introduction if no context exists:\n\n---\n\n## MANDATORY: USE DYNAMIC VARIABLES\nCRITICAL: You MUST use the provided information below. Never give generic responses when you have this data.\n\nCustomer: {{customer_name}}\nOrganization: {{organization_name}}\nLead Status: {{lead_status}}\nPrevious Summary: {{previous_summary}}\nConversation Context: {{conversation_context}}\n\n---\n\n## Core Identity\n\nYou are Jack, an AI sales agent for automotive dealerships specializing in subprime financing. You work for **{{organization_name}}** and your primary role is to engage customers, build trust, gather essential information, and guide them through their financing vehicle purchase journey.\n\nYour voice is:\n\n- Disruptively Human: Authentic, relatable, and immediately different from typical robotic sales interactions\n- Expertly Efficient: You get to the point calmly - you've seen it all and know exactly what's needed  \n- Assertively Calm: Casually authoritative, confidently knowledgeable without trying to impress\n\n---\n\n## CONTEXT-AWARE BEHAVIOR\n\n**ALWAYS check {{previous_summary}} first:**\n- If it contains content, reference what was discussed before\n- Don't repeat information already covered\n- Build on previous progress: \"You mentioned [specific detail from summary]...\"\n- Show continuity and memory of the relationship\n\n**ALWAYS check {{conversation_context}} second:**\n- If it contains recent messages, reference specific vehicles mentioned\n- Address their actual questions or concerns from previous messages\n- Continue the exact topic they were discussing\n- Use specific details from the conversation history\n\n**ALWAYS check {{lead_status}}:**\n- If \"Returning Customer\", acknowledge the ongoing relationship\n- Reference their progress in the process\n- Show familiarity: \"How are things going with [specific topic]?\"\n\n**ALWAYS use {{customer_name}} personally:**\n- \"Hi {{customer_name}}\" not \"Hi there\"\n- Reference them naturally throughout the conversation\n- Create personal connection in every interaction\n\n**ALWAYS represent {{organization_name}}:**\n- \"I'm Jack from {{organization_name}}\"\n- \"Our team here at {{organization_name}}\"\n- \"{{organization_name}} specializes in...\"\n\n---\n\n## Communication Strategy\n\n**For Outbound Calls with Context:**\n- You are calling them back, so acknowledge the ongoing relationship\n- Reference previous conversations immediately  \n- Be specific about what you're following up on\n- Show this isn't a cold call by using their history\n\n**For Outbound Calls without Context:**\n- You are calling them for the first time, so be courteous\n- Be creative in your first impression/solicitation\n- Get to the point quickly but respectfully\n- Explain who you are and why you're calling\n\n**For Inbound Calls with Context:**\n- They are calling you back, so acknowledge the ongoing relationship\n- Reference previous conversations immediately  \n- Be specific about what you're following up on\n\n**For Inbound Calls without Context:**\n- They are calling you for the first time, so be courteous\n- Be creative in your first impression/solicitation\n- Get to the point quickly but respectfully\n\n---\n## Your Customers\n\nYou are primarily working with subprime customers who:\n\n- Have bad credit due to past mistakes or financial hardships\n- Are under constant pressure, struggling with daily life\n- Feel powerless and are acutely aware of their credit limitations\n- Are frequently targeted by predatory offers, making them skeptical\n- Are desperate - they NEED a car for work, family, survival\n- Are quick to disengage at the first sign of complexity or dishonesty\n\nRemember: These are vulnerable people making one of their biggest purchases while dealing with financial stress. They enter conversations guarded but desperate for genuine help.\n\n---\nGOAL: The goal of your conversation wit the customer is to collect the required information as outlined below. Do not get lost in car models and other tangential conversation, try and always get the conversation back on track to gather the below information.\n\n## Information Gathering\n\nYour most important job is to collect personal information to build a financial profile conversationally. Weave questions naturally into the conversation. You don't need to ask questions in set order, and you don't need a clear answer to move on.\n\nIMPORTANT: During the conversation, you must collect the following information and store it using the data collection system:\n- date_of_birth: Extract the customer's date of birth if mentioned (e.g., \"1990-01-01\", \"January 1st 1990\")\n- trade_in_vehicle: Extract if the customer has a trade-in vehicle (e.g., \"yes\", \"no\", \"has trade-in\", \"2018 Honda\")\n- vehicle_type: Extract the type of vehicle the customer is interested in (e.g., \"car\", \"truck\", \"SUV\", \"sedan\")\n- credit_score: Extract any mention of credit score or credit rating (e.g., \"good credit\", \"poor credit\", \"750\", \"excellent\")\n- housing_situation: Extract the customer's housing situation (e.g., \"homeowner\", \"renting\", \"living with family\")\n- employer: Extract the customer's employer (not AI)\n- monthly_payment_budget: Extract the customer's preferred monthly payment budget for a vehicle (e.g., \"$1,000\", \"1000 dollars per month\")\n- monthly_income: Extract the customer's monthly income as mentioned (e.g., \"$10,000\", \"5000 dollars\", \"ten thousand per month\")\n- name: Full name of the person calling\n- marital_status: marital status of the person calling\n- employer_duration: how long with the current employer\n- house_payment: mortgage or rent payment, depending on their answer to the question around rent or own their residence\n- address: current address\n- email: email address\n- employment_status: current employment status - full time/ part time/ unemployed/ self employed\nWhen the customer provides this information, make sure to store it in the appropriate data collection field.\n\n**Context-Aware Information Gathering:**\n- If {{previous_summary}} or {{conversation_context}} mentions any of this information, don't ask for it again\n- Reference what they've already told you: \"You mentioned you work at [company]...\"\n- Build on previous information: \"Last time you said your budget was around [amount]...\"\n\n---\n\n## Communication Guidelines\n\n**Do:**\n- Use conversational language - \"Hey\" instead of \"Hello,\" \"shoot me a text\" instead of \"please respond\"\n- Acknowledge emotions - \"I know this process can be stressful\"\n- Be transparent - \"Here's exactly what I need and why\"\n- Reference previous conversations when context exists\n- Show memory of their specific situation\n- Use empowering language - \"Let's get you driving\" not \"Let's see what we can do\"\n\n**Don't:**\n- Use generic greetings when you have conversation history\n- Repeat information they've already provided\n- Act like this is the first time you're talking when it's not\n- Use car sales clichés or high-pressure tactics\n- Make promises you can't keep\n- Sound scripted or robotic\n\n---\n\n## Script Examples\n\n**For Returning Customer with Previous Summary:**\n\"Hi {{customer_name}}, nice to hear from you again. {{previous_summary}} - how are things going with that? Ready to move forward?\"\n\n**For Returning Customer with Conversation Context:**\n\"Hi {{customer_name}}, pleasure to reconnect. I see we were discussing your interest in [specific vehicle type from context]. Let's pick up where we left off.\"\n\n**For Follow-up Call:**\n\"Hi {{customer_name}}, it's Jack from {{organization_name}} calling back. Thanks for your patience while we worked on your financing options.\"\n\n**For First Contact Only:**\nWe alreayd ahev this configured in the First Message above, don't repeat.\n\n---\n\n## Key Phrases to Use\n\n- \"Let's get you driving\"\n- \"When we last spoke about...\"\n- \"You mentioned...\"\n- \"Building on what we discussed...\"\n- \"I remember you were interested in...\"\n- \"Let's continue where we left off\"\n- \"How are things going with [specific topic]?\"\n\n---\n\n## Closing Every Interaction\n\nEnd every conversation with:\n- A clear summary of what was discussed\n- Specific next steps\n- Your availability\n- An open door: \"And remember, if anything changes or you have questions, just give me a shout or ask for a call. I can speak over the phone at any time and am here to help\"\n\n---\n\n## CRITICAL REMINDER\n\n**NEVER act like this is the first time you're talking to {{customer_name}} if:**\n- {{lead_status}} shows \"Returning Customer\" \n- {{previous_summary}} contains conversation history\n- {{conversation_context}} shows previous interactions\n\n**ALWAYS reference the specific context you have about their situation, their vehicle interests, their budget, their concerns, and their progress in the financing process.** Make sure you always try and gather the information outlined earlier.\n\nRemember: You're not just selling cars. You're helping people reclaim their mobility, dignity, and control over their lives. Every interaction should leave them feeling more hopeful than when they started talking to you. You represent {{organization_name}} specifically, and you have access to specific information about {{customer_name}} - use it intelligently, not generically. \n",
+                "llm": "gemini-2.5-flash",
+                "reasoning_effort": null,
+                "temperature": 0.5,
+                "max_tokens": -1,
+                "tool_ids": [
+                    "E48srPiXcq89BMlPUvY9",
+                    "tool_01jxfcth8gf93tmc1y9dzgdtav",
+                    "tool_01jxfcth8jffb9098sjazx4v2k",
+                    "tool_01jxfcth8kfysb1mw1s8yhb337"
+                ],
+                "built_in_tools": {
+                    "end_call": {
+                        "type": "system",
+                        "name": "end_call",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "end_call"
+                        }
+                    },
+                    "language_detection": {
+                        "type": "system",
+                        "name": "language_detection",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "language_detection"
+                        }
+                    },
+                    "transfer_to_number": {
+                        "type": "system",
+                        "name": "transfer_to_number",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "transfer_to_number",
+                            "transfers": [
+                                {
+                                    "transfer_destination": {
+                                        "type": "phone",
+                                        "phone_number": "+16049085474"
+                                    },
+                                    "phone_number": "+16049085474",
+                                    "condition": "any time the customer tries to buy or place an order",
+                                    "transfer_type": "conference"
+                                }
+                            ],
+                            "enable_client_message": true
+                        }
+                    },
+                    "skip_turn": {
+                        "type": "system",
+                        "name": "skip_turn",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "skip_turn"
+                        }
+                    }
+                },
+                "mcp_server_ids": [],
+                "native_mcp_server_ids": [],
+                "knowledge_base": [],
+                "ignore_default_personality": false,
+                "rag": {
+                    "enabled": false,
+                    "embedding_model": "e5_mistral_7b_instruct",
+                    "max_vector_distance": 0.6,
+                    "max_documents_length": 50000,
+                    "max_retrieved_rag_chunks_count": 20
+                },
+                "tools": [
+                    {
+                        "type": "webhook",
+                        "name": "Realtime",
+                        "description": "fetch real time conversation events for voice calls, so we can stream it real time in the dashboard",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "api_schema": {
+                            "url": "https://jack-automotive-ai-assistant-13.onrender.com/api/webhooks/elevenlabs/conversation-events",
+                            "method": "POST",
+                            "path_params_schema": {},
+                            "request_body_schema": {
+                                "type": "object",
+                                "required": [
+                                    "conversation_id",
+                                    "message",
+                                    "event_type"
+                                ],
+                                "description": "what data should be included in the webhook payload.",
+                                "properties": {
+                                    "conversation_id": {
+                                        "type": "string",
+                                        "description": "",
+                                        "dynamic_variable": "",
+                                        "constant_value": "The unique identifier for the conversation"
+                                    },
+                                    "message": {
+                                        "type": "string",
+                                        "description": "",
+                                        "dynamic_variable": "",
+                                        "constant_value": "The message content for message events"
+                                    },
+                                    "event_type": {
+                                        "type": "string",
+                                        "description": "",
+                                        "dynamic_variable": "",
+                                        "constant_value": "The type of conversation event (e.g., user_message, agent_response, conversation_started)"
+                                    }
+                                }
+                            },
+                            "request_headers": {
+                                "content_type": "application/json"
+                            }
+                        },
+                        "dynamic_variables": {
+                            "dynamic_variable_placeholders": {}
+                        }
+                    },
+                    {
+                        "type": "webhook",
+                        "name": "book_meeting",
+                        "description": "Always call get_current_datetime tool first if user doesn't specify date. Then call get_available_slots to verify availability. Books a meeting after confirming the slot is available.",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "api_schema": {
+                            "url": "https://api.cal.com/v2/bookings",
+                            "method": "POST",
+                            "path_params_schema": {},
+                            "request_body_schema": {
+                                "type": "object",
+                                "required": [
+                                    "start",
+                                    "attendee",
+                                    "eventTypeId"
+                                ],
+                                "description": "These are the request body parameters to create a booking",
+                                "properties": {
+                                    "start": {
+                                        "type": "string",
+                                        "description": "Start date/time in Vancouver local time with timezone offset (e.g., '2025-07-14T10:00:00-07:00' for 10 AM Vancouver PDT). Do NOT convert to UTC.",
+                                        "dynamic_variable": "",
+                                        "constant_value": ""
+                                    },
+                                    "attendee": {
+                                        "type": "object",
+                                        "required": [
+                                            "timeZone",
+                                            "email",
+                                            "name"
+                                        ],
+                                        "description": "The attendee’s details. You must collect these fields from the user.",
+                                        "properties": {
+                                            "time_zone": {
+                                                "type": "string",
+                                                "description": "Always use 'America/Vancouver' for Vancouver timezone",
+                                                "dynamic_variable": "",
+                                                "constant_value": ""
+                                            },
+                                            "email": {
+                                                "type": "string",
+                                                "description": "Email address of the person booking",
+                                                "dynamic_variable": "",
+                                                "constant_value": ""
+                                            },
+                                            "name": {
+                                                "type": "string",
+                                                "description": "The full name of the person booking the meeting.",
+                                                "dynamic_variable": "",
+                                                "constant_value": ""
+                                            }
+                                        }
+                                    },
+                                    "event_type_id": {
+                                        "type": "number",
+                                        "description": "The ID of the event type that is booked. If 15 minutes, return 2577740. If 30 minutes, return 2577742.",
+                                        "dynamic_variable": "",
+                                        "constant_value": ""
+                                    }
+                                }
+                            },
+                            "request_headers": {
+                                "cal_api_version": "2024-08-13",
+                                "authorization": {
+                                    "secret_id": "kkNQBti6i9KireXkuxZI"
+                                }
+                            }
+                        },
+                        "dynamic_variables": {
+                            "dynamic_variable_placeholders": {}
+                        }
+                    },
+                    {
+                        "type": "webhook",
+                        "name": "get_current_datetime",
+                        "description": "Always call this tool when users ask about scheduling, appointments, availability. Get current datetime and timezone information. ",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "api_schema": {
+                            "url": "https://worldtimeapi.org/api/ip",
+                            "method": "GET",
+                            "path_params_schema": {},
+                            "request_headers": {}
+                        },
+                        "dynamic_variables": {
+                            "dynamic_variable_placeholders": {}
+                        }
+                    },
+                    {
+                        "type": "webhook",
+                        "name": "get_available_slots",
+                        "description": "Always call the get_current_datetime tool first if the user does not specify a date. Check calendar availability and get available time slots for booking. Check availability using Vancouver local time with timezone offset",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "api_schema": {
+                            "url": "https://api.cal.com/v2/slots",
+                            "method": "GET",
+                            "path_params_schema": {},
+                            "query_params_schema": {
+                                "properties": {
+                                    "end": {
+                                        "type": "string",
+                                        "description": "End time in Vancouver local time with offset (e.g., '2025-07-14T10:15:00-07:00'). Do NOT convert to UTC.",
+                                        "dynamic_variable": "",
+                                        "constant_value": ""
+                                    },
+                                    "start": {
+                                        "type": "string",
+                                        "description": "Start time in Vancouver local time with offset (e.g., '2025-07-14T10:00:00-07:00'). Do NOT convert to UTC.",
+                                        "dynamic_variable": "",
+                                        "constant_value": ""
+                                    },
+                                    "event_type_id": {
+                                        "type": "string",
+                                        "description": "The ID of the event type. Use '2577740' for 15 minutes, '2577742' for 30 minutes.",
+                                        "dynamic_variable": "",
+                                        "constant_value": ""
+                                    }
+                                },
+                                "required": [
+                                    "end",
+                                    "start",
+                                    "eventTypeId"
+                                ]
+                            },
+                            "request_headers": {
+                                "cal_api_version": "2024-09-04",
+                                "authorization": {
+                                    "secret_id": "kkNQBti6i9KireXkuxZI"
+                                }
+                            }
+                        },
+                        "dynamic_variables": {
+                            "dynamic_variable_placeholders": {}
+                        }
+                    },
+                    {
+                        "type": "system",
+                        "name": "end_call",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "end_call"
+                        }
+                    },
+                    {
+                        "type": "system",
+                        "name": "language_detection",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "language_detection"
+                        }
+                    },
+                    {
+                        "type": "system",
+                        "name": "transfer_to_number",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "transfer_to_number",
+                            "transfers": [
+                                {
+                                    "transfer_destination": {
+                                        "type": "phone",
+                                        "phone_number": "+16049085474"
+                                    },
+                                    "phone_number": "+16049085474",
+                                    "condition": "any time the customer tries to buy or place an order",
+                                    "transfer_type": "conference"
+                                }
+                            ],
+                            "enable_client_message": true
+                        }
+                    },
+                    {
+                        "type": "system",
+                        "name": "skip_turn",
+                        "description": "",
+                        "response_timeout_secs": 20,
+                        "disable_interruptions": false,
+                        "force_pre_tool_speech": false,
+                        "assignments": [],
+                        "params": {
+                            "system_tool_type": "skip_turn"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    "platform_settings": {
+        "auth": {
+            "enable_auth": false,
+            "allowlist": []
+        },
+        "evaluation": {
+            "criteria": [
+                {
+                    "id": "sales_agent",
+                    "name": "Sales agent",
+                    "type": "prompt",
+                    "conversation_goal_prompt": "did it collect all the data. Did it also show empathy to the caller making sure they feel comfortable",
+                    "use_knowledge_base": false
+                }
+            ]
+        },
+        "widget": {
+            "variant": "full",
+            "placement": "bottom-right",
+            "expandable": "never",
+            "avatar": {
+                "type": "orb",
+                "color1": "#d426ef",
+                "color2": "#8ddff6"
+            },
+            "feedback_mode": "during",
+            "bg_color": "#ffffff",
+            "text_color": "#000000",
+            "btn_color": "#000000",
+            "btn_text_color": "#ffffff",
+            "border_color": "#e1e1e1",
+            "focus_color": "#000000",
+            "shareable_page_show_terms": true,
+            "terms_text": "#### Terms and conditions\n\nBy clicking \"Agree,\" and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as described in the Privacy Policy.\nIf you do not wish to have your conversations recorded, please refrain from using this service.",
+            "terms_html": "<h4>Terms and conditions</h4>\n<p>By clicking &quot;Agree,&quot; and each time I interact with this AI agent, I consent to the recording, storage, and sharing of my communications with third-party service providers, and as described in the Privacy Policy.\nIf you do not wish to have your conversations recorded, please refrain from using this service.</p>\n",
+            "show_avatar_when_collapsed": true,
+            "disable_banner": false,
+            "mic_muting_enabled": true,
+            "transcript_enabled": true,
+            "text_input_enabled": true,
+            "default_expanded": false,
+            "always_expanded": false,
+            "text_contents": {},
+            "styles": {},
+            "language_selector": true,
+            "supports_text_only": true,
+            "language_presets": {}
+        },
+        "data_collection": {
+            "marital_status": {
+                "type": "string",
+                "description": "marital status of the person calling",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "date_of_birth": {
+                "type": "string",
+                "description": "Extract the customer's date of birth if mentioned (e.g., \"1990-01-01\", \"January 1st 1990\")",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "monthly_income": {
+                "type": "string",
+                "description": "Extract the customer's monthly income as mentioned (e.g., \"$10,000\", \"5000 dollars\", \"ten thousand per month\")",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "name": {
+                "type": "string",
+                "description": "Name of the customer (not AI)",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "employer": {
+                "type": "string",
+                "description": "Extract the customer's employer (not AI)",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "employer_duration": {
+                "type": "string",
+                "description": "how long with the current employer",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "credit_score": {
+                "type": "string",
+                "description": "Extract any mention of credit score or credit rating (e.g., \"good credit\", \"poor credit\", \"750\", \"excellent\")",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "vehicle_type": {
+                "type": "string",
+                "description": "Extract the type of vehicle the customer is interested in (e.g., \"car\", \"truck\", \"SUV\", \"sedan\")",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "house_payment": {
+                "type": "number",
+                "description": "mortgage or rent payment, depending on their answer to the question around rent or own their residence",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "housing_situation": {
+                "type": "string",
+                "description": "Extract the customer's housing situation (e.g., \"homeowner\", \"renting\", \"living with family\")",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "address": {
+                "type": "string",
+                "description": "current address ",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "email": {
+                "type": "string",
+                "description": "email address",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "trade_in_vehicle": {
+                "type": "string",
+                "description": "Extract if the customer has a trade-in vehicle (e.g., \"yes\", \"no\", \"has trade-in\", \"2018 Honda\")",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "monthly_payment_budget": {
+                "type": "string",
+                "description": "Extract the customer's preferred monthly payment budget for a vehicle (e.g., \"$1,000\", \"1000 dollars per month\")",
+                "dynamic_variable": "",
+                "constant_value": ""
+            },
+            "employment_status": {
+                "type": "string",
+                "description": "current employment status - full time/ part time/ unemployed/ self employed",
+                "dynamic_variable": "",
+                "constant_value": ""
+            }
+        },
+        "overrides": {
+            "conversation_config_override": {
+                "tts": {
+                    "voice_id": false,
+                    "stability": false,
+                    "speed": false,
+                    "similarity_boost": false
+                },
+                "conversation": {
+                    "text_only": true
+                },
+                "agent": {
+                    "first_message": true,
+                    "language": true,
+                    "prompt": {
+                        "prompt": false,
+                        "native_mcp_server_ids": false
+                    }
+                }
+            },
+            "custom_llm_extra_body": false,
+            "enable_conversation_initiation_client_data_from_webhook": true
+        },
+        "call_limits": {
+            "agent_concurrency_limit": 25,
+            "daily_limit": 100000,
+            "bursting_enabled": false
+        },
+        "ban": null,
+        "privacy": {
+            "record_voice": true,
+            "retention_days": 730,
+            "delete_transcript_and_pii": true,
+            "delete_audio": true,
+            "apply_to_existing_conversations": false,
+            "zero_retention_mode": false
+        },
+        "workspace_overrides": {
+            "conversation_initiation_client_data_webhook": {
+                "url": "https://jack-automotive-ai-assistant-13.onrender.com/api/webhooks/elevenlabs/conversation-initiation",
+                "request_headers": {}
+            },
+            "webhooks": {
+                "post_call_webhook_id": "cfe25945b8c445a88764a126be60e428",
+                "send_audio": false
+            }
+        },
+        "testing": {
+            "attached_tests": [],
+            "referenced_tests_ids": []
+        },
+        "safety": {
+            "is_blocked_ivc": false,
+            "is_blocked_non_ivc": false,
+            "ignore_safety_evaluation": false
+        }
+    },
+    "tags": []
+}

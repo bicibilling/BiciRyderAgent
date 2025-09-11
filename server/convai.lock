@@ -11,6 +11,36 @@
                 "id": "agent_2001k4e6157ce3rv5scqjb1a80q2",
                 "hash": "a5c10b3a2b450c44ed74c9a9c4405295"
             }
+        },
+        "BICI Unified Agent": {
+            "prod": {
+                "id": "agent_6801k4r2aegae1gavzmrmy5qdap4",
+                "hash": "e92027bf95d8e2f3652161153ce54597"
+            }
+        },
+        "Ryder - Bici AI Teammate": {
+            "prod": {
+                "id": "agent_3101k3ap505kenp8yzwet9p4f99h",
+                "hash": "eb781e963dda72ff5a4811e172332cbf"
+            }
+        },
+        "Winnie": {
+            "prod": {
+                "id": "agent_4801k1ctesfjers9kr4mfx03jd10",
+                "hash": "9a61ea322240fa5d24e3ab2d89f06d64"
+            }
+        },
+        "Bike agent": {
+            "prod": {
+                "id": "agent_01jy5s8gwnfw5v3bpr1ep6bj1c",
+                "hash": "289217a517f98122b1b46fd480506d3e"
+            }
+        },
+        "Sales agent": {
+            "prod": {
+                "id": "agent_01jwc5v1nafjwv7zw4vtz1050m",
+                "hash": "e43ad92a6fd9e58dfe44b6ad426110f7"
+            }
         }
     },
     "tools": {}

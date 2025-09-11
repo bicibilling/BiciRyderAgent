@@ -234,7 +234,7 @@
                     "text": "مرحبًا! شكرًا لاتصالك بـ BICI، كيف يمكنني مساعدتك اليوم؟"
                 }
             },
-            "pt_br": {
+            "pt-br": {
                 "overrides": {
                     "agent": {
                         "first_message": "Olá! Obrigado por ligar para a BICI, como posso ajudá-lo hoje?"
