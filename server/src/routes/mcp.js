@@ -129,26 +129,42 @@ async function handleToolsList() {
       },
       {
         name: 'update_cart',
-        description: 'Updates quantities of items in an existing cart or adds new items. Creates a new cart if no cart ID is provided. Set quantity to 0 to remove an item.',
+        description: 'Perform updates to a cart, including adding/removing/updating line items, buyer information, shipping details, discount codes, gift cards and notes in one consolidated call. Shipping options become available after adding items and delivery address. When creating a new cart, only addItems is required.',
         inputSchema: {
           type: 'object',
           properties: {
-            cart_id: { type: 'string', description: 'ID of the cart to update. Creates a new cart if not provided.' },
-            lines: {
+            cart_id: { type: 'string', description: 'Identifier for the cart being updated. If not provided, a new cart will be created.' },
+            add_items: {
               type: 'array',
-              description: 'Array of items to update or add',
+              description: 'Items to add to the cart. Required when creating a new cart.',
               items: {
                 type: 'object',
                 properties: {
-                  line_item_id: { type: 'string', description: 'ID of existing line item to update' },
-                  merchandise_id: { type: 'string', description: 'Product variant ID to add' },
-                  quantity: { type: 'integer', description: 'Quantity (0 to remove)' }
+                  product_variant_id: { type: 'string', description: 'Shopify product variant ID' },
+                  quantity: { type: 'integer', description: 'Quantity to add' }
                 },
-                required: ['quantity']
+                required: ['product_variant_id', 'quantity']
               }
-            }
-          },
-          required: ['lines']
+            },
+            update_items: {
+              type: 'array',
+              description: 'Existing cart line items to update quantities for. Use quantity 0 to remove an item.',
+              items: {
+                type: 'object',
+                properties: {
+                  line_item_id: { type: 'string', description: 'Cart line item ID' },
+                  quantity: { type: 'integer', description: 'New quantity (0 to remove)' }
+                },
+                required: ['line_item_id', 'quantity']
+              }
+            },
+            remove_line_ids: {
+              type: 'array',
+              description: 'List of line item IDs to remove explicitly.',
+              items: { type: 'string' }
+            },
+            note: { type: 'string', description: 'A note or special instructions for the cart.' }
+          }
         }
       }
     ]
@@ -413,51 +429,64 @@ async function getCartInfo(args) {
 }
 
 async function updateCart(args) {
-  const { cart_id, lines } = args;
-  if (!lines || !Array.isArray(lines)) {
-    throw new Error('lines array is required');
-  }
+  const { cart_id, add_items, update_items, remove_line_ids, note } = args;
 
   // Create new cart if no cart_id provided
   const id = cart_id || `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const cart = ensureCart(id, { allowCreate: true });
 
-  // Process each line in the update
-  for (const line of lines) {
-    const { line_item_id, merchandise_id, quantity } = line;
+  // Add new items
+  if (add_items && Array.isArray(add_items)) {
+    for (const item of add_items) {
+      const { product_variant_id, quantity } = item;
 
-    if (quantity === 0) {
-      // Remove item by setting quantity to 0
-      if (line_item_id) {
-        const lineIndex = parseInt(line_item_id.replace('line_', ''));
-        if (lineIndex >= 0 && lineIndex < cart.items.length) {
-          cart.items.splice(lineIndex, 1);
-        }
-      }
-    } else if (line_item_id) {
-      // Update existing line item
-      const lineIndex = parseInt(line_item_id.replace('line_', ''));
-      if (lineIndex >= 0 && lineIndex < cart.items.length) {
-        cart.items[lineIndex].quantity = quantity;
-      }
-    } else if (merchandise_id) {
-      // Add new item
-      const existing = cart.items.find(item =>
-        (item.variant_id || item.product_id) === merchandise_id
+      const existing = cart.items.find(cartItem =>
+        (cartItem.variant_id || cartItem.product_id) === product_variant_id
       );
 
       if (existing) {
-        existing.quantity = quantity;
+        existing.quantity += quantity;
       } else {
         cart.items.push({
-          product_id: merchandise_id,
-          variant_id: merchandise_id,
+          product_id: product_variant_id,
+          variant_id: product_variant_id,
           quantity: quantity,
-          title: `Product ${merchandise_id}`,
+          title: `Product ${product_variant_id}`,
           price: 0 // Will be updated with real price from product search
         });
       }
     }
+  }
+
+  // Update existing items
+  if (update_items && Array.isArray(update_items)) {
+    for (const item of update_items) {
+      const { line_item_id, quantity } = item;
+      const lineIndex = parseInt(line_item_id.replace('line_', ''));
+
+      if (lineIndex >= 0 && lineIndex < cart.items.length) {
+        if (quantity === 0) {
+          cart.items.splice(lineIndex, 1);
+        } else {
+          cart.items[lineIndex].quantity = quantity;
+        }
+      }
+    }
+  }
+
+  // Remove specific line items
+  if (remove_line_ids && Array.isArray(remove_line_ids)) {
+    for (const lineId of remove_line_ids) {
+      const lineIndex = parseInt(lineId.replace('line_', ''));
+      if (lineIndex >= 0 && lineIndex < cart.items.length) {
+        cart.items.splice(lineIndex, 1);
+      }
+    }
+  }
+
+  // Add note if provided
+  if (note) {
+    cart.note = note;
   }
 
   return {
@@ -475,7 +504,8 @@ async function updateCart(args) {
         }
       })),
       subtotal: computeSubtotal(cart),
-      checkout_url: `https://bici.cc/cart/${cart.id}`
+      checkout_url: `https://bici.cc/cart/${cart.id}`,
+      note: cart.note || null
     }
   };
 }
