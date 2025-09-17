@@ -115,6 +115,41 @@ async function handleToolsList() {
           },
           required: ['product_id']
         }
+      },
+      {
+        name: 'get_cart',
+        description: 'Retrieves the current contents of a cart, including item details and checkout URL.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            cart_id: { type: 'string', description: 'ID of an existing cart' }
+          },
+          required: ['cart_id']
+        }
+      },
+      {
+        name: 'update_cart',
+        description: 'Updates quantities of items in an existing cart or adds new items. Creates a new cart if no cart ID is provided. Set quantity to 0 to remove an item.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            cart_id: { type: 'string', description: 'ID of the cart to update. Creates a new cart if not provided.' },
+            lines: {
+              type: 'array',
+              description: 'Array of items to update or add',
+              items: {
+                type: 'object',
+                properties: {
+                  line_item_id: { type: 'string', description: 'ID of existing line item to update' },
+                  merchandise_id: { type: 'string', description: 'Product variant ID to add' },
+                  quantity: { type: 'integer', description: 'Quantity (0 to remove)' }
+                },
+                required: ['quantity']
+              }
+            }
+          },
+          required: ['lines']
+        }
       }
     ]
   };
@@ -130,6 +165,10 @@ async function handleToolCall(params) {
       return await searchShopPolicies(args);
     case 'get_product_details':
       return await getProductDetails(args);
+    case 'get_cart':
+      return await getCartInfo(args);
+    case 'update_cart':
+      return await updateCart(args);
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -326,6 +365,118 @@ async function getProductDetails(args) {
       website: 'https://bici.cc'
     },
     options: options || {}
+  };
+}
+
+// In-memory cart storage (replace with database in production)
+const carts = new Map();
+
+function ensureCart(sessionId, { allowCreate = true } = {}) {
+  if (!carts.has(sessionId)) {
+    if (!allowCreate) throw new Error('Cart not found');
+    carts.set(sessionId, {
+      id: sessionId,
+      items: [],
+      currency: 'CAD',
+      created: new Date().toISOString()
+    });
+  }
+  return carts.get(sessionId);
+}
+
+function computeSubtotal(cart) {
+  return cart.items.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
+}
+
+async function getCartInfo(args) {
+  const { cart_id } = args;
+  if (!cart_id) throw new Error('cart_id is required');
+  const cart = ensureCart(cart_id);
+  return {
+    cart: {
+      id: cart.id,
+      currency: cart.currency,
+      lines: cart.items.map((item, index) => ({
+        id: `line_${index}`,
+        merchandise_id: item.variant_id || item.product_id,
+        quantity: item.quantity,
+        product: {
+          id: item.product_id,
+          title: item.title,
+          handle: item.product_id
+        }
+      })),
+      subtotal: computeSubtotal(cart),
+      checkout_url: `https://bici.cc/cart/${cart.id}`
+    }
+  };
+}
+
+async function updateCart(args) {
+  const { cart_id, lines } = args;
+  if (!lines || !Array.isArray(lines)) {
+    throw new Error('lines array is required');
+  }
+
+  // Create new cart if no cart_id provided
+  const id = cart_id || `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const cart = ensureCart(id, { allowCreate: true });
+
+  // Process each line in the update
+  for (const line of lines) {
+    const { line_item_id, merchandise_id, quantity } = line;
+
+    if (quantity === 0) {
+      // Remove item by setting quantity to 0
+      if (line_item_id) {
+        const lineIndex = parseInt(line_item_id.replace('line_', ''));
+        if (lineIndex >= 0 && lineIndex < cart.items.length) {
+          cart.items.splice(lineIndex, 1);
+        }
+      }
+    } else if (line_item_id) {
+      // Update existing line item
+      const lineIndex = parseInt(line_item_id.replace('line_', ''));
+      if (lineIndex >= 0 && lineIndex < cart.items.length) {
+        cart.items[lineIndex].quantity = quantity;
+      }
+    } else if (merchandise_id) {
+      // Add new item
+      const existing = cart.items.find(item =>
+        (item.variant_id || item.product_id) === merchandise_id
+      );
+
+      if (existing) {
+        existing.quantity = quantity;
+      } else {
+        cart.items.push({
+          product_id: merchandise_id,
+          variant_id: merchandise_id,
+          quantity: quantity,
+          title: `Product ${merchandise_id}`,
+          price: 0 // Will be updated with real price from product search
+        });
+      }
+    }
+  }
+
+  return {
+    cart: {
+      id: cart.id,
+      currency: cart.currency,
+      lines: cart.items.map((item, index) => ({
+        id: `line_${index}`,
+        merchandise_id: item.variant_id || item.product_id,
+        quantity: item.quantity,
+        product: {
+          id: item.product_id,
+          title: item.title,
+          handle: item.product_id
+        }
+      })),
+      subtotal: computeSubtotal(cart),
+      checkout_url: `https://bici.cc/cart/${cart.id}`
+    }
   };
 }
 
