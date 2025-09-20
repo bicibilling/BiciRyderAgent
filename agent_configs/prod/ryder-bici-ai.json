@@ -25,7 +25,7 @@
                 },
                 "transfer_to_number": {
                     "type": "system",
-                    "name": "transfer_to_number", 
+                    "name": "transfer_to_number",
                     "description": "Transfer immediately when customer asks for human",
                     "response_timeout_secs": 20,
                     "disable_interruptions": false,
@@ -37,14 +37,26 @@
                             {
                                 "transfer_destination": {
                                     "type": "phone",
-                                    "phone_number": "+16047232137"
+                                    "phone_number": "+17787193080"
                                 },
-                                "phone_number": "+16047232137",
+                                "phone_number": "+17787193080",
                                 "condition": "When customer asks for human, person, or to speak with someone - transfer immediately without explanation",
-                                "transfer_type": "conference"
+                                "transfer_type": "sip_refer"
                             }
                         ],
                         "enable_client_message": false
+                    }
+                },
+                "play_keypad_touch_tone": {
+                    "type": "system",
+                    "name": "play_keypad_touch_tone",
+                    "description": "Play DTMF tones to dial extension after transfer",
+                    "response_timeout_secs": 20,
+                    "disable_interruptions": false,
+                    "force_pre_tool_speech": false,
+                    "assignments": [],
+                    "params": {
+                        "system_tool_type": "play_keypad_touch_tone"
                     }
                 }
             }
