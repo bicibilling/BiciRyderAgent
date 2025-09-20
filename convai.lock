@@ -2,8 +2,8 @@
     "agents": {
         "Bike agent": {
             "prod": {
-                "id": "agent_9801k4dzaerfet3srneq5wfbd6kc",
-                "hash": "ecab89e7b3f778d6264bafb0f36bf1c5"
+                "id": "agent_01jy5s8gwnfw5v3bpr1ep6bj1c",
+                "hash": "bf5c919cad4f4d6c39a89c652efa321c"
             }
         },
         "BICI Voice Agent": {
@@ -22,6 +22,30 @@
             "prod": {
                 "id": "agent_6801k4r2aegae1gavzmrmy5qdap4",
                 "hash": "127df04e3b8dea05b499a850edf86226"
+            }
+        },
+        "Ryder - Bici AI Teammate": {
+            "prod": {
+                "id": "agent_3101k3ap505kenp8yzwet9p4f99h",
+                "hash": "5dc7f300866c8b5eaf4c83cee5e948b4"
+            }
+        },
+        "Winnie": {
+            "prod": {
+                "id": "agent_4801k1ctesfjers9kr4mfx03jd10",
+                "hash": "434e9027c9810f9bf4b0511061b317d0"
+            }
+        },
+        "Sales agent": {
+            "prod": {
+                "id": "agent_01jwc5v1nafjwv7zw4vtz1050m",
+                "hash": "693607a4d3932e722c42f73296c99c91"
+            }
+        },
+        "Bike Agent Dev Minimal": {
+            "prod": {
+                "id": "agent_8301k5b6nhcte3zs356xjvjk87ra",
+                "hash": "b8407758662c69c70966878a2c86eee1"
             }
         }
     },

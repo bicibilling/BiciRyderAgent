@@ -25,6 +25,30 @@
                     "agent_id": "agent_6801k4r2aegae1gavzmrmy5qdap4"
                 }
             }
+        },
+        {
+            "name": "Ryder - Bici AI Teammate",
+            "config": "agent_configs/ryder_-_bici_ai_teammate.json"
+        },
+        {
+            "name": "Winnie",
+            "config": "agent_configs/winnie.json"
+        },
+        {
+            "name": "Bike agent",
+            "config": "agent_configs/bike_agent.json"
+        },
+        {
+            "name": "Sales agent",
+            "config": "agent_configs/sales_agent.json"
+        },
+        {
+            "name": "Bike Agent Dev Minimal",
+            "environments": {
+                "prod": {
+                    "config": "agent_configs/prod/bike_agent_dev_minimal.json"
+                }
+            }
         }
     ]
 }

@@ -96,7 +96,7 @@ export function normalizeCatalogResult(result: any) {
       }
     }
     const products = payload?.products || [];
-    const normalized = products.slice(0, 10).map((p: any) => ({
+    const normalized = products.map((p: any) => ({
       product_id: p.product_id,
       title: p.title,
       url: p.url,

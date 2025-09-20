@@ -1,12 +1,11 @@
 import axios from 'axios';
 import { Lead, Conversation, DashboardStats } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_URL || (
-  typeof window !== 'undefined' && window.location.origin 
-    ? `${window.location.origin}/api`
-    : '/api'
-);
-const ORGANIZATION_ID = 'b0c1b1c1-0000-0000-0000-000000000001';
+const API_BASE = typeof window !== 'undefined' && window.location.origin
+  ? `${window.location.origin}/api`
+  : '/api';
+
+const ORGANIZATION_ID = 'bici-main';
 
 // Configure axios defaults
 axios.defaults.headers.common['X-Organization-Id'] = ORGANIZATION_ID;

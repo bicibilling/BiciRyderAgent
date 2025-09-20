@@ -1,0 +1,98 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fswiss\fcharset0 Helvetica-Bold;\f2\fswiss\fcharset0 Helvetica-Oblique;
+}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;}
+{\*\listtable{\list\listtemplateid1\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid1\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid1}}
+{\*\listoverridetable{\listoverride\listid1\listoverridecount0\ls1}}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs32 \cf0 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 \'a0 1. Go to 
+\f1\b Shopify Admin \uc0\u8594  Settings \u8594  Apps and sales channels
+\f0\b0 \
+\'a0 2. Click 
+\f1\b "Develop apps"
+\f0\b0 \
+\'a0 3. Click 
+\f1\b "Create an app"
+\f0\b0 \
+\'a0 4. Name it something like 
+\f1\b "BICI Voice Agent Integration"
+\f0\b0 \
+\'a0 5. 
+\f1\b Required API Scopes (READ-ONLY for Safety)
+\f0\b0 \
+\
+Please configure these 
+\f1\b exact scopes
+\f0\b0 \'a0when creating the Custom App:\
+For Order Management:\
+\'a0 - read_orders\'a0- View order status, history, tracking\
+\'a0 - read_customers\'a0- Look up customers by email/phone\
+\'a0 - read_fulfillments\'a0- Get shipping/tracking information\
+\'a0 - read_shipping\'a0- Access shipping details\
+\
+For Product/Inventory:\
+\'a0 - read_products\'a0- Product catalog access (I\'a0already have this from the storefront mcp as bici shopify catalog is publicly accessible)\
+\'a0 - read_inventory\'a0- Check stock levels\
+\'a0 - read_product_listings\'a0- Available products\
+\
+For Cart/Checkout:\
+\'a0 - read_checkouts\'a0- View abandoned carts\
+\'a0 - write_checkouts\'a0- Create checkout links\
+\'a0 - read_draft_orders\'a0- View draft orders\
+\
+DO NOT ENABLE:\
+\'a0 - \uc0\u10060  write_orders\'a0- Can modify/delete orders\
+\'a0 - \uc0\u10060  write_products\'a0- Can modify product catalog\
+\'a0 - \uc0\u10060  write_inventory\'a0- Can change inventory levels\
+\'a0 - \uc0\u10060  write_customers\'a0- Can modify customer data\
+\
+6. 
+\f1\b Access Tokens Needed
+\f0\b0 \
+Please generate 
+\f1\b TWO tokens
+\f0\b0 :\
+\'a0 \'a0a) 
+\f1\b Admin API Access Token
+\f0\b0 \
+\'a0 \'a0 - After selecting scopes above\
+\'a0 \'a0 - Click "Install app"\
+\'a0 \'a0 - Go to "API credentials" tab\
+\'a0 \'a0 - Under "Admin API access token" click "Reveal token once"\
+\'a0 \'a0 - 
+\f1\b Copy this immediately
+\f0\b0 \'a0(only shown once)\
+\'a0 \'a0b) 
+\f1\b Storefront API Access Token (not required, but would be good to have)
+\f0\b0 \
+\'a0 \'a0 - Same app \uc0\u8594  "API credentials" tab\
+\'a0 \'a0 - Under "Storefront API" click "Create storefront access token"\
+\'a0 \'a0 - Select only: unauthenticated_read_product_listings, unauthenticated_read_checkouts\
+\
+\'a07. 
+\f1\b Please provide:
+\f0\b0 \
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls1\ilvl0\cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 \'a0Admin API Access Token: shpat
+\f2\i _xxxxxxxxxxxxx
+\f0\i0 \
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls1\ilvl0
+\f2\i \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Storefront API Access Token: xxxxxxxxxxxxx (if new)
+\f0\i0 \
+\ls1\ilvl0
+\f2\i \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Store Domain: [their-store].myshopify.com
+\f0\i0 \
+\ls1\ilvl0
+\f2\i \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 API Version: 2024-10 (or latest)
+\f0\i0 \
+}
