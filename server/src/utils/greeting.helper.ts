@@ -13,12 +13,53 @@ export function getTimeBasedGreeting(): string {
   const now = new Date();
   const pacificTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
   const hour = pacificTime.getHours();
-  
+
   if (hour < 5) return "Thanks for calling so late!";
   if (hour < 12) return "Good morning!";
   if (hour < 17) return "Good afternoon!";
   if (hour < 20) return "Good evening!";
   return "Thanks for calling!";
+}
+
+/**
+ * Get current date and time information in Pacific timezone
+ */
+export function getCurrentDateTimeInfo(): {
+  date: Date;
+  timeString: string;
+  dateString: string;
+  dayOfWeek: string;
+  fullDateTime: string;
+} {
+  const now = new Date();
+  const pacificTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+
+  const hours = pacificTime.getHours();
+  const minutes = pacificTime.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+
+  const timeString = `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                     'July', 'August', 'September', 'October', 'November', 'December'];
+
+  const dayOfWeek = dayNames[pacificTime.getDay()];
+  const month = monthNames[pacificTime.getMonth()];
+  const date = pacificTime.getDate();
+  const year = pacificTime.getFullYear();
+
+  const dateString = `${month} ${date}, ${year}`;
+  const fullDateTime = `${dayOfWeek}, ${dateString} at ${timeString} PT`;
+
+  return {
+    date: pacificTime,
+    timeString,
+    dateString,
+    dayOfWeek,
+    fullDateTime
+  };
 }
 
 /**
@@ -74,24 +115,91 @@ export function getDayContext(): string {
 export function getWeatherGreeting(): string {
   // This could be enhanced with actual weather API
   const month = new Date().getMonth();
-  
+
   // Summer months (June-August)
   if (month >= 5 && month <= 7) {
     return "Perfect weather for a bike ride!";
   }
-  
+
   // Spring (March-May)
   if (month >= 2 && month <= 4) {
     return "Spring is here - great time to get on a bike!";
   }
-  
+
   // Fall (September-November)
   if (month >= 8 && month <= 10) {
     return "Beautiful fall weather for cycling!";
   }
-  
+
   // Winter (December-February)
   return "Stay warm out there!";
+}
+
+/**
+ * Get detailed store hours information for greetings
+ */
+export function getDetailedStoreHours(): {
+  isOpen: boolean;
+  currentStatus: string;
+  hoursInfo: string;
+  nextOpen?: string;
+} {
+  const { date: pacificTime, timeString } = getCurrentDateTimeInfo();
+
+  // Basic business hours - this should match the actual store hours
+  const businessHours = {
+    sunday: { open: '09:00', close: '16:30' },
+    monday: { open: '08:00', close: '18:00' },
+    tuesday: { open: '08:00', close: '18:00' },
+    wednesday: { open: '08:00', close: '18:00' },
+    thursday: { open: '08:00', close: '18:00' },
+    friday: { open: '08:00', close: '18:00' },
+    saturday: { open: '09:00', close: '16:30' }
+  };
+
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const today = days[pacificTime.getDay()];
+  const todaysHours = businessHours[today as keyof typeof businessHours];
+
+
+  // Check if currently open
+  const currentHour = pacificTime.getHours();
+  const currentMinute = pacificTime.getMinutes();
+  const currentTime = currentHour * 100 + currentMinute;
+
+  const [openHour, openMinute] = todaysHours.open.split(':').map(Number);
+  const [closeHour, closeMinute] = todaysHours.close.split(':').map(Number);
+  const openTime = openHour * 100 + openMinute;
+  const closeTime = closeHour * 100 + closeMinute;
+
+  const formatTime = (hour: number, minute: number) => {
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minute.toString().padStart(2, '0')} ${ampm}`;
+  };
+
+  if (currentTime >= openTime && currentTime < closeTime) {
+    const closeTimeFormatted = formatTime(closeHour, closeMinute);
+    return {
+      isOpen: true,
+      currentStatus: `We're open right now until ${closeTimeFormatted} (it's ${timeString} PT)`,
+      hoursInfo: `Today's hours: ${formatTime(openHour, openMinute)} - ${closeTimeFormatted}`
+    };
+  } else if (currentTime < openTime) {
+    const openTimeFormatted = formatTime(openHour, openMinute);
+    return {
+      isOpen: false,
+      currentStatus: `We open at ${openTimeFormatted} today (it's ${timeString} PT)`,
+      hoursInfo: `Today's hours: ${openTimeFormatted} - ${formatTime(closeHour, closeMinute)}`
+    };
+  } else {
+    return {
+      isOpen: false,
+      currentStatus: `We're closed for today (it's ${timeString} PT)`,
+      hoursInfo: "We open tomorrow",
+      nextOpen: "tomorrow"
+    };
+  }
 }
 
 /**
@@ -123,15 +231,15 @@ export function getCustomerGreeting(customerName?: string, lastVisit?: Date | st
 }
 
 /**
- * Create a complete dynamic greeting combining all elements
+ * Create a complete dynamic greeting combining all elements with enhanced date/time and store hours
  * @param lead - Lead information
- * @param currentTime - Current time string
- * @param dayOfWeek - Current day of the week
- * @param businessHours - Current store hours status
+ * @param currentTime - Current time string (optional, will be calculated if not provided)
+ * @param dayOfWeek - Current day of the week (optional, will be calculated if not provided)
+ * @param businessHours - Current store hours status (optional, will be calculated if not provided)
  */
 export async function createDynamicGreeting(lead?: any, currentTime?: string, dayOfWeek?: string, businessHours?: string): Promise<string> {
   const leadId = lead?.id;
-  
+
   // Try to get cached greeting first (1 minute TTL for time-sensitive content)
   if (leadId) {
     try {
@@ -144,35 +252,50 @@ export async function createDynamicGreeting(lead?: any, currentTime?: string, da
       logger.warn('Greeting cache error, generating fresh greeting:', redisError);
     }
   }
-  
-  // Generate fresh greeting
+
+  // Get current date/time information
+  const dateTimeInfo = getCurrentDateTimeInfo();
+  const storeHours = getDetailedStoreHours();
   const timeGreeting = getTimeBasedGreeting();
   const dayContext = getDayContext();
   const customerName = lead?.customer_name || "";
   const hasName = !!customerName;
-  
+
   let greeting = "";
-  
-  // Create a natural, conversational greeting
+
+  // Create a natural, conversational greeting with time awareness
   if (hasName) {
     greeting = `Hey ${customerName}! Thanks for calling BICI.`;
   } else {
     greeting = `Hey! Thanks for calling BICI.`;
   }
-  
-  // Add store status in a natural way
-  if (businessHours && (businessHours.includes("Closed") || businessHours.includes("Opens at"))) {
-    greeting += ` We're actually closed right now but I'm happy to help you out.`;
-  } else {
-    // Add day context for open hours only
+
+  // Add time context naturally
+  if (dateTimeInfo.timeString) {
+    // Add day context or time-specific information
     if (dayContext) {
       greeting += ` ${dayContext}`;
     }
   }
-  
+
+  // Add store status with detailed hours information
+  if (!storeHours.isOpen) {
+    greeting += ` ${storeHours.currentStatus} but I'm happy to help you out.`;
+
+    // Add helpful hours information for closed status
+    if (storeHours.hoursInfo && !storeHours.hoursInfo.includes("tomorrow")) {
+      greeting += ` ${storeHours.hoursInfo}.`;
+    }
+  } else {
+    // Store is open - add positive context
+    if (storeHours.currentStatus.includes("open right now")) {
+      greeting += ` ${storeHours.currentStatus}.`;
+    }
+  }
+
   // Natural ending
   greeting += ` What's up?`;
-  
+
   // Cache the generated greeting
   if (leadId) {
     try {
@@ -182,7 +305,7 @@ export async function createDynamicGreeting(lead?: any, currentTime?: string, da
       logger.warn('Failed to cache greeting, continuing:', redisError);
     }
   }
-  
+
   return greeting;
 }
 
@@ -246,6 +369,9 @@ export function generateGreetingContext(lead?: any, isOutbound: boolean = false,
       }
     }
     
+    const dateTimeInfo = getCurrentDateTimeInfo();
+    const storeHours = getDetailedStoreHours();
+
     return {
       time_greeting: getTimeBasedGreeting(),
       day_context: getDayContext(),
@@ -255,11 +381,23 @@ export function generateGreetingContext(lead?: any, isOutbound: boolean = false,
       greeting_opener: hasName ? `Hey ${customerName}!` : "Hey!",
       greeting_variation: variation,
       is_outbound: "true",
-      call_type: "outbound_followup"
+      call_type: "outbound_followup",
+      // Enhanced date/time information
+      current_date: dateTimeInfo.dateString,
+      current_time: dateTimeInfo.timeString,
+      current_day: dateTimeInfo.dayOfWeek,
+      full_datetime: dateTimeInfo.fullDateTime,
+      // Enhanced store hours information
+      store_is_open: storeHours.isOpen ? "true" : "false",
+      store_status: storeHours.currentStatus,
+      store_hours_info: storeHours.hoursInfo
     };
   }
   
   // Inbound call greetings (original behavior)
+  const dateTimeInfo = getCurrentDateTimeInfo();
+  const storeHours = getDetailedStoreHours();
+
   return {
     time_greeting: getTimeBasedGreeting(),
     day_context: getDayContext(),
@@ -269,6 +407,15 @@ export function generateGreetingContext(lead?: any, isOutbound: boolean = false,
     greeting_opener: hasName ? `Hey ${customerName}!` : "Hey there!",  // "Hey Dev!" or "Hey there!"
     greeting_variation: Math.random() > 0.5 ? "What can I help you with" : "How can I help you",
     is_outbound: "false",
-    call_type: "inbound"
+    call_type: "inbound",
+    // Enhanced date/time information
+    current_date: dateTimeInfo.dateString,
+    current_time: dateTimeInfo.timeString,
+    current_day: dateTimeInfo.dayOfWeek,
+    full_datetime: dateTimeInfo.fullDateTime,
+    // Enhanced store hours information
+    store_is_open: storeHours.isOpen ? "true" : "false",
+    store_status: storeHours.currentStatus,
+    store_hours_info: storeHours.hoursInfo
   };
 }
