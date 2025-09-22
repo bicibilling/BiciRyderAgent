@@ -265,9 +265,9 @@ export async function createDynamicGreeting(lead?: any, currentTime?: string, da
 
   // Create a natural, conversational greeting with time awareness
   if (hasName) {
-    greeting = `Hey ${customerName}! Thanks for calling BICI.`;
+    greeting = `Hey ${customerName}! Thanks for calling Beechee.`;
   } else {
-    greeting = `Hey! Thanks for calling BICI.`;
+    greeting = `Hey! Thanks for calling Beechee.`;
   }
 
   // Add time context naturally
