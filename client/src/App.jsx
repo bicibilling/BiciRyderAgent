@@ -22,10 +22,17 @@ function App() {
     return localStorage.getItem('activeTab') || 'overview';
   });
 
+  // Transfer phone number state
+  const [currentTransferNumber, setCurrentTransferNumber] = useState('');
+  const [newTransferNumber, setNewTransferNumber] = useState('');
+  const [transferNumberLoading, setTransferNumberLoading] = useState(false);
+  const [transferNumberMessage, setTransferNumberMessage] = useState(null);
+
   // Fetch initial data
   useEffect(() => {
     fetchAllData();
-    
+    fetchTransferNumber();
+
     // Disabled auto-refresh - was causing painful page refreshing
     // const interval = setInterval(fetchAllData, 30000); // Every 30 seconds
     // return () => clearInterval(interval);
@@ -53,6 +60,55 @@ function App() {
       setError(err.response?.data?.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTransferNumber = async () => {
+    try {
+      const response = await agentAPI.getTransferNumber();
+      const transferNumber = response.data.current_transfer_number;
+      setCurrentTransferNumber(transferNumber);
+      setNewTransferNumber(transferNumber);
+    } catch (err) {
+      console.error('Failed to fetch transfer number:', err);
+      setCurrentTransferNumber('Error loading');
+    }
+  };
+
+  const updateTransferNumber = async () => {
+    if (!newTransferNumber) {
+      setTransferNumberMessage({ type: 'error', text: 'Phone number is required' });
+      return;
+    }
+
+    // Basic E.164 format validation
+    const e164Regex = /^\+[1-9]\d{1,14}$/;
+    if (!e164Regex.test(newTransferNumber)) {
+      setTransferNumberMessage({
+        type: 'error',
+        text: 'Phone number must be in E.164 format (e.g., +17787193080)'
+      });
+      return;
+    }
+
+    setTransferNumberLoading(true);
+    setTransferNumberMessage(null);
+
+    try {
+      const response = await agentAPI.updateTransferNumber(newTransferNumber);
+      setCurrentTransferNumber(newTransferNumber);
+      setTransferNumberMessage({
+        type: 'success',
+        text: 'Transfer number updated locally. Use deploy to sync with ElevenLabs.'
+      });
+    } catch (err) {
+      console.error('Failed to update transfer number:', err);
+      setTransferNumberMessage({
+        type: 'error',
+        text: err.response?.data?.error || 'Failed to update transfer number'
+      });
+    } finally {
+      setTransferNumberLoading(false);
     }
   };
 
@@ -222,63 +278,150 @@ function App() {
         )}
 
         {activeTab === 'settings' && (
-          <div className="card">
-            <div className="card-header">
-              <h2 className="text-xl font-semibold text-neutral-900">Agent Settings</h2>
+          <div className="space-y-6">
+            {/* Agent Configuration */}
+            <div className="card">
+              <div className="card-header">
+                <h2 className="text-xl font-semibold text-neutral-900">Agent Configuration</h2>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Agent Name
+                  </label>
+                  <input
+                    type="text"
+                    value={agentStatus?.agent?.name || ''}
+                    disabled
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Agent ID
+                  </label>
+                  <input
+                    type="text"
+                    value={agentStatus?.agent?.id || ''}
+                    disabled
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-500 font-mono text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Voice Model
+                  </label>
+                  <input
+                    type="text"
+                    value={agentStatus?.agent?.conversation_config?.tts?.model_id || ''}
+                    disabled
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    LLM Model
+                  </label>
+                  <input
+                    type="text"
+                    value={agentStatus?.agent?.conversation_config?.agent?.prompt?.llm || ''}
+                    disabled
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-500"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Agent Name
-                </label>
-                <input
-                  type="text"
-                  value={agentStatus?.agent?.name || ''}
-                  disabled
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-500"
-                />
+
+            {/* Transfer Settings */}
+            <div className="card">
+              <div className="card-header">
+                <h2 className="text-xl font-semibold text-neutral-900">Human Transfer Settings</h2>
+                <p className="text-sm text-neutral-600 mt-1">
+                  Configure the phone number for human agent transfers
+                </p>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Agent ID
-                </label>
-                <input
-                  type="text"
-                  value={agentStatus?.agent?.id || ''}
-                  disabled
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-500 font-mono text-sm"
-                />
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Current Transfer Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    value={currentTransferNumber}
+                    disabled
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    New Transfer Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    value={newTransferNumber}
+                    onChange={(e) => setNewTransferNumber(e.target.value)}
+                    placeholder="e.g., +17787193080"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:border-primary-500 focus:ring-1 focus:ring-primary-500 font-mono"
+                  />
+                  <p className="text-sm text-neutral-500 mt-1">
+                    Must be in E.164 format (starts with + followed by country code and number)
+                  </p>
+                </div>
+
+                {transferNumberMessage && (
+                  <div className={`p-4 rounded-lg ${
+                    transferNumberMessage.type === 'success'
+                      ? 'bg-green-50 text-green-800 border border-green-200'
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
+                    {transferNumberMessage.text}
+                  </div>
+                )}
+
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={updateTransferNumber}
+                    disabled={transferNumberLoading || newTransferNumber === currentTransferNumber}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      transferNumberLoading || newTransferNumber === currentTransferNumber
+                        ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+                        : 'bg-primary-600 text-white hover:bg-primary-700'
+                    }`}
+                  >
+                    {transferNumberLoading ? (
+                      <>
+                        <div className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Updating...
+                      </>
+                    ) : (
+                      'Update Transfer Number'
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setNewTransferNumber(currentTransferNumber);
+                      setTransferNumberMessage(null);
+                    }}
+                    className="px-4 py-2 border border-neutral-300 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
+                  >
+                    Reset
+                  </button>
+                </div>
+
+                <div className="text-sm text-neutral-600 bg-neutral-50 p-4 rounded-lg">
+                  <p><strong>Note:</strong> Changes are saved locally first. Use the deploy action in the Prompt Editor to sync all changes with ElevenLabs.</p>
+                </div>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Voice Model
-                </label>
-                <input
-                  type="text"
-                  value={agentStatus?.agent?.conversation_config?.tts?.model_id || ''}
-                  disabled
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  LLM Model
-                </label>
-                <input
-                  type="text"
-                  value={agentStatus?.agent?.conversation_config?.agent?.prompt?.llm || ''}
-                  disabled
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-500"
-                />
-              </div>
-              
-              <p className="text-sm text-neutral-600">
-                Agent configuration is managed via ElevenLabs CLI. Use <code className="bg-neutral-100 px-2 py-1 rounded text-xs">convai sync</code> to deploy changes.
-              </p>
             </div>
+
+            <p className="text-sm text-neutral-600">
+              Agent configuration is managed via ElevenLabs CLI. Use <code className="bg-neutral-100 px-2 py-1 rounded text-xs">convai sync</code> to deploy changes.
+            </p>
           </div>
         )}
       </div>

@@ -76,6 +76,10 @@ export const agentAPI = {
   
   // Get ElevenLabs widget configuration
   getWidget: () => api.get('/agent/widget'),
+
+  // Transfer phone number management
+  getTransferNumber: () => api.get('/agent/transfer-number'),
+  updateTransferNumber: (phoneNumber) => api.post('/agent/update-transfer-number', { phone_number: phoneNumber }),
 };
 
 export const storeAPI = {

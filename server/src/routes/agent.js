@@ -691,12 +691,114 @@ router.get('/widget', async (req, res) => {
   }
 });
 
+// Update transfer phone number via file system (follows prompt editor pattern)
+router.post('/update-transfer-number', async (req, res) => {
+  try {
+    const { phone_number } = req.body;
+
+    if (!phone_number) {
+      return res.status(400).json({
+        error: 'Phone number is required'
+      });
+    }
+
+    // Validate E.164 format (starts with +, followed by digits)
+    const e164Regex = /^\+[1-9]\d{1,14}$/;
+    if (!e164Regex.test(phone_number)) {
+      return res.status(400).json({
+        error: 'Phone number must be in E.164 format (e.g., +17787193080)'
+      });
+    }
+
+    const fs = require('fs');
+    const path = require('path');
+
+    // Read current agent configuration file
+    const configPath = path.join(__dirname, '../../../agent_configs/dev/ryder-bici-ai.json');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+    // Update transfer phone number in built_in_tools
+    if (config.conversation_config.agent.built_in_tools &&
+        config.conversation_config.agent.built_in_tools.transfer_to_number &&
+        config.conversation_config.agent.built_in_tools.transfer_to_number.params &&
+        config.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers &&
+        config.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers.length > 0) {
+
+      // Update the transfer phone number in the existing configuration
+      config.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers[0].phone_number = phone_number;
+      config.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers[0].transfer_destination.phone_number = phone_number;
+
+      // Save updated configuration
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 4));
+
+      console.log(`📞 Transfer phone number updated locally to: ${phone_number}`);
+
+      res.json({
+        success: true,
+        message: 'Transfer phone number updated locally. Use deploy to sync with ElevenLabs.',
+        previous_number: config.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers[0].phone_number,
+        new_number: phone_number,
+        updated_at: new Date().toISOString()
+      });
+    } else {
+      return res.status(500).json({
+        error: 'Transfer configuration not found in agent config',
+        message: 'The built_in_tools.transfer_to_number configuration is missing or malformed'
+      });
+    }
+  } catch (error) {
+    console.error('Transfer number update error:', error);
+    res.status(500).json({
+      error: 'Failed to update transfer phone number',
+      message: error.message
+    });
+  }
+});
+
+// Get current transfer phone number
+router.get('/transfer-number', async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+
+    // Read current agent configuration file
+    const configPath = path.join(__dirname, '../../../agent_configs/dev/ryder-bici-ai.json');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+    // Extract current transfer phone number
+    if (config.conversation_config.agent.built_in_tools &&
+        config.conversation_config.agent.built_in_tools.transfer_to_number &&
+        config.conversation_config.agent.built_in_tools.transfer_to_number.params &&
+        config.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers &&
+        config.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers.length > 0) {
+
+      const currentNumber = config.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers[0].phone_number;
+
+      res.json({
+        success: true,
+        current_transfer_number: currentNumber
+      });
+    } else {
+      return res.status(404).json({
+        error: 'Transfer configuration not found',
+        message: 'The built_in_tools.transfer_to_number configuration is missing'
+      });
+    }
+  } catch (error) {
+    console.error('Get transfer number error:', error);
+    res.status(500).json({
+      error: 'Failed to get current transfer phone number',
+      message: error.message
+    });
+  }
+});
+
 // Clear all customer memory (for testing/reset)
 router.post('/clear-memory', async (req, res) => {
   try {
     const customerMemory = require('../services/customerMemory');
     customerMemory.clearAllMemory();
-    
+
     res.json({
       success: true,
       message: 'All customer memory cleared successfully',
