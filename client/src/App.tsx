@@ -3,7 +3,7 @@ import LeadsList from './components/LeadsList';
 import ConversationPanel from './components/ConversationPanel';
 import StatsBar from './components/StatsBar';
 import { Lead, DashboardStats } from './types';
-import { leadAPI, dashboardAPI, createSSEConnection } from './services/api';
+import { leadAPI, dashboardAPI, createSSEConnection, agentAPI } from './services/api';
 import './index.css';
 
 function App() {
@@ -18,17 +18,25 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [realtimeData, setRealtimeData] = useState<any>(null);
 
+  // Transfer number state
+  const [showSettings, setShowSettings] = useState(false);
+  const [currentTransferNumber, setCurrentTransferNumber] = useState('');
+  const [newTransferNumber, setNewTransferNumber] = useState('');
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferMessage, setTransferMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+
   useEffect(() => {
     // Load initial data
     loadLeads();
     loadStats();
-    
+    loadTransferNumber();
+
     // Set up SSE connection
     const clientId = `client_${Date.now()}`;
     const eventSource = createSSEConnection(clientId, (data) => {
       handleRealtimeUpdate(data);
     });
-    
+
     return () => {
       eventSource.close();
     };
@@ -51,6 +59,56 @@ function App() {
       setStats(statsData);
     } catch (error) {
       console.error('Error loading stats:', error);
+    }
+  };
+
+  const loadTransferNumber = async () => {
+    try {
+      const response = await agentAPI.getTransferNumber();
+      const transferNumber = response.current_transfer_number;
+      setCurrentTransferNumber(transferNumber);
+      setNewTransferNumber(transferNumber);
+    } catch (error) {
+      console.error('Failed to fetch transfer number:', error);
+      setCurrentTransferNumber('Error loading');
+    }
+  };
+
+  const updateTransferNumber = async () => {
+    if (!newTransferNumber) {
+      setTransferMessage({ type: 'error', text: 'Phone number is required' });
+      return;
+    }
+
+    // Basic E.164 format validation
+    const e164Regex = /^\+[1-9]\d{1,14}$/;
+    if (!e164Regex.test(newTransferNumber)) {
+      setTransferMessage({
+        type: 'error',
+        text: 'Phone number must be in E.164 format (e.g., +17787193080)'
+      });
+      return;
+    }
+
+    setTransferLoading(true);
+    setTransferMessage(null);
+
+    try {
+      await agentAPI.updateTransferNumber(newTransferNumber);
+      // Refresh the transfer number from server to ensure we have the latest value
+      await loadTransferNumber();
+      setTransferMessage({
+        type: 'success',
+        text: 'Transfer number updated and deployed immediately!'
+      });
+    } catch (err: any) {
+      console.error('Failed to update transfer number:', err);
+      setTransferMessage({
+        type: 'error',
+        text: err.response?.data?.error || 'Failed to update transfer number'
+      });
+    } finally {
+      setTransferLoading(false);
     }
   };
 
@@ -95,14 +153,20 @@ function App() {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-bici-muted">
-                {new Date().toLocaleDateString('en-US', { 
-                  weekday: 'short', 
-                  month: 'short', 
-                  day: 'numeric' 
+                {new Date().toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric'
                 })}
               </span>
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span className="text-sm text-bici-text">System Active</span>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="ml-4 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition-colors"
+              >
+                Settings
+              </button>
             </div>
           </div>
         </div>
@@ -148,6 +212,82 @@ function App() {
           </div>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Settings</h2>
+              <button
+                onClick={() => {
+                  setShowSettings(false);
+                  setTransferMessage(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Human Transfer Phone Number
+                </label>
+                <div className="space-y-2">
+                  <div className="text-xs text-gray-500">
+                    Current: {currentTransferNumber}
+                  </div>
+                  <input
+                    type="tel"
+                    value={newTransferNumber}
+                    onChange={(e) => setNewTransferNumber(e.target.value)}
+                    placeholder="Enter phone number (e.g., +17787193080)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={transferLoading}
+                  />
+                  <div className="text-xs text-gray-500">
+                    Must be in E.164 format (e.g., +17787193080)
+                  </div>
+                </div>
+              </div>
+
+              {transferMessage && (
+                <div className={`p-3 rounded-md text-sm ${
+                  transferMessage.type === 'success'
+                    ? 'bg-green-50 text-green-800 border border-green-200'
+                    : 'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                  {transferMessage.text}
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  onClick={() => {
+                    setShowSettings(false);
+                    setTransferMessage(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                  disabled={transferLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={updateTransferNumber}
+                  disabled={transferLoading || !newTransferNumber}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors"
+                >
+                  {transferLoading ? 'Updating...' : 'Update Number'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

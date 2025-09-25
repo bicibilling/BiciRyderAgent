@@ -418,11 +418,204 @@ export function setupAPIRoutes(app: Express) {
     }
   });
   
+  // Transfer number management endpoints
+  // Get current transfer number
+  app.get('/api/agent/transfer-number', async (req: Request, res: Response) => {
+    try {
+      const axios = (await import('axios')).default;
+      const agentId = process.env.ELEVENLABS_AGENT_ID;
+      const apiKey = process.env.ELEVENLABS_API_KEY;
+
+      if (!agentId || !apiKey) {
+        return res.status(400).json({
+          error: 'Missing ElevenLabs configuration'
+        });
+      }
+
+      // Get current agent configuration from ElevenLabs
+      const currentAgentResponse = await axios.get(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
+        headers: { 'xi-api-key': apiKey }
+      });
+
+      const currentConfig = currentAgentResponse.data;
+
+      // Find transfer tool in the tools array
+      const currentTools = currentConfig.conversation_config?.agent?.prompt?.tools || [];
+      const transferTool = currentTools.find((tool: any) => tool.name === 'transfer_to_number');
+
+      const transferNumber = transferTool?.params?.transfers?.[0]?.phone_number || 'Not configured';
+
+      res.json({
+        success: true,
+        current_transfer_number: transferNumber
+      });
+    } catch (error) {
+      logger.error('Error fetching transfer number:', error);
+      res.status(500).json({ error: 'Failed to fetch transfer number' });
+    }
+  });
+
+  // Update transfer number
+  app.post('/api/agent/update-transfer-number', async (req: Request, res: Response) => {
+    try {
+      const { phone_number } = req.body;
+      const axios = (await import('axios')).default;
+      const fs = (await import('fs')).default;
+      const path = (await import('path')).default;
+
+      if (!phone_number) {
+        return res.status(400).json({
+          error: 'Phone number is required'
+        });
+      }
+
+      // Validate E.164 format
+      const e164Regex = /^\+[1-9]\d{1,14}$/;
+      if (!e164Regex.test(phone_number)) {
+        return res.status(400).json({
+          error: 'Phone number must be in E.164 format (e.g., +17787193080)'
+        });
+      }
+
+      const agentId = process.env.ELEVENLABS_AGENT_ID;
+      const apiKey = process.env.ELEVENLABS_API_KEY;
+
+      if (!agentId || !apiKey) {
+        return res.status(400).json({
+          error: 'Missing ElevenLabs configuration'
+        });
+      }
+
+      logger.info(`📞 Updating transfer number via ElevenLabs PATCH API to: ${phone_number}`);
+
+      // Get current agent configuration from ElevenLabs
+      const currentAgentResponse = await axios.get(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
+        headers: { 'xi-api-key': apiKey }
+      });
+
+      const currentConfig = currentAgentResponse.data;
+
+      // Find and update transfer_to_number tool in agent.prompt.tools array
+      const currentTools = currentConfig.conversation_config?.agent?.prompt?.tools || [];
+      const transferToolIndex = currentTools.findIndex((tool: any) => tool.name === 'transfer_to_number');
+
+      if (transferToolIndex === -1) {
+        return res.status(500).json({
+          error: 'Transfer tool not found in live agent',
+          message: 'transfer_to_number tool not found in agent.prompt.tools array'
+        });
+      }
+
+      const currentTransferTool = currentTools[transferToolIndex];
+      const previousNumber = currentTransferTool.params?.transfers?.[0]?.phone_number || 'none';
+
+      logger.info(`📞 Found transfer tool in agent.prompt.tools array`);
+      logger.info(`📞 Current transfer number: ${previousNumber}`);
+
+      // Create updated tools array with new transfer number
+      const updatedTools = [...currentTools];
+      updatedTools[transferToolIndex] = {
+        ...currentTransferTool,
+        params: {
+          ...currentTransferTool.params,
+          transfers: [{
+            ...currentTransferTool.params.transfers[0],
+            phone_number: phone_number,
+            transfer_destination: {
+              ...currentTransferTool.params.transfers[0].transfer_destination,
+              phone_number: phone_number
+            }
+          }]
+        }
+      };
+
+      const patchPayload = {
+        conversation_config: {
+          ...currentConfig.conversation_config,
+          agent: {
+            ...currentConfig.conversation_config.agent,
+            prompt: {
+              ...currentConfig.conversation_config.agent.prompt,
+              tools: updatedTools
+            }
+          }
+        }
+      };
+
+      // Update agent via PATCH API
+      const patchResponse = await axios.patch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`,
+        patchPayload,
+        {
+          headers: {
+            'xi-api-key': apiKey,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      logger.info('✅ Transfer number updated successfully via PATCH API');
+      logger.info(`✅ Response status: ${patchResponse.status}`);
+
+      // Update local agent config files
+      try {
+        const configFiles = [
+          '/Users/divhit/bici/agent_configs/ryder_-_bici_ai_teammate.json',
+          '/Users/divhit/bici/agent_configs/bike_agent.json',
+          '/Users/divhit/bici/agent_configs/sales_agent.json'
+        ];
+
+        for (const configPath of configFiles) {
+          if (fs.existsSync(configPath)) {
+            const localConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+            // Update built_in_tools section in local config (different structure than live API)
+            if (localConfig.conversation_config?.agent?.built_in_tools?.transfer_to_number) {
+              localConfig.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers[0].phone_number = phone_number;
+              localConfig.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers[0].transfer_destination.phone_number = phone_number;
+              fs.writeFileSync(configPath, JSON.stringify(localConfig, null, 4));
+              logger.info(`📝 Updated local config: ${path.basename(configPath)}`);
+            }
+          }
+        }
+      } catch (localUpdateError) {
+        logger.warn('⚠️ Could not update local config files, but live agent is updated:', localUpdateError);
+      }
+
+      res.json({
+        success: true,
+        message: 'Transfer phone number updated and deployed immediately via ElevenLabs PATCH API',
+        previous_number: previousNumber,
+        new_number: phone_number,
+        api_response: patchResponse.status,
+        updated_at: patchResponse.data?.metadata?.updated_at_unix_secs || Date.now(),
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      logger.error('Transfer number update error:', error);
+
+      // Enhanced error reporting for API issues
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        return res.status(500).json({
+          error: 'ElevenLabs API error',
+          status: axiosError.response?.status,
+          message: axiosError.response?.data?.message || 'Unknown API error'
+        });
+      }
+
+      res.status(500).json({
+        error: 'Failed to update transfer number',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Setup debug routes
   setupDebugRoutes(app);
-  
+
   // Setup admin routes
   setupAdminRoutes(app);
-  
+
   logger.info('API routes configured');
 }

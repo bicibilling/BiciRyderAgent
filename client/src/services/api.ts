@@ -88,6 +88,23 @@ export const dashboardAPI = {
   }
 };
 
+// Agent API
+export const agentAPI = {
+  // Get current transfer number
+  getTransferNumber: async () => {
+    const response = await axios.get(`${API_BASE}/agent/transfer-number`);
+    return response.data;
+  },
+
+  // Update transfer number
+  updateTransferNumber: async (phoneNumber: string) => {
+    const response = await axios.post(`${API_BASE}/agent/update-transfer-number`, {
+      phone_number: phoneNumber
+    });
+    return response.data;
+  }
+};
+
 // SSE Connection for real-time updates
 export const createSSEConnection = (clientId: string, onMessage: (data: any) => void) => {
   const eventSource = new EventSource(`${API_BASE}/stream/${clientId}`);
