@@ -37,9 +37,9 @@
                             {
                                 "transfer_destination": {
                                     "type": "phone",
-                                    "phone_number": "+17787193080"
+                                    "phone_number": "+16047700123"
                                 },
-                                "phone_number": "+17787193080",
+                                "phone_number": "+16047700123",
                                 "condition": "When customer asks for human, person, or to speak with someone - transfer immediately without explanation",
                                 "transfer_type": "sip_refer"
                             }
@@ -60,7 +60,9 @@
                     }
                 }
             },
-            "mcp_server_ids": ["Llu7Amc0cv41fW5xa7Ag"],
+            "mcp_server_ids": [
+                "Llu7Amc0cv41fW5xa7Ag"
+            ],
             "native_mcp_server_ids": [],
             "tools": []
         },

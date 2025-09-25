@@ -60,10 +60,10 @@ function buildGreetingMessage(customerContext, timeData, storeHours) {
   
   if (customerContext.customer_name !== 'New Customer' && customerContext.customer_name !== 'Valued Customer') {
     // Returning customer with known name
-    dynamicGreeting = `Hi ${customerContext.customer_name}! I'm Ryder, your AI teammate at Bici. Today is ${formattedDate}, and ${storeStatus}. ${dayContext} How can I help you today?`;
+    dynamicGreeting = `Hi ${customerContext.customer_name}! I'm Ryder, your AI teammate at Beechee. Today is ${formattedDate}, and ${storeStatus}. ${dayContext} How can I help you today?`;
   } else {
     // New customer or customer without name
-    dynamicGreeting = `Hi! I'm Ryder, your AI teammate at Bici. Today is ${formattedDate}, and ${storeStatus}. ${dayContext} How can I help you today?`;
+    dynamicGreeting = `Hi! I'm Ryder, your AI teammate at Beechee. Today is ${formattedDate}, and ${storeStatus}. ${dayContext} How can I help you today?`;
   }
   
   return dynamicGreeting;
