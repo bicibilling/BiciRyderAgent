@@ -728,89 +728,62 @@ router.post('/update-transfer-number', async (req, res) => {
 
     const currentConfig = currentAgentResponse.data;
 
-    // STEP 2: Get local configuration template for built_in_tools
-    const fs = require('fs');
-    const path = require('path');
-    const configPath = path.join(__dirname, '../../../agent_configs/dev/ryder-bici-ai.json');
-    const localConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-
+    // STEP 2: Find and update transfer_to_number tool in agent.prompt.tools array
     let previousNumber = 'none';
-    let builtInTools;
 
-    // Check if built_in_tools exist in live agent
-    if (currentConfig.conversation_config?.agent?.built_in_tools?.transfer_to_number) {
-      // Live agent has transfer tool configured
-      console.log('📞 Found existing transfer configuration in live agent');
-      const currentTransferTool = currentConfig.conversation_config.agent.built_in_tools.transfer_to_number;
-      previousNumber = currentTransferTool.params?.transfers?.[0]?.phone_number || 'none';
+    // Find the transfer tool in the tools array
+    const currentTools = currentConfig.conversation_config?.agent?.prompt?.tools || [];
+    const transferToolIndex = currentTools.findIndex(tool => tool.name === 'transfer_to_number');
 
-      // Update the existing configuration
-      builtInTools = {
-        ...currentConfig.conversation_config.agent.built_in_tools,
-        transfer_to_number: {
-          ...currentTransferTool,
-          params: {
-            ...currentTransferTool.params,
-            transfers: [{
-              ...currentTransferTool.params.transfers[0],
-              phone_number: phone_number,
-              transfer_destination: {
-                ...currentTransferTool.params.transfers[0].transfer_destination,
-                phone_number: phone_number
-              }
-            }]
-          }
-        }
-      };
-    } else {
-      // Live agent doesn't have built_in_tools - deploy from local config
-      console.log('📞 No transfer configuration found in live agent, deploying from local config');
-
-      if (!localConfig.conversation_config?.agent?.built_in_tools?.transfer_to_number) {
-        return res.status(500).json({
-          error: 'Transfer configuration not found in local config either',
-          message: 'Please ensure built_in_tools.transfer_to_number is configured in the local agent config file'
-        });
-      }
-
-      // Use local config as template but update phone number
-      const localTransferTool = localConfig.conversation_config.agent.built_in_tools.transfer_to_number;
-      previousNumber = localTransferTool.params?.transfers?.[0]?.phone_number || 'none';
-
-      builtInTools = {
-        ...localConfig.conversation_config.agent.built_in_tools,
-        transfer_to_number: {
-          ...localTransferTool,
-          params: {
-            ...localTransferTool.params,
-            transfers: [{
-              ...localTransferTool.params.transfers[0],
-              phone_number: phone_number,
-              transfer_destination: {
-                ...localTransferTool.params.transfers[0].transfer_destination,
-                phone_number: phone_number
-              }
-            }]
-          }
-        }
-      };
+    if (transferToolIndex === -1) {
+      return res.status(500).json({
+        error: 'Transfer tool not found in live agent',
+        message: 'transfer_to_number tool not found in agent.prompt.tools array'
+      });
     }
+
+    const currentTransferTool = currentTools[transferToolIndex];
+    previousNumber = currentTransferTool.params?.transfers?.[0]?.phone_number || 'none';
+
+    console.log('📞 Found transfer tool in agent.prompt.tools array');
 
     console.log(`📞 Current transfer number: ${previousNumber}`);
     console.log(`📞 Updating to: ${phone_number}`);
 
-    // STEP 3: Prepare PATCH payload
+    // STEP 3: Create updated tools array with new transfer number
+    const updatedTools = [...currentTools];
+    updatedTools[transferToolIndex] = {
+      ...currentTransferTool,
+      params: {
+        ...currentTransferTool.params,
+        transfers: [{
+          ...currentTransferTool.params.transfers[0],
+          phone_number: phone_number,
+          transfer_destination: {
+            ...currentTransferTool.params.transfers[0].transfer_destination,
+            phone_number: phone_number
+          }
+        }]
+      }
+    };
+
     const patchPayload = {
       conversation_config: {
         ...currentConfig.conversation_config,
         agent: {
           ...currentConfig.conversation_config.agent,
-          built_in_tools: builtInTools
+          prompt: {
+            ...currentConfig.conversation_config.agent.prompt,
+            tools: updatedTools
+          }
         }
       }
     };
 
     // STEP 4: Update agent via PATCH API
+    console.log('🔍 PATCH Payload Preview:');
+    console.log('🔍 Updated transfer tool:', JSON.stringify(updatedTools[transferToolIndex], null, 2));
+
     const patchResponse = await axios.patch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`,
       patchPayload,
       {
@@ -823,9 +796,16 @@ router.post('/update-transfer-number', async (req, res) => {
 
     console.log('✅ Transfer number updated successfully via PATCH API');
     console.log('✅ Response status:', patchResponse.status);
+    console.log('🔍 Response data:', JSON.stringify(patchResponse.data, null, 2));
 
     // STEP 5: Update local configuration file to stay in sync
     try {
+      const fs = require('fs');
+      const path = require('path');
+      const configPath = path.join(__dirname, '../../../agent_configs/dev/ryder-bici-ai.json');
+      const localConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+      // Update the built_in_tools section in local config (different structure than live API)
       if (localConfig.conversation_config?.agent?.built_in_tools?.transfer_to_number) {
         localConfig.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers[0].phone_number = phone_number;
         localConfig.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers[0].transfer_destination.phone_number = phone_number;
