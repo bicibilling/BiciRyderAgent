@@ -691,7 +691,7 @@ router.get('/widget', async (req, res) => {
   }
 });
 
-// Update transfer phone number via file system (follows prompt editor pattern)
+// Update transfer phone number via ElevenLabs PATCH API (immediate deployment)
 router.post('/update-transfer-number', async (req, res) => {
   try {
     const { phone_number } = req.body;
@@ -710,48 +710,125 @@ router.post('/update-transfer-number', async (req, res) => {
       });
     }
 
-    const fs = require('fs');
-    const path = require('path');
+    const agentId = process.env.ELEVENLABS_AGENT_ID;
+    const apiKey = process.env.ELEVENLABS_API_KEY;
 
-    // Read current agent configuration file
-    const configPath = path.join(__dirname, '../../../agent_configs/dev/ryder-bici-ai.json');
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-
-    // Update transfer phone number in built_in_tools
-    if (config.conversation_config.agent.built_in_tools &&
-        config.conversation_config.agent.built_in_tools.transfer_to_number &&
-        config.conversation_config.agent.built_in_tools.transfer_to_number.params &&
-        config.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers &&
-        config.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers.length > 0) {
-
-      // Update the transfer phone number in the existing configuration
-      config.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers[0].phone_number = phone_number;
-      config.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers[0].transfer_destination.phone_number = phone_number;
-
-      // Save updated configuration
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 4));
-
-      console.log(`📞 Transfer phone number updated locally to: ${phone_number}`);
-
-      res.json({
-        success: true,
-        message: 'Transfer phone number updated locally. Use deploy to sync with ElevenLabs.',
-        previous_number: config.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers[0].phone_number,
-        new_number: phone_number,
-        updated_at: new Date().toISOString()
+    if (!agentId || !apiKey) {
+      return res.status(400).json({
+        error: 'Missing ElevenLabs configuration'
       });
-    } else {
+    }
+
+    console.log('📞 Updating transfer number via ElevenLabs PATCH API...');
+
+    // STEP 1: Get current agent configuration from ElevenLabs
+    const currentAgentResponse = await axios.get(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
+      headers: { 'xi-api-key': apiKey }
+    });
+
+    const currentConfig = currentAgentResponse.data;
+
+    // STEP 2: Extract current transfer configuration
+    const currentTransferTool = currentConfig.conversation_config?.agent?.built_in_tools?.transfer_to_number;
+    if (!currentTransferTool || !currentTransferTool.params?.transfers?.length) {
       return res.status(500).json({
-        error: 'Transfer configuration not found in agent config',
+        error: 'Transfer configuration not found in live agent',
         message: 'The built_in_tools.transfer_to_number configuration is missing or malformed'
       });
     }
+
+    const previousNumber = currentTransferTool.params.transfers[0].phone_number;
+    console.log(`📞 Current transfer number: ${previousNumber}`);
+    console.log(`📞 Updating to: ${phone_number}`);
+
+    // STEP 3: Update transfer number in the configuration
+    const updatedTransferTool = {
+      ...currentTransferTool,
+      params: {
+        ...currentTransferTool.params,
+        transfers: [{
+          ...currentTransferTool.params.transfers[0],
+          phone_number: phone_number,
+          transfer_destination: {
+            ...currentTransferTool.params.transfers[0].transfer_destination,
+            phone_number: phone_number
+          }
+        }]
+      }
+    };
+
+    // STEP 4: Prepare PATCH payload with only the built_in_tools update
+    const patchPayload = {
+      conversation_config: {
+        ...currentConfig.conversation_config,
+        agent: {
+          ...currentConfig.conversation_config.agent,
+          built_in_tools: {
+            ...currentConfig.conversation_config.agent.built_in_tools,
+            transfer_to_number: updatedTransferTool
+          }
+        }
+      }
+    };
+
+    // STEP 5: Update agent via PATCH API
+    const patchResponse = await axios.patch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`,
+      patchPayload,
+      {
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log('✅ Transfer number updated successfully via PATCH API');
+    console.log('✅ Response status:', patchResponse.status);
+
+    // STEP 6: Update local configuration file to stay in sync
+    const fs = require('fs');
+    const path = require('path');
+    const configPath = path.join(__dirname, '../../../agent_configs/dev/ryder-bici-ai.json');
+
+    try {
+      const localConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (localConfig.conversation_config?.agent?.built_in_tools?.transfer_to_number) {
+        localConfig.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers[0].phone_number = phone_number;
+        localConfig.conversation_config.agent.built_in_tools.transfer_to_number.params.transfers[0].transfer_destination.phone_number = phone_number;
+        fs.writeFileSync(configPath, JSON.stringify(localConfig, null, 4));
+        console.log('📝 Local configuration file updated');
+      }
+    } catch (localUpdateError) {
+      console.warn('⚠️ Could not update local config file, but live agent is updated:', localUpdateError.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Transfer phone number updated and deployed immediately via ElevenLabs PATCH API',
+      previous_number: previousNumber,
+      new_number: phone_number,
+      api_response: patchResponse.status,
+      updated_at: patchResponse.data?.metadata?.updated_at_unix_secs,
+      timestamp: new Date().toISOString()
+    });
+
   } catch (error) {
     console.error('Transfer number update error:', error);
-    res.status(500).json({
-      error: 'Failed to update transfer phone number',
-      message: error.message
-    });
+
+    // Enhanced error reporting for API issues
+    if (error.response) {
+      res.status(error.response.status).json({
+        error: 'Failed to update transfer phone number via ElevenLabs API',
+        message: error.message,
+        api_error: error.response.data,
+        status_code: error.response.status
+      });
+    } else {
+      res.status(500).json({
+        error: 'Failed to update transfer phone number',
+        message: error.message
+      });
+    }
   }
 });
 

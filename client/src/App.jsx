@@ -99,7 +99,7 @@ function App() {
       setCurrentTransferNumber(newTransferNumber);
       setTransferNumberMessage({
         type: 'success',
-        text: 'Transfer number updated locally. Use deploy to sync with ElevenLabs.'
+        text: 'Transfer number updated and deployed immediately via ElevenLabs PATCH API!'
       });
     } catch (err) {
       console.error('Failed to update transfer number:', err);
@@ -414,7 +414,7 @@ function App() {
                 </div>
 
                 <div className="text-sm text-neutral-600 bg-neutral-50 p-4 rounded-lg">
-                  <p><strong>Note:</strong> Changes are saved locally first. Use the deploy action in the Prompt Editor to sync all changes with ElevenLabs.</p>
+                  <p><strong>Note:</strong> Transfer number changes are deployed immediately to ElevenLabs via PATCH API. No additional deployment step required.</p>
                 </div>
               </div>
             </div>
