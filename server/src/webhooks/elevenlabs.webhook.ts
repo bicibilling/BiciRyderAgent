@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
+import { toZonedTime } from 'date-fns-tz';
 import { logger } from '../utils/logger';
 import { LeadService } from '../services/lead.service';
 import { ConversationService } from '../services/conversation.service';
@@ -103,18 +104,18 @@ function generateFirstMessage(lead: Lead): string {
 
 // Get current Pacific time
 function getCurrentPacificTime(): { date: Date, timeString: string, hourMinute: string } {
-  // Create date in Pacific timezone
+  // Get current time in Pacific timezone using date-fns-tz
   const now = new Date();
-  const pacificTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-  
+  const pacificTime = toZonedTime(now, 'America/Los_Angeles');
+
   const hours = pacificTime.getHours();
   const minutes = pacificTime.getMinutes();
   const ampm = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
-  
+
   const timeString = `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
   const hourMinute = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  
+
   return { date: pacificTime, timeString, hourMinute };
 }
 

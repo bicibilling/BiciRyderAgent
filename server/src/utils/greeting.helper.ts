@@ -2,6 +2,7 @@
  * Helper functions for generating dynamic greetings
  */
 
+import { toZonedTime } from 'date-fns-tz';
 import { redisService } from '../services/redis.service';
 import { logger } from './logger';
 
@@ -9,9 +10,9 @@ import { logger } from './logger';
  * Get time-based greeting (Pacific Time)
  */
 export function getTimeBasedGreeting(): string {
-  // Get current time in Pacific timezone using consistent method
+  // Get current time in Pacific timezone using date-fns-tz
   const now = new Date();
-  const pacificTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  const pacificTime = toZonedTime(now, 'America/Los_Angeles');
   const hour = pacificTime.getHours();
 
   if (hour < 5) return "Thanks for calling so late!";
@@ -32,7 +33,7 @@ export function getCurrentDateTimeInfo(): {
   fullDateTime: string;
 } {
   const now = new Date();
-  const pacificTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  const pacificTime = toZonedTime(now, 'America/Los_Angeles');
 
   const hours = pacificTime.getHours();
   const minutes = pacificTime.getMinutes();
@@ -66,9 +67,9 @@ export function getCurrentDateTimeInfo(): {
  * Get day-specific context (Pacific Time)
  */
 export function getDayContext(): string {
-  // Get current date in Pacific timezone using proper method
+  // Get current date in Pacific timezone using date-fns-tz
   const now = new Date();
-  const pacificTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  const pacificTime = toZonedTime(now, 'America/Los_Angeles');
   const day = pacificTime.getDay();
   const hour = pacificTime.getHours();
   

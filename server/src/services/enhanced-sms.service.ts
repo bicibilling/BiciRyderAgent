@@ -1,3 +1,4 @@
+import { toZonedTime } from 'date-fns-tz';
 import { twilioClient, formatPhoneNumber } from '../config/twilio.config';
 import { ConversationService } from './conversation.service';
 import { logger } from '../utils/logger';
@@ -291,38 +292,41 @@ export class EnhancedSMSAutomationService {
 
   private getTodaysHours(): string {
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const today = days[new Date().getDay()];
+    const pacificTime = toZonedTime(new Date(), 'America/Los_Angeles');
+    const today = days[pacificTime.getDay()];
     const hours = businessHours[today as keyof typeof businessHours];
-    
+
     if (hours.open === 'closed') {
       return 'Closed today';
     }
-    
+
     return `${hours.open} - ${hours.close}`;
   }
 
   private getClosingTime(): string {
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const today = days[new Date().getDay()];
+    const pacificTime = toZonedTime(new Date(), 'America/Los_Angeles');
+    const today = days[pacificTime.getDay()];
     const hours = businessHours[today as keyof typeof businessHours];
     return hours.close || 'soon';
   }
 
   private getNextOpenTime(): string {
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const today = new Date().getDay();
-    
+    const pacificTime = toZonedTime(new Date(), 'America/Los_Angeles');
+    const today = pacificTime.getDay();
+
     for (let i = 1; i <= 7; i++) {
       const nextDay = (today + i) % 7;
       const dayName = days[nextDay];
       const hours = businessHours[dayName as keyof typeof businessHours];
-      
+
       if (hours.open !== 'closed') {
         if (i === 1) return `tomorrow at ${hours.open}`;
         return `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} at ${hours.open}`;
       }
     }
-    
+
     return 'soon';
   }
 
@@ -331,17 +335,17 @@ export class EnhancedSMSAutomationService {
   }
 
   private isStoreOpen(): boolean {
-    const now = new Date();
+    const pacificTime = toZonedTime(new Date(), 'America/Los_Angeles');
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const today = days[now.getDay()];
+    const today = days[pacificTime.getDay()];
     const hours = businessHours[today as keyof typeof businessHours];
-    
+
     if (hours.open === 'closed') return false;
-    
-    const currentTime = now.getHours() * 100 + now.getMinutes();
+
+    const currentTime = pacificTime.getHours() * 100 + pacificTime.getMinutes();
     const openTime = parseInt(hours.open.replace(':', ''));
     const closeTime = parseInt(hours.close.replace(':', ''));
-    
+
     return currentTime >= openTime && currentTime < closeTime;
   }
 
