@@ -192,95 +192,143 @@ async function handleToolCall(params) {
 
 async function searchShopCatalog(args) {
   const { query, context, limit = 3 } = args;
-  
+
   console.log(`🔍 Product search: "${query}" (context: ${context})`);
-  
-  // For now, return helpful fallback responses
-  // TODO: Integrate with actual Shopify when credentials are available
-  
-  const fallbackProducts = [
-    {
-      product_id: 'gid://shopify/Product/example1',
-      title: 'Trek Mountain Bike',
-      description: `Great mountain bike perfect for ${context || 'trail riding'}. We have several Trek models in stock.`,
-      price: {
-        amount: '2499.00',
-        currencyCode: 'CAD'
-      },
-      available: true,
-      vendor: 'Trek',
-      product_type: 'Mountain Bike',
-      tags: ['mountain', 'trek', 'bikes'],
-      url: 'https://bici.cc'
-    },
-    {
-      product_id: 'gid://shopify/Product/example2', 
-      title: 'Road Bike Selection',
-      description: `We carry a wide range of road bikes. For specific models and pricing for "${query}", please call us at 778-719-3080.`,
-      price: {
-        amount: '1899.00',
-        currencyCode: 'CAD'
-      },
-      available: true,
-      vendor: 'Various',
-      product_type: 'Road Bike',
-      tags: ['road', 'bikes'],
-      url: 'https://bici.cc'
-    },
-    {
-      product_id: 'gid://shopify/Product/example3',
-      title: 'Bike Accessories',
-      description: `We have a full range of bike accessories. Visit our store to see our complete selection.`,
-      price: {
-        amount: '49.99',
-        currencyCode: 'CAD'
-      },
-      available: true,
-      vendor: 'Various',
-      product_type: 'Accessories',
-      tags: ['accessories'],
-      url: 'https://bici.cc'
+
+  try {
+    // Fetch products from Shopify public API
+    const shopifyDomain = process.env.SHOPIFY_STORE_DOMAIN || 'la-bicicletta-vancouver.myshopify.com';
+    const response = await fetch(`https://${shopifyDomain}/products.json?limit=250`);
+
+    if (!response.ok) {
+      throw new Error(`Shopify API error: ${response.status}`);
     }
-  ];
-  
-  // Filter and limit results
-  const results = fallbackProducts
-    .filter(product => 
-      product.title.toLowerCase().includes(query.toLowerCase()) ||
-      product.description.toLowerCase().includes(query.toLowerCase()) ||
-      product.tags.some(tag => query.toLowerCase().includes(tag))
-    )
-    .slice(0, limit);
-  
-  if (results.length === 0) {
-    results.push({
-      product_id: 'gid://shopify/Product/general',
-      title: `Search Results for "${query}"`,
-      description: `We likely have what you're looking for! For specific information about "${query}", please call us at 778-719-3080 or visit our store at 1497 Adanac Street, Vancouver.`,
-      price: {
-        amount: 'Call for pricing',
-        currencyCode: 'CAD'
-      },
-      available: true,
-      vendor: 'BICI',
-      product_type: 'Various',
-      tags: ['general'],
-      url: 'https://bici.cc'
+
+    const data = await response.json();
+    const allProducts = data.products || [];
+
+    // Search products by query terms
+    const searchTerms = query.toLowerCase().split(/\s+/);
+    const contextTerms = context ? context.toLowerCase().split(/\s+/) : [];
+
+    const scoredProducts = allProducts.map(product => {
+      let score = 0;
+      const searchText = `${product.title} ${product.product_type} ${product.vendor} ${product.tags?.join(' ')}`.toLowerCase();
+
+      // Score based on search terms
+      searchTerms.forEach(term => {
+        if (searchText.includes(term)) score += 10;
+        if (product.title.toLowerCase().includes(term)) score += 20; // Title matches are more important
+      });
+
+      // Bonus for context matches
+      contextTerms.forEach(term => {
+        if (searchText.includes(term)) score += 5;
+      });
+
+      return { product, score };
     });
-  }
-  
-  return {
-    products: results,
-    total_count: results.length,
-    query,
-    context: context || '',
-    store_info: {
-      name: 'BICI Bike Store',
-      phone: '778-719-3080',
-      address: '1497 Adanac Street, Vancouver, BC',
-      website: 'https://bici.cc'
+
+    // Filter products with score > 0 and sort by score
+    const matchedProducts = scoredProducts
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(({ product }) => ({
+        product_id: `gid://shopify/Product/${product.id}`,
+        product_handle: product.handle,
+        title: product.title,
+        description: product.body_html?.replace(/<[^>]*>/g, '').substring(0, 200) || `${product.title} - ${product.product_type}`,
+        price: {
+          amount: product.variants?.[0]?.price || '0.00',
+          currencyCode: 'CAD'
+        },
+        available: product.variants?.some(v => v.available) || false,
+        vendor: product.vendor,
+        product_type: product.product_type,
+        tags: product.tags || [],
+        url: `https://bici.cc/products/${product.handle}`,
+        variants: product.variants?.slice(0, 5).map(v => ({
+          id: `gid://shopify/ProductVariant/${v.id}`,
+          title: v.title,
+          price: v.price,
+          available: v.available
+        }))
+      }));
+
+    if (matchedProducts.length === 0) {
+      // No matches found - return helpful message
+      return {
+        products: [{
+          product_id: 'gid://shopify/Product/general',
+          title: `No exact matches for "${query}"`,
+          description: `We couldn't find products matching "${query}" in our online catalog. However, we may have it in store or can order it for you. Please call us at 778-719-3080 or visit us at 1497 Adanac Street, Vancouver.`,
+          price: {
+            amount: 'Call for pricing',
+            currencyCode: 'CAD'
+          },
+          available: true,
+          vendor: 'BICI',
+          product_type: 'Various',
+          tags: ['general'],
+          url: 'https://bici.cc'
+        }],
+        total_count: 0,
+        query,
+        context: context || '',
+        store_info: {
+          name: 'BICI Bike Store',
+          phone: '778-719-3080',
+          address: '1497 Adanac Street, Vancouver, BC',
+          website: 'https://bici.cc'
+        }
+      };
     }
-  };
+
+    return {
+      products: matchedProducts,
+      total_count: matchedProducts.length,
+      query,
+      context: context || '',
+      store_info: {
+        name: 'BICI Bike Store',
+        phone: '778-719-3080',
+        address: '1497 Adanac Street, Vancouver, BC',
+        website: 'https://bici.cc'
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ Shopify search error:', error);
+
+    // Fallback response on error
+    return {
+      products: [{
+        product_id: 'gid://shopify/Product/error',
+        title: `Search for "${query}"`,
+        description: `We're having trouble accessing our online catalog right now. For information about "${query}", please call us at 778-719-3080 or visit our store at 1497 Adanac Street, Vancouver.`,
+        price: {
+          amount: 'Call for pricing',
+          currencyCode: 'CAD'
+        },
+        available: true,
+        vendor: 'BICI',
+        product_type: 'Various',
+        tags: ['general'],
+        url: 'https://bici.cc'
+      }],
+      total_count: 0,
+      query,
+      context: context || '',
+      error: error.message,
+      store_info: {
+        name: 'BICI Bike Store',
+        phone: '778-719-3080',
+        address: '1497 Adanac Street, Vancouver, BC',
+        website: 'https://bici.cc'
+      }
+    };
+  }
 }
 
 async function searchShopPolicies(args) {
@@ -367,21 +415,87 @@ For specific questions, call us at 778-719-3080!`;
 }
 
 async function getProductDetails(args) {
-  const { product_id, options } = args;
-  
-  console.log(`📦 Product details: ${product_id}`);
-  
-  // Return helpful response for product details
-  return {
-    product_id,
-    message: `For detailed product information, specifications, and current availability, please call us at 778-719-3080 or visit our store at 1497 Adanac Street, Vancouver.`,
-    store_contact: {
-      phone: '778-719-3080',
-      address: '1497 Adanac Street, Vancouver, BC',
-      website: 'https://bici.cc'
-    },
-    options: options || {}
-  };
+  const { product_id, product_handle, options } = args;
+
+  console.log(`📦 Product details: ${product_id} (handle: ${product_handle})`);
+
+  try {
+    // Use product_handle if provided, otherwise try to extract from product_id
+    let handle = product_handle;
+
+    if (!handle) {
+      // Try searching for the product by ID to get its handle
+      const numericId = product_id.replace(/^gid:\/\/shopify\/Product\//, '');
+      const shopifyDomain = process.env.SHOPIFY_STORE_DOMAIN || 'la-bicicletta-vancouver.myshopify.com';
+      const searchResponse = await fetch(`https://${shopifyDomain}/products.json?limit=250`);
+      const searchData = await searchResponse.json();
+      const foundProduct = searchData.products.find(p => p.id.toString() === numericId);
+
+      if (!foundProduct) {
+        throw new Error('Product not found');
+      }
+      handle = foundProduct.handle;
+    }
+
+    // Fetch from Shopify public API using handle
+    const shopifyDomain = process.env.SHOPIFY_STORE_DOMAIN || 'la-bicicletta-vancouver.myshopify.com';
+    const response = await fetch(`https://${shopifyDomain}/products/${handle}.json`);
+
+    if (!response.ok) {
+      throw new Error(`Product not found: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const product = data.product;
+
+    return {
+      product_id,
+      title: product.title,
+      description: product.body_html?.replace(/<[^>]*>/g, '') || '',
+      vendor: product.vendor,
+      product_type: product.product_type,
+      tags: product.tags || [],
+      url: `https://bici.cc/products/${product.handle}`,
+      images: product.images?.map(img => img.src) || [],
+      variants: product.variants?.map(v => ({
+        id: `gid://shopify/ProductVariant/${v.id}`,
+        title: v.title,
+        price: v.price,
+        available: v.available,
+        sku: v.sku,
+        weight: v.weight,
+        weight_unit: v.weight_unit
+      })) || [],
+      available_sizes: product.variants?.filter(v => v.available).map(v => v.title) || [],
+      price_range: {
+        min: Math.min(...product.variants.map(v => parseFloat(v.price))),
+        max: Math.max(...product.variants.map(v => parseFloat(v.price))),
+        currencyCode: 'CAD'
+      },
+      store_contact: {
+        phone: '778-719-3080',
+        address: '1497 Adanac Street, Vancouver, BC',
+        website: 'https://bici.cc'
+      },
+      options: options || {}
+    };
+
+  } catch (error) {
+    console.error('❌ Product details error:', error);
+
+    // Fallback response
+    return {
+      product_id,
+      message: `Unable to fetch product details at the moment. For detailed information about this product, please call us at 778-719-3080 or visit our store at 1497 Adanac Street, Vancouver.`,
+      error: error.message,
+      store_contact: {
+        phone: '778-719-3080',
+        address: '1497 Adanac Street, Vancouver, BC',
+        website: 'https://bici.cc'
+      },
+      options: options || {}
+    };
+  }
 }
 
 // In-memory cart storage (replace with database in production)

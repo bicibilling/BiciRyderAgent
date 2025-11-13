@@ -30,7 +30,7 @@ PORT=10000
 
 # ElevenLabs Configuration
 ELEVENLABS_API_KEY=sk_5f1308f7b35eca383dab400080c7513674edec42310a86a8
-ELEVENLABS_AGENT_ID=agent_3101k3ap505kenp8yzwet9p4f99h
+ELEVENLABS_AGENT_ID=agent_7201k9x8c9axe9h99csjf4z59821
 ELEVENLABS_PHONE_NUMBER_ID=phnum_8601k3aqzvzree7858ftsv7m5cdz
 
 # Twilio Configuration  

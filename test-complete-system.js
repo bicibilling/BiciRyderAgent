@@ -108,7 +108,7 @@ async function testCompleteSystem() {
     console.log('\n⚙️ Testing Settings tab...');
     await page.click('button:has-text("Settings")');
     await page.waitForSelector('h2:has-text("Agent Settings")');
-    await page.waitForSelector('text=agent_3101k3ap505kenp8yzwet9p4f99h');
+    await page.waitForSelector('text=agent_7201k9x8c9axe9h99csjf4z59821');
     console.log('✅ Settings tab shows agent configuration');
 
     // Test 8: Data persistence on refresh

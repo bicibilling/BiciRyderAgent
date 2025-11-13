@@ -103,7 +103,7 @@ async function testAllTabs() {
     await page.waitForTimeout(2000);
     
     const settingsContent = await page.textContent('body');
-    if (settingsContent.includes('agent_3101k3ap505kenp8yzwet9p4f99h') && settingsContent.includes('Ryder')) {
+    if (settingsContent.includes('agent_7201k9x8c9axe9h99csjf4z59821') && settingsContent.includes('Ryder')) {
       results.settings = true;
       console.log('✅ Settings shows real agent configuration');
     }

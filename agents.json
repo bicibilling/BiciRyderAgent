@@ -10,6 +10,14 @@
                     "config": "agent_configs/prod/ryder-bici-ai.json"
                 }
             }
+        },
+        {
+            "name": "Ryder - Bici AI Teammate",
+            "environments": {
+                "prod": {
+                    "config": "agent_configs/prod/ryder_-_bici_ai_teammate.json"
+                }
+            }
         }
     ]
 }
