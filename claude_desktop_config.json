@@ -3,7 +3,7 @@
     "render": {
       "url": "https://mcp.render.com/mcp",
       "headers": {
-        "Authorization": "Bearer rnd_UeQzXrSTtWX46ZlCVGBE0umfXnhU"
+        "Authorization": "Bearer your_render_api_key"
       }
     },
     "supabase": {
@@ -26,7 +26,7 @@
       "args": [
         "-y",
         "@twilio-alpha/mcp",
-        "ACa474c6d23cca243aea12953c9dc0970c/SK1759a3e4e55b2c03aa0e1e81005564a5:sA8JlkEvf51w2ISVF4SNlwyEPQxeqpka"
+        "your_twilio_account_sid/your_twilio_api_key_sid:your_twilio_api_key_secret"
       ]
     }
   }
