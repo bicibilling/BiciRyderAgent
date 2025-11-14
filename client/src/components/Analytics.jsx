@@ -9,12 +9,12 @@ const Analytics = ({ analytics, storeStatus }) => {
           <BarChart3 className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-neutral-900 mb-2">Ryder Analytics Ready</h3>
           <p className="text-neutral-500 mb-4">
-            Performance metrics will appear here once customers start calling Ryder at +1 (604) 670-0262
+            Performance metrics will appear here once customers start calling Ryder at +1 (778) 650-9966
           </p>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
             <p className="text-blue-800 text-sm">
               <strong>Test Ryder's performance:</strong><br />
-              Call +1 (604) 670-0262 and test greeting compliance, lead qualification (5 questions), 
+              Call +1 (778) 650-9966 and test greeting compliance, lead qualification (5 questions), 
               French detection (Quebec numbers), and business hours logic.
             </p>
           </div>
@@ -214,7 +214,7 @@ const Analytics = ({ analytics, storeStatus }) => {
             
             <div className="flex justify-between">
               <span className="text-neutral-600">Phone Number:</span>
-              <span className="font-medium text-neutral-900">+1 (604) 670-0262</span>
+              <span className="font-medium text-neutral-900">+1 (778) 650-9966</span>
             </div>
           </div>
         </div>

@@ -209,7 +209,7 @@ function App() {
               <StatusCard
                 title="Phone Number"
                 status="active"
-                value={agentStatus?.server?.uptime ? '+1 (604) 670-0262' : 'Offline'}
+                value={agentStatus?.server?.uptime ? '+1 (778) 650-9966' : 'Offline'}
                 icon={Phone}
                 color="blue"
               />

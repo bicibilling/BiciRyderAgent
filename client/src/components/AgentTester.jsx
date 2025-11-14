@@ -121,7 +121,7 @@ const AgentTester = ({ agentStatus, onTest }) => {
             <p className="text-blue-800 font-medium">Primary Testing Method: Voice Calls</p>
           </div>
           <p className="text-blue-700 text-sm">
-            Call <strong>+1 (604) 670-0262</strong> to test Ryder's actual voice responses. 
+            Call <strong>+1 (778) 650-9966</strong> to test Ryder's actual voice responses. 
             The text interface below provides simulated responses for development purposes only.
           </p>
         </div>

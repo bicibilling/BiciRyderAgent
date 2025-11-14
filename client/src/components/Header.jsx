@@ -56,7 +56,7 @@ const Header = ({ agentStatus, storeStatus, onRefresh }) => {
             {/* Phone Number */}
             <div className="flex items-center space-x-2 text-neutral-600">
               <Phone className="h-4 w-4" />
-              <span className="text-sm font-medium">+1 (604) 670-0262</span>
+              <span className="text-sm font-medium">+1 (778) 650-9966</span>
             </div>
 
             {/* Actions */}

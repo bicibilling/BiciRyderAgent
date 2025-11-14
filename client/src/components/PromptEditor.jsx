@@ -164,7 +164,7 @@ const PromptEditor = ({ agentStatus, onUpdate }) => {
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-blue-800 text-sm">
-              <strong>Workflow:</strong> 1) Edit prompt above 2) Click "Save" 3) Click "Deploy" to push to ElevenLabs 4) Test by calling +1 (604) 670-0262
+              <strong>Workflow:</strong> 1) Edit prompt above 2) Click "Save" 3) Click "Deploy" to push to ElevenLabs 4) Test by calling +1 (778) 650-9966
             </p>
           </div>
         </div>

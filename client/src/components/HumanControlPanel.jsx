@@ -249,7 +249,7 @@ const HumanControlPanel = () => {
             <Phone className="h-8 w-8 text-neutral-300 mx-auto mb-3" />
             <p className="text-neutral-500">No active conversations</p>
             <p className="text-sm text-neutral-400 mt-1">
-              Conversations will appear here when customers call +1 (604) 670-0262
+              Conversations will appear here when customers call +1 (778) 650-9966
             </p>
           </div>
         ) : (
@@ -370,7 +370,7 @@ const HumanControlPanel = () => {
           </div>
           <div className="flex items-start space-x-2">
             <span className="font-medium text-primary-600">2.</span>
-            <p>When customers call +1 (604) 670-0262, they speak with Ryder first</p>
+            <p>When customers call +1 (778) 650-9966, they speak with Ryder first</p>
           </div>
           <div className="flex items-start space-x-2">
             <span className="font-medium text-primary-600">3.</span>

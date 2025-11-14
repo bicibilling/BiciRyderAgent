@@ -43,12 +43,12 @@ const ConversationPanel = ({ conversations, customers, onRefresh }) => {
           <MessageCircle className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-neutral-900 mb-2">No conversations yet</h3>
           <p className="text-neutral-500 mb-4">
-            When customers call Ryder at +1 (604) 670-0262, their conversations will appear here.
+            When customers call Ryder at +1 (778) 650-9966, their conversations will appear here.
           </p>
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 max-w-md mx-auto">
             <p className="text-green-800 text-sm">
               <strong>Ready to test:</strong><br />
-              Call +1 (604) 670-0262 from any phone to start a conversation with Ryder. 
+              Call +1 (778) 650-9966 from any phone to start a conversation with Ryder. 
               The conversation will appear here in real-time.
             </p>
           </div>

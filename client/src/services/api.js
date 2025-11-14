@@ -1,9 +1,9 @@
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (
-  import.meta.env.PROD 
-    ? 'https://bici-ryder-api.onrender.com/api'  // Production API URL
-    : 'http://localhost:3002/api'                // Development API URL
+  import.meta.env.PROD
+    ? 'https://bici-ryder-backend.onrender.com/api'  // Production API URL
+    : 'http://localhost:3002/api'                     // Development API URL
 );
 
 const api = axios.create({
