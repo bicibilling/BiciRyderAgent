@@ -424,14 +424,17 @@ router.post('/post-call', verifyWebhookSignature, async (req, res) => {
 
     // Extract lead information for CRM
     if (transcript && typeof transcript === 'string') {
-      const hasLeadInfo = transcript.toLowerCase().includes('interested in') || 
+      const hasLeadInfo = transcript.toLowerCase().includes('interested in') ||
                          transcript.toLowerCase().includes('looking for') ||
                          transcript.toLowerCase().includes('want to buy');
-      
+
       if (hasLeadInfo) {
         console.log('🎯 Lead detected - customer showing purchase intent:', conversation_id);
       }
     }
+
+    // 📱 ENHANCED SMS FOLLOW-UP - Send helpful info after call
+    await sendEnhancedSMS(callerPhone, transcript, dataCollection);
 
       res.status(200).json({
         success: true,
@@ -490,6 +493,78 @@ function generateTranscriptSummary(transcript) {
   }
   
   return summary;
+}
+
+// 📱 Enhanced SMS Follow-up Function
+async function sendEnhancedSMS(callerPhone, transcript, dataCollection = {}) {
+  try {
+    // Only send SMS if we have valid phone and transcript
+    if (!callerPhone || !transcript) {
+      console.log('📱 Skipping SMS - missing phone or transcript');
+      return;
+    }
+
+    // Analyze transcript for customer triggers
+    const transcriptText = Array.isArray(transcript)
+      ? transcript.filter(t => t.role === 'user').map(t => t.message).join(' ').toLowerCase()
+      : (typeof transcript === 'string' ? transcript.toLowerCase() : '');
+
+    const customerTriggers = dataCollection?.customer_triggers?.value || '';
+
+    // Determine what to send based on conversation content
+    const askedForHours = transcriptText.includes('hours') || transcriptText.includes('open') ||
+                         transcriptText.includes('close') || customerTriggers.includes('store hours');
+    const askedForLocation = transcriptText.includes('location') || transcriptText.includes('address') ||
+                            transcriptText.includes('directions') || transcriptText.includes('where') ||
+                            customerTriggers.includes('directions');
+    const inquiredAboutBikes = dataCollection?.bike_interest?.value ||
+                              transcriptText.includes('bike') || transcriptText.includes('bicycle');
+
+    // Build SMS message
+    let smsMessage = '';
+
+    if (askedForHours) {
+      smsMessage += `Beechee Hours:\nMon-Fri: 8am-6pm\nSat-Sun: 9am-4:30pm\n\n`;
+    }
+
+    if (askedForLocation) {
+      smsMessage += `📍 Location:\n1497 Adanac St, Vancouver, BC\n\nDirections: https://maps.google.com/?q=1497+Adanac+Street,Vancouver,BC\n\n`;
+    }
+
+    if (inquiredAboutBikes && !askedForHours && !askedForLocation) {
+      smsMessage += `Thanks for calling Beechee! 🚴\n\nBrowse our bikes: https://www.bici.cc\nCall us: (778) 719-3080\n\n`;
+    }
+
+    // If we have something to send
+    if (smsMessage) {
+      smsMessage += `- Beechee Team`;
+
+      // Initialize Twilio client
+      const twilio = require('twilio');
+      const twilioClient = twilio(
+        process.env.TWILIO_ACCOUNT_SID,
+        process.env.TWILIO_AUTH_TOKEN
+      );
+
+      // Send SMS
+      const message = await twilioClient.messages.create({
+        body: smsMessage,
+        from: process.env.TWILIO_PHONE_NUMBER,
+        to: callerPhone
+      });
+
+      console.log(`📱 Enhanced SMS sent to ${callerPhone}:`, message.sid);
+      return { success: true, messageSid: message.sid };
+    } else {
+      console.log('📱 No SMS triggers detected - skipping follow-up');
+      return { success: false, reason: 'no_triggers' };
+    }
+
+  } catch (error) {
+    console.error('📱 Enhanced SMS error (non-blocking):', error.message);
+    // Don't throw - SMS failure shouldn't break post-call processing
+    return { success: false, error: error.message };
+  }
 }
 
 // Health check for webhook endpoint
