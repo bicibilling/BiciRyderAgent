@@ -932,17 +932,22 @@ export async function handlePostCall(req: Request, res: Response) {
     }
     
     // Store conversation summary for both voice and SMS
-    await conversationService.createSummary({
-      organization_id: session.organization_id,
-      lead_id: session.lead_id,
-      phone_number: phone_number || session.metadata?.phone_number || 'unknown',
-      summary: analysis?.call_summary_title || analysis?.transcript_summary || 'Conversation completed',
-      key_points: insights.keyPoints || [],
-      next_steps: insights.nextSteps || [],
-      sentiment_score: insights.sentiment || 0.5,
-      call_classification: insights.classification || 'general',
-      conversation_type: metadata?.phone_call ? 'voice' : 'sms' // Track the conversation medium
-    });
+    try {
+      await conversationService.createSummary({
+        organization_id: session.organization_id,
+        lead_id: session.lead_id,
+        phone_number: phone_number || session.metadata?.phone_number || 'unknown',
+        summary: analysis?.call_summary_title || analysis?.transcript_summary || 'Conversation completed',
+        key_points: insights.keyPoints || [],
+        next_steps: insights.nextSteps || [],
+        sentiment_score: insights.sentiment || 0.5,
+        call_classification: insights.classification || 'general',
+        conversation_type: metadata?.phone_call ? 'voice' : 'sms' // Track the conversation medium
+      });
+    } catch (summaryError) {
+      logger.error('Failed to create summary (non-fatal):', summaryError);
+      // Continue - don't let summary failure break transcript storage
+    }
     
     // Store individual conversation turns from the transcript array
     // IMPORTANT: Only store transcript for voice calls, not SMS (SMS messages are already stored in real-time)
@@ -986,9 +991,15 @@ export async function handlePostCall(req: Request, res: Response) {
     }
     
     // Trigger enhanced SMS automation ONLY for voice calls, not SMS conversations
+    // Wrap in try-catch so SMS failures don't break the webhook
     if (isVoiceCall) {
-      logger.info('Triggering SMS follow-up for voice call');
-      await enhancedSMSService.triggerSmartAutomation(session, insights, fullTranscript);
+      try {
+        logger.info('Triggering SMS follow-up for voice call');
+        await enhancedSMSService.triggerSmartAutomation(session, insights, fullTranscript);
+      } catch (smsError) {
+        logger.error('SMS automation failed (non-fatal):', smsError);
+        // Continue - don't let SMS failure break the webhook
+      }
     } else {
       logger.info('Skipping SMS automation for SMS conversation - not needed');
     }
