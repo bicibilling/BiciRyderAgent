@@ -935,7 +935,7 @@ export async function handlePostCall(req: Request, res: Response) {
     await conversationService.createSummary({
       organization_id: session.organization_id,
       lead_id: session.lead_id,
-      phone_number: phone_number || session.metadata?.phone_number,
+      phone_number: phone_number || session.metadata?.phone_number || 'unknown',
       summary: analysis?.call_summary_title || analysis?.transcript_summary || 'Conversation completed',
       key_points: insights.keyPoints || [],
       next_steps: insights.nextSteps || [],
