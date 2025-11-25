@@ -645,9 +645,9 @@ export async function handlePostCall(req: Request, res: Response) {
     let duration: number;
     let sessionId: string;
     
-    // Handle new post_call_transcription webhook format
-    if (req.body.type === 'post_call_transcription') {
-      logger.info('Processing new post_call_transcription format');
+    // Handle post_call webhook formats (ElevenLabs sends 'transcript' or 'post_call_transcription')
+    if (req.body.type === 'post_call_transcription' || req.body.type === 'transcript') {
+      logger.info('Processing post-call transcript format:', req.body.type);
       
       // Verify webhook signature - ENABLED FOR PRODUCTION
       if (!verifyElevenLabsSignature(req)) {
