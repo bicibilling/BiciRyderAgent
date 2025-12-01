@@ -554,13 +554,20 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     });
     
     // Broadcast to dashboard
+    logger.info('🔴 BROADCASTING call_initiated event', {
+      type: 'call_initiated',
+      lead_id: lead.id,
+      phone_number: caller_id,
+      conversation_id: sessionId
+    });
     broadcastToClients({
       type: 'call_initiated',
       lead_id: lead.id,
       phone_number: caller_id,
       conversation_id: sessionId
     });
-    
+    logger.info('✅ call_initiated broadcast sent');
+
     logger.info('Returning dynamic variables for conversation', { lead_id: lead.id });
     
     // Build proper response structure for ElevenLabs (just dynamic variables, no type field)
@@ -920,16 +927,19 @@ export async function handlePostCall(req: Request, res: Response) {
       has_customer_name: !!updateData.customer_name,
       updated_successfully: !!updatedLead
     });
-    
-    // Broadcast the lead update to all connected clients so frontend updates immediately
-    if (updateData.customer_name) {
-      broadcastToClients({
-        type: 'lead_updated',
-        lead_id: session.lead_id,
-        customer_name: updateData.customer_name,
-        updates: updateData
-      });
-    }
+
+    // ALWAYS broadcast lead update to connected clients so frontend updates immediately
+    // This ensures UI refreshes even if only sentiment/classification changed (not just name)
+    broadcastToClients({
+      type: 'lead_updated',
+      lead_id: session.lead_id,
+      customer_name: updatedLead?.customer_name || updateData.customer_name,
+      updates: updateData
+    });
+    logger.info('📢 Broadcasted lead_updated event:', {
+      lead_id: session.lead_id,
+      customer_name: updatedLead?.customer_name
+    });
     
     // Store conversation summary for both voice and SMS
     try {
@@ -1032,9 +1042,11 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
   };
   
   // Use ElevenLabs data collection if available, otherwise fallback to keyword matching
-  if (analysis?.data_collection_results?.call_classification?.value) {
+  // Note: ElevenLabs returns camelCase field names (callClassification) but we also check snake_case for backwards compatibility
+  const callClassificationField = analysis?.data_collection_results?.callClassification || analysis?.data_collection_results?.call_classification;
+  if (callClassificationField?.value) {
     // ElevenLabs has already classified the call intelligently
-    insights.classification = analysis.data_collection_results.call_classification.value;
+    insights.classification = callClassificationField.value;
     logger.info('Using ElevenLabs call classification:', insights.classification);
   } else {
     // Fallback to keyword matching
@@ -1049,9 +1061,11 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
   }
   
   // Use ElevenLabs triggers if available, otherwise fallback
-  if (analysis?.data_collection_results?.customer_triggers?.value) {
+  // Note: ElevenLabs returns camelCase field names (customerTriggers) but we also check snake_case for backwards compatibility
+  const customerTriggersField = analysis?.data_collection_results?.customerTriggers || analysis?.data_collection_results?.customer_triggers;
+  if (customerTriggersField?.value) {
     // ElevenLabs returns triggers as a string, we need to parse it
-    const triggerString = analysis.data_collection_results.customer_triggers.value;
+    const triggerString = customerTriggersField.value;
     if (typeof triggerString === 'string') {
       // Parse comma-separated triggers and map to our expected format
       const triggerMap: Record<string, string> = {
@@ -1068,7 +1082,7 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
         .map(t => triggerMap[t] || t)
         .filter(Boolean);
     } else {
-      insights.triggers = analysis.data_collection_results.customer_triggers.value;
+      insights.triggers = customerTriggersField.value;
     }
     logger.info('Using ElevenLabs customer triggers:', insights.triggers);
   } else {
@@ -1090,28 +1104,38 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
   if (analysis?.data_collection_results) {
     logger.info('Data collection results found:', analysis.data_collection_results);
     
-    // Extract call classification from ElevenLabs
-    if (analysis.data_collection_results.call_classification?.value) {
-      insights.classification = analysis.data_collection_results.call_classification.value;
+    // Extract call classification from ElevenLabs (camelCase or snake_case)
+    const classificationField = analysis.data_collection_results.callClassification || analysis.data_collection_results.call_classification;
+    if (classificationField?.value) {
+      insights.classification = classificationField.value;
       logger.info('Call classified as:', insights.classification);
     }
-    
-    // Extract customer triggers from ElevenLabs
-    if (analysis.data_collection_results.customer_triggers?.value) {
-      insights.triggers = analysis.data_collection_results.customer_triggers.value || [];
+
+    // Extract customer triggers from ElevenLabs (camelCase or snake_case)
+    const triggersField = analysis.data_collection_results.customerTriggers || analysis.data_collection_results.customer_triggers;
+    if (triggersField?.value) {
+      insights.triggers = triggersField.value || [];
       logger.info('Customer triggers:', insights.triggers);
     }
-    
-    // Extract follow-up recommendation from ElevenLabs
-    if (analysis.data_collection_results.follow_up_needed?.value) {
-      insights.followUpNeeded = analysis.data_collection_results.follow_up_needed.value;
+
+    // Extract follow-up recommendation from ElevenLabs (camelCase or snake_case)
+    const followUpField = analysis.data_collection_results.followUpNeeded || analysis.data_collection_results.follow_up_needed;
+    if (followUpField?.value) {
+      insights.followUpNeeded = followUpField.value;
       logger.info('Follow-up needed:', insights.followUpNeeded);
     }
     
     // Extract customer name if collected (note: ElevenLabs returns structured data with .value)
     // IMPORTANT: Only update the name if we found a new one, don't clear existing names
-    if (analysis.data_collection_results.customer_name?.value) {
-      const extractedName = analysis.data_collection_results.customer_name.value;
+    // Note: Field name is 'customerName' (camelCase) as configured in ElevenLabs data collection
+    const customerNameField = analysis.data_collection_results.customerName || analysis.data_collection_results.customer_name;
+    logger.info('🔍 Checking for customerName in data_collection_results:', {
+      has_data_collection_results: !!analysis.data_collection_results,
+      has_customerName_field: !!customerNameField,
+      customerName_value: customerNameField?.value || 'NOT_FOUND'
+    });
+    if (customerNameField?.value) {
+      const extractedName = customerNameField.value;
       
       // Only set the name if it's not "Ryder" (our agent's name) or other false positives
       if (!['ryder', 'agent', 'assistant'].includes(extractedName.toLowerCase())) {
@@ -1126,31 +1150,36 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
     // Note: If no name was found, we do NOT clear the existing name
     // Customer might not say their name in every call, especially short ones
     
-    // Extract bike preferences if collected
-    if (analysis.data_collection_results.bike_type?.value) {
+    // Extract bike preferences if collected (camelCase or snake_case)
+    const bikeTypeField = analysis.data_collection_results.bikeType || analysis.data_collection_results.bike_type;
+    if (bikeTypeField?.value) {
       insights.bikePreferences = insights.bikePreferences || {};
-      insights.bikePreferences.type = analysis.data_collection_results.bike_type.value;
+      insights.bikePreferences.type = bikeTypeField.value;
       logger.info('Extracted bike type:', insights.bikePreferences.type);
     }
-    
-    // Extract purchase intent if collected
-    if (analysis.data_collection_results.purchase_intent?.value) {
-      insights.purchaseIntent = analysis.data_collection_results.purchase_intent.value;
+
+    // Extract purchase intent if collected (camelCase or snake_case)
+    const purchaseIntentField = analysis.data_collection_results.purchaseIntent || analysis.data_collection_results.purchase_intent;
+    if (purchaseIntentField?.value) {
+      insights.purchaseIntent = purchaseIntentField.value;
     }
-    
-    // Extract riding experience if collected
-    if (analysis.data_collection_results.riding_experience?.value) {
-      insights.ridingExperience = analysis.data_collection_results.riding_experience.value;
+
+    // Extract riding experience if collected (camelCase or snake_case)
+    const ridingExperienceField = analysis.data_collection_results.ridingExperience || analysis.data_collection_results.riding_experience;
+    if (ridingExperienceField?.value) {
+      insights.ridingExperience = ridingExperienceField.value;
     }
-    
-    // Extract purchase timeline if collected
-    if (analysis.data_collection_results.purchase_timeline?.value) {
-      insights.purchaseTimeline = analysis.data_collection_results.purchase_timeline.value;
+
+    // Extract purchase timeline if collected (camelCase or snake_case)
+    const purchaseTimelineField = analysis.data_collection_results.purchaseTimeline || analysis.data_collection_results.purchase_timeline;
+    if (purchaseTimelineField?.value) {
+      insights.purchaseTimeline = purchaseTimelineField.value;
     }
-    
-    // Extract budget range if collected
-    if (analysis.data_collection_results.budget_range?.value) {
-      insights.budgetRange = analysis.data_collection_results.budget_range.value;
+
+    // Extract budget range if collected (camelCase or snake_case)
+    const budgetRangeField = analysis.data_collection_results.budgetRange || analysis.data_collection_results.budget_range;
+    if (budgetRangeField?.value) {
+      insights.budgetRange = budgetRangeField.value;
     }
     
     logger.info('Final extracted insights:', {

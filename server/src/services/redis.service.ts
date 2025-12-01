@@ -250,6 +250,45 @@ export class RedisService {
     );
   }
 
+  /**
+   * Append a new conversation to existing cache (avoids cache thrashing)
+   * This is much faster than clearing and rebuilding the entire cache
+   */
+  public async appendToConversationCache(leadId: string, conversation: any): Promise<boolean> {
+    return this.executeWithFallback(
+      async (redis) => {
+        // Update caches for common limits (5, 6, 10, 20, 50)
+        const limits = [5, 6, 10, 20, 50];
+
+        for (const limit of limits) {
+          const key = RedisService.CACHE_KEYS.CONVERSATIONS(leadId, limit);
+          const cached = await redis.get(key);
+
+          if (cached) {
+            const conversations = JSON.parse(cached);
+            // Add new conversation at the end (most recent)
+            conversations.push(conversation);
+            // Trim to limit (remove oldest if over limit)
+            while (conversations.length > limit) {
+              conversations.shift();
+            }
+            await redis.setex(key, RedisService.TTL.CONVERSATIONS, JSON.stringify(conversations));
+          }
+          // If no cache exists, skip - it will be populated on next read
+        }
+
+        // Also invalidate context cache since it depends on recent conversations
+        // But DON'T clear everything - just the context which will rebuild
+        const contextKey = RedisService.CACHE_KEYS.CONTEXT(leadId);
+        await redis.del(contextKey);
+
+        return true;
+      },
+      () => false,
+      `Append conversation to cache for lead ${leadId}`
+    );
+  }
+
   // Summaries caching methods
   /**
    * Cache conversation summaries for a lead
