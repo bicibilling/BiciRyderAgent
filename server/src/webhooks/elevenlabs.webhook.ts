@@ -569,25 +569,34 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     logger.info('✅ call_initiated broadcast sent');
 
     logger.info('Returning dynamic variables for conversation', { lead_id: lead.id });
-    
+
+    // Pre-compute async values BEFORE building response object to avoid Promise issues
+    const extractedName = lead.customer_name || await extractRecentCustomerName(lead.id) || '';
+    const interactionCount = await conversationService.getConversationCount(lead.id);
+
     // Build proper response structure for ElevenLabs (just dynamic variables, no type field)
     const response = {
       dynamic_variables: {
         ...dynamicVariables,
         // Add extracted customer name if available (check recent conversations for name)
-        customer_name: lead.customer_name || await extractRecentCustomerName(lead.id) || '',
+        customer_name: extractedName,
         // Add dynamic context about the customer
         customer_history: previousSummary?.summary || 'New customer',
         last_topic: lead.bike_interest?.type || 'general inquiry',
         qualification_status: lead.qualification_data?.ready_to_buy ? 'ready to purchase' : 'exploring options',
-        interaction_count: await conversationService.getConversationCount(lead.id),
+        interaction_count: String(interactionCount),
         last_contact: lead.last_contact_at ? new Date(lead.last_contact_at).toLocaleDateString() : 'First contact',
         // CRITICAL: Add greeting variables for outbound calls
         greeting_opener: dynamicVariables.greeting_opener || (lead.customer_name ? `Hey ${lead.customer_name}!` : "Hey there!"),
         greeting_variation: dynamicVariables.greeting_variation || "How can I help you"
       }
     };
-    
+
+    logger.info('Sending response to ElevenLabs', {
+      has_dynamic_variables: !!response.dynamic_variables,
+      variable_count: Object.keys(response.dynamic_variables).length
+    });
+
     res.json(response);
   } catch (error) {
     logger.error('Error in conversation initiation:', error);
