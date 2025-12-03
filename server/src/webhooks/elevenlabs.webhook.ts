@@ -400,16 +400,30 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     }
     
     // Extract fields from both root and data levels for compatibility
+    // ElevenLabs may use different field names: caller_id/external_number, called_number/agent_number
     const rootFields = req.body;
     const { data, analysis: rootAnalysis } = req.body;
     const dataFields = data || {};
-    
-    const caller_id = rootFields.caller_id || dataFields.caller_id;
-    const called_number = rootFields.called_number || dataFields.called_number;
+
+    // Handle both field name formats: caller_id or external_number
+    const caller_id = rootFields.caller_id || rootFields.external_number ||
+                     dataFields.caller_id || dataFields.external_number;
+    // Handle both field name formats: called_number or agent_number
+    const called_number = rootFields.called_number || rootFields.agent_number ||
+                         dataFields.called_number || dataFields.agent_number;
     const conversation_id = rootFields.conversation_id || dataFields.conversation_id;
     const call_sid = rootFields.call_sid || dataFields.call_sid || dataFields.metadata?.phone_call?.call_sid;
     const agent_id = rootFields.agent_id || dataFields.agent_id;
     const conversation_initiation_client_data = rootFields.conversation_initiation_client_data || dataFields.conversation_initiation_client_data;
+
+    logger.info('Extracted webhook fields:', {
+      caller_id,
+      called_number,
+      conversation_id,
+      call_sid,
+      agent_id,
+      raw_body_keys: Object.keys(rootFields)
+    });
     
     // Detect if this is an outbound call
     const isOutbound = conversation_initiation_client_data?.initiated_by === 'agent';
@@ -450,22 +464,47 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     
     // Get organization from our phone number
     logger.info('Looking up organization for phone:', ourPhoneNumber);
-    const organization = await leadService.getOrganizationByPhone(ourPhoneNumber);
+    let organization = await leadService.getOrganizationByPhone(ourPhoneNumber);
+
+    // If organization not found, use default organization instead of failing
+    // This prevents webhook failures which would cause ElevenLabs calls to fail
     if (!organization) {
-      logger.error('No organization found for phone:', {
+      logger.warn('No organization found for phone, using default:', {
         ourPhoneNumber,
-        available_orgs: 'Check database for organizations table'
+        defaultOrgId: 'b0c1b1c1-0000-0000-0000-000000000001'
       });
-      return res.status(404).json({ error: 'Organization not found for phone: ' + ourPhoneNumber });
+      // Fallback to default organization
+      organization = {
+        id: 'b0c1b1c1-0000-0000-0000-000000000001',
+        name: 'Beechee Bike Store',
+        phone_number: ourPhoneNumber,
+        timezone: 'America/Vancouver',
+        settings: {}
+      };
     }
     
     logger.info('Found organization:', { id: organization.id, name: organization.name });
     
     // Get or create lead - use customer phone
-    const lead = conversation_initiation_client_data?.lead_id 
+    let lead = conversation_initiation_client_data?.lead_id
       ? await leadService.getLead(conversation_initiation_client_data.lead_id)
       : await leadService.findOrCreateLead(customerPhone, organization.id);
-    
+
+    // Handle null lead case - create a minimal lead object to prevent failures
+    if (!lead) {
+      logger.warn('Lead could not be retrieved or created, using minimal fallback');
+      lead = {
+        id: `temp-${Date.now()}`,
+        organization_id: organization.id,
+        phone_number: customerPhone,
+        phone_number_normalized: customerPhone.replace(/\D/g, ''),
+        status: 'new' as const,
+        sentiment: 'neutral' as const,
+        created_at: new Date(),
+        updated_at: new Date()
+      };
+    }
+
     logger.info('Lead data retrieved:', {
       lead_id: lead.id,
       has_name: !!lead.customer_name,
@@ -474,17 +513,30 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       status: lead.status
     });
     
-    // Build conversation context
-    const conversationContext = await buildConversationContext(lead.id);
-    const previousSummary = await conversationService.getLatestSummary(lead.id);
-    
+    // Build conversation context - wrap in try-catch to prevent failures
+    let conversationContext = '';
+    let previousSummary: any = null;
+    try {
+      conversationContext = await buildConversationContext(lead.id);
+      previousSummary = await conversationService.getLatestSummary(lead.id);
+    } catch (contextError) {
+      logger.warn('Error building conversation context, continuing with minimal context:', contextError);
+      conversationContext = 'First time caller';
+    }
+
     // Get current Pacific time info
     const { timeString: currentTime, date: pacificDate } = getCurrentPacificTime();
     const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][pacificDate.getDay()];
     const businessHoursStatus = getTodaysHours();
-    
-    // Create complete dynamic greeting
-    const dynamicGreeting = await createDynamicGreeting(lead, currentTime, dayOfWeek, businessHoursStatus);
+
+    // Create complete dynamic greeting - wrap in try-catch
+    let dynamicGreeting = '';
+    try {
+      dynamicGreeting = await createDynamicGreeting(lead, currentTime, dayOfWeek, businessHoursStatus);
+    } catch (greetingError) {
+      logger.warn('Error creating dynamic greeting, using fallback:', greetingError);
+      dynamicGreeting = `Hey! Thanks for calling Beechee. We're ${businessHoursStatus}. How can I help you?`;
+    }
     
     // Generate greeting context for additional variables
     const greetingContext = generateGreetingContext(lead, isOutbound, previousSummary);
@@ -504,7 +556,9 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       organization_name: organization.name,
       organization_id: organization.id,
       location_address: storeInfo.address,
+      location_address_formatted: storeInfo.address, // Formatted version for SMS (same as location_address)
       business_hours: businessHoursStatus,
+      store_greeting: businessHoursStatus, // Alias for business_hours (used in agent prompt)
       current_time: currentTime,
       current_day: dayOfWeek,
       current_datetime: `${dayOfWeek} ${currentTime} Pacific Time`,
@@ -537,21 +591,25 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       dynamic_greeting_preview: dynamicVariables.dynamic_greeting?.substring(0, 100) + '...'
     });
     
-    // Create call session record
-    await callSessionService.createSession({
-      organization_id: organization.id,
-      lead_id: lead.id,
-      elevenlabs_conversation_id: sessionId,
-      call_type: isOutbound ? 'outbound' : 'inbound',
-      status: 'initiated',
-      metadata: {
-        call_sid: call_sid || sessionId,
-        agent_id: agent_id,
-        caller_id: caller_id,
-        called_number: called_number,
-        initiated_by: conversation_initiation_client_data?.initiated_by
-      }
-    });
+    // Create call session record - wrap in try-catch to not fail webhook
+    try {
+      await callSessionService.createSession({
+        organization_id: organization.id,
+        lead_id: lead.id,
+        elevenlabs_conversation_id: sessionId,
+        call_type: isOutbound ? 'outbound' : 'inbound',
+        status: 'initiated',
+        metadata: {
+          call_sid: call_sid || sessionId,
+          agent_id: agent_id,
+          caller_id: caller_id,
+          called_number: called_number,
+          initiated_by: conversation_initiation_client_data?.initiated_by
+        }
+      });
+    } catch (sessionError) {
+      logger.warn('Error creating call session, continuing anyway:', sessionError);
+    }
     
     // Broadcast to dashboard
     logger.info('🔴 BROADCASTING call_initiated event', {
