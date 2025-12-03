@@ -17,6 +17,22 @@ const conversationService = new ConversationService();
 const callSessionService = new CallSessionService();
 const enhancedSMSService = new EnhancedSMSAutomationService();
 
+/**
+ * Safely truncate a string without breaking multi-byte characters (emojis, etc.)
+ * Using substring() on strings with emojis can create invalid Unicode surrogate pairs
+ * which causes JSON parsing errors on the receiving end.
+ */
+function safeSubstring(str: string, maxLength: number): string {
+  if (!str || str.length <= maxLength) return str || '';
+
+  // Convert to array of code points to handle multi-byte characters correctly
+  const chars = [...str];
+  if (chars.length <= maxLength) return str;
+
+  // Take maxLength characters and join back
+  return chars.slice(0, maxLength).join('');
+}
+
 // Verify ElevenLabs webhook signature
 function verifyElevenLabsSignature(req: Request): boolean {
   // Check if webhook secret is configured
@@ -543,14 +559,15 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     
     const dynamicVariables: ElevenLabsDynamicVariables = {
       // Customer info (with length limits like SMS)
-      customer_name: (lead.customer_name || "").substring(0, 50),
+      customer_name: safeSubstring(lead.customer_name || "", 50),
       customer_phone: caller_id,
       lead_status: lead.status || 'new',
       bike_interest: typeof lead.bike_interest === 'string' ? lead.bike_interest : JSON.stringify(lead.bike_interest || {}),
       
       // Conversation context (increased limit to match SMS implementation)
-      conversation_context: (conversationContext || '').substring(0, 1500),
-      previous_summary: (previousSummary?.summary || 'First time caller - no previous interactions').substring(0, 500),
+      // Use safeSubstring to avoid breaking multi-byte characters (emojis)
+      conversation_context: safeSubstring(conversationContext || '', 1500),
+      previous_summary: safeSubstring(previousSummary?.summary || 'First time caller - no previous interactions', 500),
       
       // Store info and timing context
       organization_name: organization.name,
@@ -584,11 +601,11 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     
     // Log the context preview for debugging (like SMS does)
     logger.info('Voice Call Context Preview:', {
-      conversation_context_preview: dynamicVariables.conversation_context?.substring(0, 200) + '...',
-      previous_summary_preview: dynamicVariables.previous_summary?.substring(0, 100) + '...',
+      conversation_context_preview: safeSubstring(dynamicVariables.conversation_context || '', 200) + '...',
+      previous_summary_preview: safeSubstring(dynamicVariables.previous_summary || '', 100) + '...',
       lead_status: dynamicVariables.lead_status,
       bike_interest: dynamicVariables.bike_interest,
-      dynamic_greeting_preview: dynamicVariables.dynamic_greeting?.substring(0, 100) + '...'
+      dynamic_greeting_preview: safeSubstring(dynamicVariables.dynamic_greeting || '', 100) + '...'
     });
     
     // Create call session record - wrap in try-catch to not fail webhook
