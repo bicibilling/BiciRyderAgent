@@ -54,6 +54,8 @@ export interface Conversation {
   call_classification?: 'sales' | 'support' | 'service' | 'general' | 'live';
   timestamp?: Date; // Make optional since it's auto-generated
   metadata?: Record<string, any>;
+  is_leaving_message?: boolean;
+  customer_message_text?: string;
 }
 
 export interface CallSession {
@@ -117,4 +119,7 @@ export interface ConversationInsights {
   purchaseTimeline?: string;
   budgetRange?: string;
   followUpNeeded?: string;  // ElevenLabs recommendation for follow-up SMS
+  isLeavingMessage?: boolean;
+  customerMessageText?: string;
 }
+
