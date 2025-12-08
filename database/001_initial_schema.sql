@@ -85,6 +85,8 @@ CREATE TABLE IF NOT EXISTS call_sessions (
   started_at TIMESTAMPTZ DEFAULT now(),
   ended_at TIMESTAMPTZ,
   duration_seconds INTEGER,
+  is_leaving_message BOOLEAN DEFAULT false,
+  customer_message_text TEXT,
   transcript TEXT,
   summary TEXT,
   classification VARCHAR(50),

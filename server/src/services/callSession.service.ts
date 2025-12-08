@@ -10,6 +10,8 @@ export class CallSessionService {
       const session = {
         id: uuidv4(),
         ...sessionData,
+        is_leaving_message: sessionData.is_leaving_message ?? false,
+        customer_message_text: sessionData.customer_message_text ?? null,
         started_at: new Date()
       };
       
