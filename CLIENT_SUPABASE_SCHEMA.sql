@@ -70,9 +70,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   sentiment VARCHAR(50) DEFAULT 'neutral',
   timestamp TIMESTAMPTZ DEFAULT now(),
   metadata JSONB DEFAULT '{}'::jsonb,
-  message_sid VARCHAR(255),
-  is_leaving_message BOOLEAN DEFAULT false,
-  customer_message_text TEXT
+  message_sid VARCHAR(255)
 );
 
 -- Call Sessions table
