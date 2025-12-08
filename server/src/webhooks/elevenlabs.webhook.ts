@@ -17,10 +17,6 @@ const conversationService = new ConversationService();
 const callSessionService = new CallSessionService();
 const enhancedSMSService = new EnhancedSMSAutomationService();
 
-function normalizeBooleanFlag(value: any): boolean {
-  return value === true || value === 'true';
-}
-
 // Verify ElevenLabs webhook signature
 function verifyElevenLabsSignature(req: Request): boolean {
   // Check if webhook secret is configured
@@ -414,21 +410,6 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     const call_sid = rootFields.call_sid || dataFields.call_sid || dataFields.metadata?.phone_call?.call_sid;
     const agent_id = rootFields.agent_id || dataFields.agent_id;
     const conversation_initiation_client_data = rootFields.conversation_initiation_client_data || dataFields.conversation_initiation_client_data;
-
-    // Capture whether the caller is leaving a message and any provided text
-    const isLeavingMessage = normalizeBooleanFlag(
-      conversation_initiation_client_data?.is_leaving_message ??
-      conversation_initiation_client_data?.dynamic_variables?.is_leaving_message ??
-      dataFields.is_leaving_message ??
-      rootFields.is_leaving_message
-    );
-
-    const customerMessageText =
-      conversation_initiation_client_data?.customer_message_text ||
-      conversation_initiation_client_data?.dynamic_variables?.customer_message_text ||
-      dataFields.customer_message_text ||
-      rootFields.customer_message_text ||
-      null;
     
     // Detect if this is an outbound call
     const isOutbound = conversation_initiation_client_data?.initiated_by === 'agent';
@@ -562,8 +543,6 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       lead_id: lead.id,
       elevenlabs_conversation_id: sessionId,
       call_type: isOutbound ? 'outbound' : 'inbound',
-      is_leaving_message: isLeavingMessage,
-      customer_message_text: customerMessageText,
       status: 'initiated',
       metadata: {
         call_sid: call_sid || sessionId,
@@ -665,8 +644,6 @@ export async function handlePostCall(req: Request, res: Response) {
     let call_sid: string;
     let duration: number;
     let sessionId: string;
-    let isLeavingMessage = false;
-    let customerMessageText: string | null = null;
     
     // Handle new post_call_transcription webhook format
     if (req.body.type === 'post_call_transcription') {
@@ -691,21 +668,6 @@ export async function handlePostCall(req: Request, res: Response) {
       metadata = data.metadata || {};
       analysis = data.analysis || {};
       conversation_initiation_client_data = data.conversation_initiation_client_data || {};
-
-      // Capture message leaving intent and text from the new payload shape
-      isLeavingMessage = normalizeBooleanFlag(
-        conversation_initiation_client_data?.is_leaving_message ??
-        conversation_initiation_client_data?.dynamic_variables?.is_leaving_message ??
-        metadata?.phone_call?.is_leaving_message ??
-        data.is_leaving_message
-      );
-
-      customerMessageText =
-        conversation_initiation_client_data?.customer_message_text ||
-        conversation_initiation_client_data?.dynamic_variables?.customer_message_text ||
-        metadata?.phone_call?.customer_message_text ||
-        data.customer_message_text ||
-        null;
       
       // Try to extract phone number from various locations
       phone_number = 
@@ -798,26 +760,9 @@ export async function handlePostCall(req: Request, res: Response) {
       
       sessionId = conversation_id || metadata?.phone_call?.call_sid;
       // For SMS/text conversations, phone number might be in dynamic_variables
-      phone_number = metadata?.phone_call?.external_number ||
+      phone_number = metadata?.phone_call?.external_number || 
                           conversation_initiation_client_data?.dynamic_variables?.customer_phone;
       duration = metadata?.call_duration_secs;
-
-      // Capture message leaving intent and text (available in initiation client data or metadata)
-      isLeavingMessage = normalizeBooleanFlag(
-        conversation_initiation_client_data?.is_leaving_message ??
-        conversation_initiation_client_data?.dynamic_variables?.is_leaving_message ??
-        metadata?.phone_call?.is_leaving_message ??
-        dataFields.is_leaving_message ??
-        rootFields.is_leaving_message
-      );
-
-      customerMessageText =
-        conversation_initiation_client_data?.customer_message_text ||
-        conversation_initiation_client_data?.dynamic_variables?.customer_message_text ||
-        metadata?.phone_call?.customer_message_text ||
-        dataFields.customer_message_text ||
-        rootFields.customer_message_text ||
-        null;
       
       logger.info('Post-call session details:', {
         conversation_id,
@@ -851,8 +796,6 @@ export async function handlePostCall(req: Request, res: Response) {
       status: 'completed' as const,  // Use const assertion for literal type
       ended_at: new Date(),
       duration_seconds: duration,
-      is_leaving_message: isLeavingMessage,
-      customer_message_text: customerMessageText,
       metadata: {
         transcript: fullTranscript,
         summary: analysis?.call_summary_title || analysis?.transcript_summary,
@@ -909,8 +852,6 @@ export async function handlePostCall(req: Request, res: Response) {
           organization_id: organizationId,
           lead_id: lead.id,
           status: 'completed' as const,
-          is_leaving_message: isLeavingMessage,
-          customer_message_text: customerMessageText,
           started_at: new Date(metadata?.start_time_unix_secs * 1000 || Date.now()),
           metadata: sessionUpdateData.metadata
         } as CallSession;
