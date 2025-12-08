@@ -1087,6 +1087,10 @@ export async function handlePostCall(req: Request, res: Response) {
 
     if (isVoiceCall) {
       const normalizedPhoneNumber = phone_number.replace(/\D/g, '');
+      const leavingMessageFlag = insights.isLeavingMessage ?? false;
+      const customerMessageText = insights.customerMessageText
+        ? safeSubstring(insights.customerMessageText, 5000)
+        : undefined;
 
       if (Array.isArray(transcript)) {
         for (const turn of transcript) {
@@ -1099,6 +1103,8 @@ export async function handlePostCall(req: Request, res: Response) {
               sent_by: turn.role === 'user' ? 'user' : 'agent',
               type: 'voice',
               call_classification: insights.classification || 'general',
+              is_leaving_message: leavingMessageFlag,
+              customer_message_text: customerMessageText,
               timestamp: new Date(metadata.start_time_unix_secs * 1000 + (turn.time_in_call_secs || 0) * 1000),
               metadata: {
                 time_in_call_secs: turn.time_in_call_secs,
@@ -1117,7 +1123,9 @@ export async function handlePostCall(req: Request, res: Response) {
           content: fullTranscript || 'Call completed - transcript not available',
           sent_by: 'system',
           type: 'voice',
-          call_classification: insights.classification || 'general'
+          call_classification: insights.classification || 'general',
+          is_leaving_message: leavingMessageFlag,
+          customer_message_text: customerMessageText
         });
       }
     } else {
