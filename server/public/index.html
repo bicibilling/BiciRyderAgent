@@ -1,14 +1,623 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BICI Voice Agent Dashboard</title>
-    <script type="module" crossorigin src="/assets/index-C9HZVh74.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-Cd2M1E5U.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BICI Voice Agent Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    
+    .bici-gradient {
+      background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+    }
+    
+    .bici-accent {
+      color: #91C9E9;
+    }
+    
+    .bici-accent-bg {
+      background-color: #91C9E9;
+    }
+    
+    .conversation-message {
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .pulse-dot {
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+      100% {
+        opacity: 1;
+      }
+    }
+    
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback, useReducer } = React;
+    
+    // BICI Dashboard Component
+    function BICIDashboard() {
+      const [leads, setLeads] = useState([]);
+      const [selectedLead, setSelectedLead] = useState(null);
+      const [conversations, setConversations] = useState([]);
+      const [stats, setStats] = useState({
+        total_leads: 0,
+        total_calls: 0,
+        total_conversations: 0,
+        active_sessions: 0
+      });
+      const [isHumanControl, setIsHumanControl] = useState(false);
+      const [messageInput, setMessageInput] = useState('');
+      const [isCallActive, setIsCallActive] = useState(false);
+      const [connectionStatus, setConnectionStatus] = useState('disconnected');
+      const [notifications, setNotifications] = useState([]);
+      const [, forceUpdate] = useReducer(x => x + 1, 0);
+      
+      const conversationEndRef = useRef(null);
+      const eventSourceRef = useRef(null);
+      
+      // Scroll to bottom of conversation
+      const scrollToBottom = () => {
+        conversationEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      };
+      
+      // Show notification
+      const showNotification = (message, type = 'info') => {
+        const id = Date.now();
+        const notification = { id, message, type };
+        setNotifications(prev => [...prev, notification]);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+          setNotifications(prev => prev.filter(n => n.id !== id));
+        }, 5000);
+      };
+      
+      // Fetch leads
+      const fetchLeads = async () => {
+        try {
+          const response = await fetch('/api/leads', {
+            headers: {
+              'x-organization-id': 'b0c1b1c1-0000-0000-0000-000000000001'
+            }
+          });
+          const data = await response.json();
+          setLeads(data);
+        } catch (error) {
+          console.error('Error fetching leads:', error);
+        }
+      };
+      
+      // Fetch conversations
+      const fetchConversations = async (leadId) => {
+        try {
+          const response = await fetch(`/api/conversations/${leadId}`);
+          const data = await response.json();
+          setConversations(data);
+          setTimeout(scrollToBottom, 100);
+        } catch (error) {
+          console.error('Error fetching conversations:', error);
+        }
+      };
+      
+      // Fetch dashboard stats
+      const fetchStats = async () => {
+        try {
+          const response = await fetch('/api/dashboard/stats', {
+            headers: {
+              'x-organization-id': 'b0c1b1c1-0000-0000-0000-000000000001'
+            }
+          });
+          const data = await response.json();
+          setStats(data);
+        } catch (error) {
+          console.error('Error fetching stats:', error);
+        }
+      };
+      
+      // Setup SSE connection with auto-reconnect
+      const setupSSE = () => {
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+        }
+        
+        const clientId = `dashboard-${Date.now()}`;
+        const eventSource = new EventSource(`/api/stream/${clientId}`);
+        
+        eventSource.onopen = () => {
+          setConnectionStatus('connected');
+          console.log('SSE connection established');
+        };
+        
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            handleRealtimeUpdate(data);
+          } catch (error) {
+            console.error('Error parsing SSE data:', error);
+          }
+        };
+        
+        eventSource.onerror = (error) => {
+          setConnectionStatus('disconnected');
+          console.error('SSE connection error, reconnecting...', error);
+          
+          // Auto-reconnect after 3 seconds
+          setTimeout(() => {
+            console.log('Attempting to reconnect SSE...');
+            setupSSE();
+          }, 3000);
+        };
+        
+        eventSourceRef.current = eventSource;
+      };
+      
+      // Handle real-time updates
+      const handleRealtimeUpdate = (data) => {
+        console.log('Real-time update:', data);
+        
+        switch (data.type) {
+          case 'call_initiated':
+            setIsCallActive(true);
+            if (data.lead_id === selectedLead?.id) {
+              fetchConversations(data.lead_id);
+            }
+            break;
+            
+          case 'call_completed':
+            setIsCallActive(false);
+            if (data.lead_id === selectedLead?.id) {
+              fetchConversations(data.lead_id);
+            }
+            fetchStats();
+            break;
+            
+          case 'sms_received':
+          case 'sms_sent':
+            if (data.lead_id === selectedLead?.id) {
+              fetchConversations(data.lead_id);
+            }
+            break;
+            
+          case 'human_control_started':
+            if (data.lead_id === selectedLead?.id) {
+              setIsHumanControl(true);
+            }
+            break;
+            
+          case 'human_control_ended':
+            if (data.lead_id === selectedLead?.id) {
+              setIsHumanControl(false);
+            }
+            break;
+        }
+      };
+      
+      // Join human control
+      const handleJoinControl = async () => {
+        if (!selectedLead) return;
+        
+        try {
+          const response = await fetch('/api/human-control/join', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-organization-id': 'b0c1b1c1-0000-0000-0000-000000000001'
+            },
+            body: JSON.stringify({
+              leadId: selectedLead.id,
+              agentName: 'Dashboard Agent'
+            })
+          });
+          
+          if (response.ok) {
+            setIsHumanControl(true);
+          }
+        } catch (error) {
+          console.error('Error joining control:', error);
+        }
+      };
+      
+      // Leave human control
+      const handleLeaveControl = async () => {
+        if (!selectedLead) return;
+        
+        try {
+          const response = await fetch('/api/human-control/leave', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              leadId: selectedLead.id
+            })
+          });
+          
+          if (response.ok) {
+            setIsHumanControl(false);
+          }
+        } catch (error) {
+          console.error('Error leaving control:', error);
+        }
+      };
+      
+      // Send message
+      const handleSendMessage = async () => {
+        if (!selectedLead || !messageInput.trim()) return;
+        
+        try {
+          const endpoint = isHumanControl 
+            ? '/api/human-control/send-message' 
+            : '/api/sms/send';
+          
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-organization-id': 'b0c1b1c1-0000-0000-0000-000000000001'
+            },
+            body: JSON.stringify({
+              leadId: selectedLead.id,
+              phoneNumber: selectedLead.phone_number,
+              message: messageInput
+            })
+          });
+          
+          if (response.ok) {
+            setMessageInput('');
+            fetchConversations(selectedLead.id);
+          }
+        } catch (error) {
+          console.error('Error sending message:', error);
+        }
+      };
+      
+      // Start voice call with UI feedback
+      const handleStartCall = async () => {
+        if (!selectedLead || isCallActive) return;
+        
+        // Show immediate feedback by updating state
+        setIsCallActive(true);
+        
+        // Show notification
+        showNotification('📞 Initiating call...', 'info');
+        console.log('Starting call to:', selectedLead.phone_number);
+        
+        try {
+          const response = await fetch('/api/elevenlabs/outbound-call', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-organization-id': 'b0c1b1c1-0000-0000-0000-000000000001'
+            },
+            body: JSON.stringify({
+              phoneNumber: selectedLead.phone_number,
+              leadId: selectedLead.id
+            })
+          });
+          
+          const result = await response.json();
+          
+          if (response.ok) {
+            showNotification(`✅ Call initiated to ${selectedLead.phone_number}`, 'success');
+            // Keep call active state
+          } else {
+            showNotification(`❌ Failed to initiate call: ${result.error || 'Unknown error'}`, 'error');
+            setIsCallActive(false);
+          }
+        } catch (error) {
+          console.error('Error starting call:', error);
+          showNotification('❌ Network error - could not start call', 'error');
+          setIsCallActive(false);
+        }
+      };
+      
+      // Initialize
+      useEffect(() => {
+        fetchLeads();
+        fetchStats();
+        setupSSE();
+        
+        // Refresh stats every 30 seconds
+        const statsInterval = setInterval(fetchStats, 30000);
+        
+        return () => {
+          clearInterval(statsInterval);
+          if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+          }
+        };
+      }, []);
+      
+      // Load conversations when lead is selected
+      useEffect(() => {
+        if (selectedLead) {
+          fetchConversations(selectedLead.id);
+        }
+      }, [selectedLead]);
+      
+      // Format phone number
+      const formatPhone = (phone) => {
+        const cleaned = phone.replace(/\D/g, '');
+        if (cleaned.length === 10) {
+          return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+        }
+        return phone;
+      };
+      
+      // Format timestamp
+      const formatTime = (timestamp) => {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        });
+      };
+      
+      return (
+        <div className="flex h-screen bg-gray-50">
+          {/* Notifications */}
+          <div className="fixed top-4 right-4 z-50 space-y-2" style={{ zIndex: 9999 }}>
+            {notifications.map(notification => (
+              <div
+                key={notification.id}
+                className={`p-4 rounded-lg shadow-lg text-white transition-all ${
+                  notification.type === 'success' ? 'bg-green-500' :
+                  notification.type === 'error' ? 'bg-red-500' :
+                  'bg-blue-500'
+                }`}
+                style={{ 
+                  animation: 'slideIn 0.3s ease-out',
+                  minWidth: '300px'
+                }}
+              >
+                {notification.message}
+              </div>
+            ))}
+          </div>
+          
+          {/* Sidebar */}
+          <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200 bici-gradient">
+              <h1 className="text-2xl font-bold text-white">BICI Voice Agent</h1>
+              <div className="mt-2 flex items-center">
+                <div className={`w-2 h-2 rounded-full mr-2 ${connectionStatus === 'connected' ? 'bg-green-400' : 'bg-red-400'} pulse-dot`}></div>
+                <span className="text-sm text-gray-300">
+                  {connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}
+                </span>
+              </div>
+            </div>
+            
+            {/* Stats */}
+            <div className="p-4 bg-gray-50 grid grid-cols-2 gap-2">
+              <div className="bg-white p-3 rounded-lg">
+                <div className="text-2xl font-bold">{stats.total_leads}</div>
+                <div className="text-xs text-gray-500">Total Leads</div>
+              </div>
+              <div className="bg-white p-3 rounded-lg">
+                <div className="text-2xl font-bold">{stats.total_calls}</div>
+                <div className="text-xs text-gray-500">Total Calls</div>
+              </div>
+              <div className="bg-white p-3 rounded-lg">
+                <div className="text-2xl font-bold">{stats.total_conversations}</div>
+                <div className="text-xs text-gray-500">Conversations</div>
+              </div>
+              <div className="bg-white p-3 rounded-lg">
+                <div className="text-2xl font-bold bici-accent">{stats.active_sessions}</div>
+                <div className="text-xs text-gray-500">Active Now</div>
+              </div>
+            </div>
+            
+            {/* Leads List */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-4">
+                <h2 className="text-sm font-semibold text-gray-600 mb-3">RECENT LEADS</h2>
+                {leads.map((lead) => (
+                  <div
+                    key={lead.id}
+                    onClick={() => setSelectedLead(lead)}
+                    className={`p-3 mb-2 rounded-lg cursor-pointer transition-colors ${
+                      selectedLead?.id === lead.id 
+                        ? 'bg-black text-white' 
+                        : 'bg-white hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="font-medium">
+                      {lead.customer_name || 'Unknown Customer'}
+                    </div>
+                    <div className={`text-sm ${selectedLead?.id === lead.id ? 'text-gray-300' : 'text-gray-500'}`}>
+                      {formatPhone(lead.phone_number)}
+                    </div>
+                    <div className="flex items-center mt-1">
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        lead.status === 'hot' ? 'bg-red-100 text-red-600' :
+                        lead.status === 'qualified' ? 'bg-green-100 text-green-600' :
+                        lead.status === 'contacted' ? 'bg-blue-100 text-blue-600' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {lead.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col">
+            {selectedLead ? (
+              <>
+                {/* Conversation Header */}
+                <div className="bg-white border-b border-gray-200 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold">
+                        {selectedLead.customer_name || 'Unknown Customer'}
+                      </h2>
+                      <div className="text-sm text-gray-500">
+                        {formatPhone(selectedLead.phone_number)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {isCallActive && (
+                        <div className="flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-full">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-2 pulse-dot"></div>
+                          <span className="text-sm font-medium">Call Active</span>
+                        </div>
+                      )}
+                      <button
+                        onClick={handleStartCall}
+                        disabled={isCallActive}
+                        className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        {isCallActive ? '📞 Calling...' : '📞 Start Call'}
+                      </button>
+                      <button
+                        onClick={isHumanControl ? handleLeaveControl : handleJoinControl}
+                        className={`px-4 py-2 rounded-lg ${
+                          isHumanControl 
+                            ? 'bg-red-500 text-white hover:bg-red-600' 
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {isHumanControl ? '🤖 Resume AI' : '👤 Take Control'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Conversation Area */}
+                <div className="flex-1 overflow-y-auto bg-gray-50 p-4">
+                  {conversations.length === 0 ? (
+                    <div className="text-center text-gray-500 mt-10">
+                      No conversations yet. Start by calling or sending an SMS.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {conversations.map((msg) => (
+                        <div
+                          key={msg.id}
+                          className={`flex ${msg.sent_by === 'user' ? 'justify-start' : 'justify-end'} conversation-message`}
+                        >
+                          <div
+                            className={`max-w-md px-4 py-2 rounded-lg ${
+                              msg.sent_by === 'user'
+                                ? 'bg-white text-gray-800'
+                                : msg.sent_by === 'human_agent'
+                                ? 'bg-blue-500 text-white'
+                                : msg.sent_by === 'system'
+                                ? 'bg-gray-300 text-gray-700 italic'
+                                : 'bg-black text-white'
+                            }`}
+                          >
+                            <div className="text-sm">{msg.content}</div>
+                            <div className={`text-xs mt-1 ${
+                              msg.sent_by === 'user' ? 'text-gray-500' : 'text-gray-300'
+                            }`}>
+                              {formatTime(msg.timestamp)} • {msg.type}
+                              {msg.sent_by === 'human_agent' && ' • Human'}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={conversationEndRef} />
+                    </div>
+                  )}
+                </div>
+                
+                {/* Message Input */}
+                <div className="bg-white border-t border-gray-200 p-4">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                      placeholder={isHumanControl ? "Type your message (Human Control)..." : "Type your message (AI will respond)..."}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={!messageInput.trim()}
+                      className="px-6 py-2 bici-accent-bg text-black font-medium rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Send SMS
+                    </button>
+                  </div>
+                  {isHumanControl && (
+                    <div className="mt-2 text-sm text-orange-600">
+                      ⚠️ Human control active - AI responses are paused
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-gray-500">
+                <div className="text-center">
+                  <div className="text-6xl mb-4">🚴</div>
+                  <h2 className="text-xl font-semibold mb-2">Welcome to BICI Voice Agent</h2>
+                  <p>Select a lead from the sidebar to view conversation</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    // Render the app
+    ReactDOM.render(<BICIDashboard />, document.getElementById('root'));
+  </script>
+</body>
 </html>

@@ -75,33 +75,33 @@ export function getDayContext(): string {
   
   // Weekend
   if (day === 0 || day === 6) {
-    return "I hope you're enjoying your weekend!";
+    return "Hope you're enjoying your weekend!";
   }
   
   // Monday
   if (day === 1) {
-    return "I hope you had a great weekend!";
+    return "Hope you had a great weekend!";
   }
   
   // Tuesday
   if (day === 2) {
-    return "I hope your Tuesday is going great!";
+    return "Hope your Tuesday is going great!";
   }
   
   // Wednesday
   if (day === 3) {
-    return "How's your Wednesday going?";
+    return "Hump day! How's your Wednesday going?";
   }
   
   // Thursday
   if (day === 4) {
-    return "How's your Thursday?";
+    return "Almost there! How's your Thursday?";
   }
   
   // Friday
   if (day === 5) {
     if (hour >= 15) { // 3 PM or later
-      return "Happy Friday!";
+      return "Happy Friday! Almost weekend time!";
     } else {
       return "Happy Friday!";
     }
