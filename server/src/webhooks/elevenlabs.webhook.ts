@@ -1046,27 +1046,19 @@ export async function handlePostCall(req: Request, res: Response) {
     // Store individual conversation turns from the transcript array
     // IMPORTANT: Only store transcript for voice calls, not SMS (SMS messages are already stored in real-time)
     const isVoiceCall = !!metadata?.phone_call;
-
+    
     if (isVoiceCall) {
-      const normalizedPhoneNumber = phone_number.replace(/\D/g, '');
-      const leavingMessageFlag = insights.isLeavingMessage ?? false;
-      const customerMessageText = insights.customerMessageText
-        ? safeSubstring(insights.customerMessageText, 5000)
-        : undefined;
-
       if (Array.isArray(transcript)) {
         for (const turn of transcript) {
           if (turn.message && turn.message.trim()) {
             await conversationService.storeConversation({
               organization_id: session.organization_id,
               lead_id: session.lead_id,
-              phone_number_normalized: normalizedPhoneNumber,
+              phone_number_normalized: phone_number.replace(/\D/g, ''),
               content: turn.message,
               sent_by: turn.role === 'user' ? 'user' : 'agent',
               type: 'voice',
               call_classification: insights.classification || 'general',
-              is_leaving_message: leavingMessageFlag,
-              customer_message_text: customerMessageText,
               timestamp: new Date(metadata.start_time_unix_secs * 1000 + (turn.time_in_call_secs || 0) * 1000),
               metadata: {
                 time_in_call_secs: turn.time_in_call_secs,
@@ -1081,13 +1073,11 @@ export async function handlePostCall(req: Request, res: Response) {
         await conversationService.storeConversation({
           organization_id: session.organization_id,
           lead_id: session.lead_id,
-          phone_number_normalized: normalizedPhoneNumber,
+          phone_number_normalized: phone_number.replace(/\D/g, ''),
           content: fullTranscript || 'Call completed - transcript not available',
           sent_by: 'system',
           type: 'voice',
-          call_classification: insights.classification || 'general',
-          is_leaving_message: leavingMessageFlag,
-          customer_message_text: customerMessageText
+          call_classification: insights.classification || 'general'
         });
       }
     } else {
@@ -1217,26 +1207,6 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
     if (followUpField?.value) {
       insights.followUpNeeded = followUpField.value;
       logger.info('Follow-up needed:', insights.followUpNeeded);
-    }
-
-    // Detect if the caller is leaving a message (camelCase or snake_case)
-    const leavingMessageField = analysis.data_collection_results.isLeavingMessage || analysis.data_collection_results.is_leaving_message;
-    if (typeof leavingMessageField?.value === 'boolean') {
-      insights.isLeavingMessage = leavingMessageField.value;
-      logger.info('Caller leaving message detected:', insights.isLeavingMessage);
-    } else if (typeof leavingMessageField === 'boolean') {
-      insights.isLeavingMessage = leavingMessageField;
-      logger.info('Caller leaving message detected (direct value):', insights.isLeavingMessage);
-    }
-
-    // Extract the customer's message text if provided
-    const customerMessageField = analysis.data_collection_results.customerMessageText || analysis.data_collection_results.customer_message_text;
-    if (typeof customerMessageField?.value === 'string') {
-      insights.customerMessageText = customerMessageField.value;
-      logger.info('Captured customer message text from analysis');
-    } else if (typeof customerMessageField === 'string') {
-      insights.customerMessageText = customerMessageField;
-      logger.info('Captured customer message text (direct value)');
     }
     
     // Extract customer name if collected (note: ElevenLabs returns structured data with .value)

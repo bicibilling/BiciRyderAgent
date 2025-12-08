@@ -36,8 +36,6 @@ export interface Conversation {
   classification?: 'sales' | 'support' | 'service' | 'general';
   timestamp: string;
   metadata?: Record<string, any>;
-  is_leaving_message?: boolean;
-  customer_message_text?: string;
 }
 
 export interface CallSession {
