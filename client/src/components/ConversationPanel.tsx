@@ -24,25 +24,15 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ lead, onUpdate, r
 
   // Handle real-time updates
   useEffect(() => {
-    // Debug: Log all incoming realtime data for call events
-    if (realtimeData?.type === 'call_initiated' || realtimeData?.type === 'call_completed') {
-      console.log('🔴 CALL EVENT RECEIVED:', {
-        type: realtimeData.type,
-        event_lead_id: realtimeData.lead_id,
-        current_lead_id: lead.id,
-        matches: realtimeData.lead_id === lead.id
-      });
-    }
-
     if (realtimeData && realtimeData.lead_id === lead.id) {
       // Reload conversations when new data arrives for this lead
-      if (realtimeData.type === 'conversation_added' ||
-          realtimeData.type === 'sms_sent' ||
+      if (realtimeData.type === 'conversation_added' || 
+          realtimeData.type === 'sms_sent' || 
           realtimeData.type === 'sms_received' ||
           realtimeData.type === 'call_completed') {
         loadConversations();
       }
-
+      
       // Handle live transcript during calls
       if (realtimeData.type === 'live_transcript') {
         setLiveTranscript({
@@ -52,17 +42,15 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({ lead, onUpdate, r
         // Clear after a moment to show it's temporary
         setTimeout(() => setLiveTranscript(null), 5000);
       }
-
+      
       // Handle call states
       if (realtimeData.type === 'call_initiated') {
-        console.log('✅ Setting isCallActive = true for lead:', lead.id);
         setIsCallActive(true);
       } else if (realtimeData.type === 'call_completed') {
-        console.log('✅ Setting isCallActive = false for lead:', lead.id);
         setIsCallActive(false);
         setLiveTranscript(null);
       }
-
+      
       // Handle user speaking indicator
       if (realtimeData.type === 'user_speaking') {
         // Could add a speaking indicator UI here

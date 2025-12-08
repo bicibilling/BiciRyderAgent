@@ -17,20 +17,8 @@ const conversationService = new ConversationService();
 const callSessionService = new CallSessionService();
 const enhancedSMSService = new EnhancedSMSAutomationService();
 
-/**
- * Safely truncate a string without breaking multi-byte characters (emojis, etc.)
- * Using substring() on strings with emojis can create invalid Unicode surrogate pairs
- * which causes JSON parsing errors on the receiving end.
- */
-function safeSubstring(str: string, maxLength: number): string {
-  if (!str || str.length <= maxLength) return str || '';
-
-  // Convert to array of code points to handle multi-byte characters correctly
-  const chars = [...str];
-  if (chars.length <= maxLength) return str;
-
-  // Take maxLength characters and join back
-  return chars.slice(0, maxLength).join('');
+function normalizeBooleanFlag(value: any): boolean {
+  return value === true || value === 'true';
 }
 
 // Verify ElevenLabs webhook signature
@@ -416,30 +404,31 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     }
     
     // Extract fields from both root and data levels for compatibility
-    // ElevenLabs may use different field names: caller_id/external_number, called_number/agent_number
     const rootFields = req.body;
     const { data, analysis: rootAnalysis } = req.body;
     const dataFields = data || {};
-
-    // Handle both field name formats: caller_id or external_number
-    const caller_id = rootFields.caller_id || rootFields.external_number ||
-                     dataFields.caller_id || dataFields.external_number;
-    // Handle both field name formats: called_number or agent_number
-    const called_number = rootFields.called_number || rootFields.agent_number ||
-                         dataFields.called_number || dataFields.agent_number;
+    
+    const caller_id = rootFields.caller_id || dataFields.caller_id;
+    const called_number = rootFields.called_number || dataFields.called_number;
     const conversation_id = rootFields.conversation_id || dataFields.conversation_id;
     const call_sid = rootFields.call_sid || dataFields.call_sid || dataFields.metadata?.phone_call?.call_sid;
     const agent_id = rootFields.agent_id || dataFields.agent_id;
     const conversation_initiation_client_data = rootFields.conversation_initiation_client_data || dataFields.conversation_initiation_client_data;
 
-    logger.info('Extracted webhook fields:', {
-      caller_id,
-      called_number,
-      conversation_id,
-      call_sid,
-      agent_id,
-      raw_body_keys: Object.keys(rootFields)
-    });
+    // Capture whether the caller is leaving a message and any provided text
+    const isLeavingMessage = normalizeBooleanFlag(
+      conversation_initiation_client_data?.is_leaving_message ??
+      conversation_initiation_client_data?.dynamic_variables?.is_leaving_message ??
+      dataFields.is_leaving_message ??
+      rootFields.is_leaving_message
+    );
+
+    const customerMessageText =
+      conversation_initiation_client_data?.customer_message_text ||
+      conversation_initiation_client_data?.dynamic_variables?.customer_message_text ||
+      dataFields.customer_message_text ||
+      rootFields.customer_message_text ||
+      null;
     
     // Detect if this is an outbound call
     const isOutbound = conversation_initiation_client_data?.initiated_by === 'agent';
@@ -480,47 +469,22 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     
     // Get organization from our phone number
     logger.info('Looking up organization for phone:', ourPhoneNumber);
-    let organization = await leadService.getOrganizationByPhone(ourPhoneNumber);
-
-    // If organization not found, use default organization instead of failing
-    // This prevents webhook failures which would cause ElevenLabs calls to fail
+    const organization = await leadService.getOrganizationByPhone(ourPhoneNumber);
     if (!organization) {
-      logger.warn('No organization found for phone, using default:', {
+      logger.error('No organization found for phone:', {
         ourPhoneNumber,
-        defaultOrgId: 'b0c1b1c1-0000-0000-0000-000000000001'
+        available_orgs: 'Check database for organizations table'
       });
-      // Fallback to default organization
-      organization = {
-        id: 'b0c1b1c1-0000-0000-0000-000000000001',
-        name: 'Beechee Bike Store',
-        phone_number: ourPhoneNumber,
-        timezone: 'America/Vancouver',
-        settings: {}
-      };
+      return res.status(404).json({ error: 'Organization not found for phone: ' + ourPhoneNumber });
     }
     
     logger.info('Found organization:', { id: organization.id, name: organization.name });
     
     // Get or create lead - use customer phone
-    let lead = conversation_initiation_client_data?.lead_id
+    const lead = conversation_initiation_client_data?.lead_id 
       ? await leadService.getLead(conversation_initiation_client_data.lead_id)
       : await leadService.findOrCreateLead(customerPhone, organization.id);
-
-    // Handle null lead case - create a minimal lead object to prevent failures
-    if (!lead) {
-      logger.warn('Lead could not be retrieved or created, using minimal fallback');
-      lead = {
-        id: `temp-${Date.now()}`,
-        organization_id: organization.id,
-        phone_number: customerPhone,
-        phone_number_normalized: customerPhone.replace(/\D/g, ''),
-        status: 'new' as const,
-        sentiment: 'neutral' as const,
-        created_at: new Date(),
-        updated_at: new Date()
-      };
-    }
-
+    
     logger.info('Lead data retrieved:', {
       lead_id: lead.id,
       has_name: !!lead.customer_name,
@@ -529,53 +493,37 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       status: lead.status
     });
     
-    // Build conversation context - wrap in try-catch to prevent failures
-    let conversationContext = '';
-    let previousSummary: any = null;
-    try {
-      conversationContext = await buildConversationContext(lead.id);
-      previousSummary = await conversationService.getLatestSummary(lead.id);
-    } catch (contextError) {
-      logger.warn('Error building conversation context, continuing with minimal context:', contextError);
-      conversationContext = 'First time caller';
-    }
-
+    // Build conversation context
+    const conversationContext = await buildConversationContext(lead.id);
+    const previousSummary = await conversationService.getLatestSummary(lead.id);
+    
     // Get current Pacific time info
     const { timeString: currentTime, date: pacificDate } = getCurrentPacificTime();
     const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][pacificDate.getDay()];
     const businessHoursStatus = getTodaysHours();
-
-    // Create complete dynamic greeting - wrap in try-catch
-    let dynamicGreeting = '';
-    try {
-      dynamicGreeting = await createDynamicGreeting(lead, currentTime, dayOfWeek, businessHoursStatus);
-    } catch (greetingError) {
-      logger.warn('Error creating dynamic greeting, using fallback:', greetingError);
-      dynamicGreeting = `Hey! Thanks for calling Beechee. We're ${businessHoursStatus}. How can I help you?`;
-    }
+    
+    // Create complete dynamic greeting
+    const dynamicGreeting = await createDynamicGreeting(lead, currentTime, dayOfWeek, businessHoursStatus);
     
     // Generate greeting context for additional variables
     const greetingContext = generateGreetingContext(lead, isOutbound, previousSummary);
     
     const dynamicVariables: ElevenLabsDynamicVariables = {
       // Customer info (with length limits like SMS)
-      customer_name: safeSubstring(lead.customer_name || "", 50),
+      customer_name: (lead.customer_name || "").substring(0, 50),
       customer_phone: caller_id,
       lead_status: lead.status || 'new',
       bike_interest: typeof lead.bike_interest === 'string' ? lead.bike_interest : JSON.stringify(lead.bike_interest || {}),
       
       // Conversation context (increased limit to match SMS implementation)
-      // Use safeSubstring to avoid breaking multi-byte characters (emojis)
-      conversation_context: safeSubstring(conversationContext || '', 1500),
-      previous_summary: safeSubstring(previousSummary?.summary || 'First time caller - no previous interactions', 500),
+      conversation_context: (conversationContext || '').substring(0, 1500),
+      previous_summary: (previousSummary?.summary || 'First time caller - no previous interactions').substring(0, 500),
       
       // Store info and timing context
       organization_name: organization.name,
       organization_id: organization.id,
       location_address: storeInfo.address,
-      location_address_formatted: storeInfo.address, // Formatted version for SMS (same as location_address)
       business_hours: businessHoursStatus,
-      store_greeting: businessHoursStatus, // Alias for business_hours (used in agent prompt)
       current_time: currentTime,
       current_day: dayOfWeek,
       current_datetime: `${dayOfWeek} ${currentTime} Pacific Time`,
@@ -601,77 +549,59 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     
     // Log the context preview for debugging (like SMS does)
     logger.info('Voice Call Context Preview:', {
-      conversation_context_preview: safeSubstring(dynamicVariables.conversation_context || '', 200) + '...',
-      previous_summary_preview: safeSubstring(dynamicVariables.previous_summary || '', 100) + '...',
+      conversation_context_preview: dynamicVariables.conversation_context?.substring(0, 200) + '...',
+      previous_summary_preview: dynamicVariables.previous_summary?.substring(0, 100) + '...',
       lead_status: dynamicVariables.lead_status,
       bike_interest: dynamicVariables.bike_interest,
-      dynamic_greeting_preview: safeSubstring(dynamicVariables.dynamic_greeting || '', 100) + '...'
+      dynamic_greeting_preview: dynamicVariables.dynamic_greeting?.substring(0, 100) + '...'
     });
     
-    // Create call session record - wrap in try-catch to not fail webhook
-    try {
-      await callSessionService.createSession({
-        organization_id: organization.id,
-        lead_id: lead.id,
-        elevenlabs_conversation_id: sessionId,
-        call_type: isOutbound ? 'outbound' : 'inbound',
-        status: 'initiated',
-        metadata: {
-          call_sid: call_sid || sessionId,
-          agent_id: agent_id,
-          caller_id: caller_id,
-          called_number: called_number,
-          initiated_by: conversation_initiation_client_data?.initiated_by
-        }
-      });
-    } catch (sessionError) {
-      logger.warn('Error creating call session, continuing anyway:', sessionError);
-    }
+    // Create call session record
+    await callSessionService.createSession({
+      organization_id: organization.id,
+      lead_id: lead.id,
+      elevenlabs_conversation_id: sessionId,
+      call_type: isOutbound ? 'outbound' : 'inbound',
+      is_leaving_message: isLeavingMessage,
+      customer_message_text: customerMessageText,
+      status: 'initiated',
+      metadata: {
+        call_sid: call_sid || sessionId,
+        agent_id: agent_id,
+        caller_id: caller_id,
+        called_number: called_number,
+        initiated_by: conversation_initiation_client_data?.initiated_by
+      }
+    });
     
     // Broadcast to dashboard
-    logger.info('🔴 BROADCASTING call_initiated event', {
-      type: 'call_initiated',
-      lead_id: lead.id,
-      phone_number: caller_id,
-      conversation_id: sessionId
-    });
     broadcastToClients({
       type: 'call_initiated',
       lead_id: lead.id,
       phone_number: caller_id,
       conversation_id: sessionId
     });
-    logger.info('✅ call_initiated broadcast sent');
-
+    
     logger.info('Returning dynamic variables for conversation', { lead_id: lead.id });
-
-    // Pre-compute async values BEFORE building response object to avoid Promise issues
-    const extractedName = lead.customer_name || await extractRecentCustomerName(lead.id) || '';
-    const interactionCount = await conversationService.getConversationCount(lead.id);
-
+    
     // Build proper response structure for ElevenLabs (just dynamic variables, no type field)
     const response = {
       dynamic_variables: {
         ...dynamicVariables,
         // Add extracted customer name if available (check recent conversations for name)
-        customer_name: extractedName,
+        customer_name: lead.customer_name || await extractRecentCustomerName(lead.id) || '',
         // Add dynamic context about the customer
         customer_history: previousSummary?.summary || 'New customer',
         last_topic: lead.bike_interest?.type || 'general inquiry',
         qualification_status: lead.qualification_data?.ready_to_buy ? 'ready to purchase' : 'exploring options',
-        interaction_count: String(interactionCount),
+        interaction_count: await conversationService.getConversationCount(lead.id),
         last_contact: lead.last_contact_at ? new Date(lead.last_contact_at).toLocaleDateString() : 'First contact',
         // CRITICAL: Add greeting variables for outbound calls
         greeting_opener: dynamicVariables.greeting_opener || (lead.customer_name ? `Hey ${lead.customer_name}!` : "Hey there!"),
         greeting_variation: dynamicVariables.greeting_variation || "How can I help you"
       }
     };
-
-    logger.info('Sending response to ElevenLabs', {
-      has_dynamic_variables: !!response.dynamic_variables,
-      variable_count: Object.keys(response.dynamic_variables).length
-    });
-
+    
     res.json(response);
   } catch (error) {
     logger.error('Error in conversation initiation:', error);
@@ -738,9 +668,9 @@ export async function handlePostCall(req: Request, res: Response) {
     let isLeavingMessage = false;
     let customerMessageText: string | null = null;
     
-    // Handle post_call webhook formats (ElevenLabs sends 'transcript' or 'post_call_transcription')
-    if (req.body.type === 'post_call_transcription' || req.body.type === 'transcript') {
-      logger.info('Processing post-call transcript format:', req.body.type);
+    // Handle new post_call_transcription webhook format
+    if (req.body.type === 'post_call_transcription') {
+      logger.info('Processing new post_call_transcription format');
       
       // Verify webhook signature - ENABLED FOR PRODUCTION
       if (!verifyElevenLabsSignature(req)) {
@@ -1049,62 +979,46 @@ export async function handlePostCall(req: Request, res: Response) {
       has_customer_name: !!updateData.customer_name,
       updated_successfully: !!updatedLead
     });
-
-    // ALWAYS broadcast lead update to connected clients so frontend updates immediately
-    // This ensures UI refreshes even if only sentiment/classification changed (not just name)
-    broadcastToClients({
-      type: 'lead_updated',
-      lead_id: session.lead_id,
-      customer_name: updatedLead?.customer_name || updateData.customer_name,
-      updates: updateData
-    });
-    logger.info('📢 Broadcasted lead_updated event:', {
-      lead_id: session.lead_id,
-      customer_name: updatedLead?.customer_name
-    });
+    
+    // Broadcast the lead update to all connected clients so frontend updates immediately
+    if (updateData.customer_name) {
+      broadcastToClients({
+        type: 'lead_updated',
+        lead_id: session.lead_id,
+        customer_name: updateData.customer_name,
+        updates: updateData
+      });
+    }
     
     // Store conversation summary for both voice and SMS
-    try {
-      await conversationService.createSummary({
-        organization_id: session.organization_id,
-        lead_id: session.lead_id,
-        phone_number: phone_number || session.metadata?.phone_number || 'unknown',
-        summary: analysis?.call_summary_title || analysis?.transcript_summary || 'Conversation completed',
-        key_points: insights.keyPoints || [],
-        next_steps: insights.nextSteps || [],
-        sentiment_score: insights.sentiment || 0.5,
-        call_classification: insights.classification || 'general',
-        conversation_type: metadata?.phone_call ? 'voice' : 'sms' // Track the conversation medium
-      });
-    } catch (summaryError) {
-      logger.error('Failed to create summary (non-fatal):', summaryError);
-      // Continue - don't let summary failure break transcript storage
-    }
+    await conversationService.createSummary({
+      organization_id: session.organization_id,
+      lead_id: session.lead_id,
+      phone_number: phone_number || session.metadata?.phone_number,
+      summary: analysis?.call_summary_title || analysis?.transcript_summary || 'Conversation completed',
+      key_points: insights.keyPoints || [],
+      next_steps: insights.nextSteps || [],
+      sentiment_score: insights.sentiment || 0.5,
+      call_classification: insights.classification || 'general',
+      conversation_type: metadata?.phone_call ? 'voice' : 'sms' // Track the conversation medium
+    });
     
     // Store individual conversation turns from the transcript array
     // IMPORTANT: Only store transcript for voice calls, not SMS (SMS messages are already stored in real-time)
     const isVoiceCall = !!metadata?.phone_call;
-
+    
     if (isVoiceCall) {
-      const normalizedPhoneNumber = phone_number.replace(/\D/g, '');
-      const leavingMessageFlag = insights.isLeavingMessage ?? false;
-      const customerMessageText = insights.customerMessageText
-        ? safeSubstring(insights.customerMessageText, 5000)
-        : undefined;
-
       if (Array.isArray(transcript)) {
         for (const turn of transcript) {
           if (turn.message && turn.message.trim()) {
             await conversationService.storeConversation({
               organization_id: session.organization_id,
               lead_id: session.lead_id,
-              phone_number_normalized: normalizedPhoneNumber,
+              phone_number_normalized: phone_number.replace(/\D/g, ''),
               content: turn.message,
               sent_by: turn.role === 'user' ? 'user' : 'agent',
               type: 'voice',
               call_classification: insights.classification || 'general',
-              is_leaving_message: leavingMessageFlag,
-              customer_message_text: customerMessageText,
               timestamp: new Date(metadata.start_time_unix_secs * 1000 + (turn.time_in_call_secs || 0) * 1000),
               metadata: {
                 time_in_call_secs: turn.time_in_call_secs,
@@ -1119,13 +1033,11 @@ export async function handlePostCall(req: Request, res: Response) {
         await conversationService.storeConversation({
           organization_id: session.organization_id,
           lead_id: session.lead_id,
-          phone_number_normalized: normalizedPhoneNumber,
+          phone_number_normalized: phone_number.replace(/\D/g, ''),
           content: fullTranscript || 'Call completed - transcript not available',
           sent_by: 'system',
           type: 'voice',
-          call_classification: insights.classification || 'general',
-          is_leaving_message: leavingMessageFlag,
-          customer_message_text: customerMessageText
+          call_classification: insights.classification || 'general'
         });
       }
     } else {
@@ -1133,15 +1045,9 @@ export async function handlePostCall(req: Request, res: Response) {
     }
     
     // Trigger enhanced SMS automation ONLY for voice calls, not SMS conversations
-    // Wrap in try-catch so SMS failures don't break the webhook
     if (isVoiceCall) {
-      try {
-        logger.info('Triggering SMS follow-up for voice call');
-        await enhancedSMSService.triggerSmartAutomation(session, insights, fullTranscript);
-      } catch (smsError) {
-        logger.error('SMS automation failed (non-fatal):', smsError);
-        // Continue - don't let SMS failure break the webhook
-      }
+      logger.info('Triggering SMS follow-up for voice call');
+      await enhancedSMSService.triggerSmartAutomation(session, insights, fullTranscript);
     } else {
       logger.info('Skipping SMS automation for SMS conversation - not needed');
     }
@@ -1174,11 +1080,9 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
   };
   
   // Use ElevenLabs data collection if available, otherwise fallback to keyword matching
-  // Note: ElevenLabs returns camelCase field names (callClassification) but we also check snake_case for backwards compatibility
-  const callClassificationField = analysis?.data_collection_results?.callClassification || analysis?.data_collection_results?.call_classification;
-  if (callClassificationField?.value) {
+  if (analysis?.data_collection_results?.call_classification?.value) {
     // ElevenLabs has already classified the call intelligently
-    insights.classification = callClassificationField.value;
+    insights.classification = analysis.data_collection_results.call_classification.value;
     logger.info('Using ElevenLabs call classification:', insights.classification);
   } else {
     // Fallback to keyword matching
@@ -1193,11 +1097,9 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
   }
   
   // Use ElevenLabs triggers if available, otherwise fallback
-  // Note: ElevenLabs returns camelCase field names (customerTriggers) but we also check snake_case for backwards compatibility
-  const customerTriggersField = analysis?.data_collection_results?.customerTriggers || analysis?.data_collection_results?.customer_triggers;
-  if (customerTriggersField?.value) {
+  if (analysis?.data_collection_results?.customer_triggers?.value) {
     // ElevenLabs returns triggers as a string, we need to parse it
-    const triggerString = customerTriggersField.value;
+    const triggerString = analysis.data_collection_results.customer_triggers.value;
     if (typeof triggerString === 'string') {
       // Parse comma-separated triggers and map to our expected format
       const triggerMap: Record<string, string> = {
@@ -1214,7 +1116,7 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
         .map(t => triggerMap[t] || t)
         .filter(Boolean);
     } else {
-      insights.triggers = customerTriggersField.value;
+      insights.triggers = analysis.data_collection_results.customer_triggers.value;
     }
     logger.info('Using ElevenLabs customer triggers:', insights.triggers);
   } else {
@@ -1236,58 +1138,28 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
   if (analysis?.data_collection_results) {
     logger.info('Data collection results found:', analysis.data_collection_results);
     
-    // Extract call classification from ElevenLabs (camelCase or snake_case)
-    const classificationField = analysis.data_collection_results.callClassification || analysis.data_collection_results.call_classification;
-    if (classificationField?.value) {
-      insights.classification = classificationField.value;
+    // Extract call classification from ElevenLabs
+    if (analysis.data_collection_results.call_classification?.value) {
+      insights.classification = analysis.data_collection_results.call_classification.value;
       logger.info('Call classified as:', insights.classification);
     }
-
-    // Extract customer triggers from ElevenLabs (camelCase or snake_case)
-    const triggersField = analysis.data_collection_results.customerTriggers || analysis.data_collection_results.customer_triggers;
-    if (triggersField?.value) {
-      insights.triggers = triggersField.value || [];
+    
+    // Extract customer triggers from ElevenLabs
+    if (analysis.data_collection_results.customer_triggers?.value) {
+      insights.triggers = analysis.data_collection_results.customer_triggers.value || [];
       logger.info('Customer triggers:', insights.triggers);
     }
-
-    // Extract follow-up recommendation from ElevenLabs (camelCase or snake_case)
-    const followUpField = analysis.data_collection_results.followUpNeeded || analysis.data_collection_results.follow_up_needed;
-    if (followUpField?.value) {
-      insights.followUpNeeded = followUpField.value;
+    
+    // Extract follow-up recommendation from ElevenLabs
+    if (analysis.data_collection_results.follow_up_needed?.value) {
+      insights.followUpNeeded = analysis.data_collection_results.follow_up_needed.value;
       logger.info('Follow-up needed:', insights.followUpNeeded);
-    }
-
-    // Detect if the caller is leaving a message (camelCase or snake_case)
-    const leavingMessageField = analysis.data_collection_results.isLeavingMessage || analysis.data_collection_results.is_leaving_message;
-    if (typeof leavingMessageField?.value === 'boolean') {
-      insights.isLeavingMessage = leavingMessageField.value;
-      logger.info('Caller leaving message detected:', insights.isLeavingMessage);
-    } else if (typeof leavingMessageField === 'boolean') {
-      insights.isLeavingMessage = leavingMessageField;
-      logger.info('Caller leaving message detected (direct value):', insights.isLeavingMessage);
-    }
-
-    // Extract the customer's message text if provided
-    const customerMessageField = analysis.data_collection_results.customerMessageText || analysis.data_collection_results.customer_message_text;
-    if (typeof customerMessageField?.value === 'string') {
-      insights.customerMessageText = customerMessageField.value;
-      logger.info('Captured customer message text from analysis');
-    } else if (typeof customerMessageField === 'string') {
-      insights.customerMessageText = customerMessageField;
-      logger.info('Captured customer message text (direct value)');
     }
     
     // Extract customer name if collected (note: ElevenLabs returns structured data with .value)
     // IMPORTANT: Only update the name if we found a new one, don't clear existing names
-    // Note: Field name is 'customerName' (camelCase) as configured in ElevenLabs data collection
-    const customerNameField = analysis.data_collection_results.customerName || analysis.data_collection_results.customer_name;
-    logger.info('🔍 Checking for customerName in data_collection_results:', {
-      has_data_collection_results: !!analysis.data_collection_results,
-      has_customerName_field: !!customerNameField,
-      customerName_value: customerNameField?.value || 'NOT_FOUND'
-    });
-    if (customerNameField?.value) {
-      const extractedName = customerNameField.value;
+    if (analysis.data_collection_results.customer_name?.value) {
+      const extractedName = analysis.data_collection_results.customer_name.value;
       
       // Only set the name if it's not "Ryder" (our agent's name) or other false positives
       if (!['ryder', 'agent', 'assistant'].includes(extractedName.toLowerCase())) {
@@ -1302,36 +1174,31 @@ async function processTranscript(transcript: string, analysis: any): Promise<Con
     // Note: If no name was found, we do NOT clear the existing name
     // Customer might not say their name in every call, especially short ones
     
-    // Extract bike preferences if collected (camelCase or snake_case)
-    const bikeTypeField = analysis.data_collection_results.bikeType || analysis.data_collection_results.bike_type;
-    if (bikeTypeField?.value) {
+    // Extract bike preferences if collected
+    if (analysis.data_collection_results.bike_type?.value) {
       insights.bikePreferences = insights.bikePreferences || {};
-      insights.bikePreferences.type = bikeTypeField.value;
+      insights.bikePreferences.type = analysis.data_collection_results.bike_type.value;
       logger.info('Extracted bike type:', insights.bikePreferences.type);
     }
-
-    // Extract purchase intent if collected (camelCase or snake_case)
-    const purchaseIntentField = analysis.data_collection_results.purchaseIntent || analysis.data_collection_results.purchase_intent;
-    if (purchaseIntentField?.value) {
-      insights.purchaseIntent = purchaseIntentField.value;
+    
+    // Extract purchase intent if collected
+    if (analysis.data_collection_results.purchase_intent?.value) {
+      insights.purchaseIntent = analysis.data_collection_results.purchase_intent.value;
     }
-
-    // Extract riding experience if collected (camelCase or snake_case)
-    const ridingExperienceField = analysis.data_collection_results.ridingExperience || analysis.data_collection_results.riding_experience;
-    if (ridingExperienceField?.value) {
-      insights.ridingExperience = ridingExperienceField.value;
+    
+    // Extract riding experience if collected
+    if (analysis.data_collection_results.riding_experience?.value) {
+      insights.ridingExperience = analysis.data_collection_results.riding_experience.value;
     }
-
-    // Extract purchase timeline if collected (camelCase or snake_case)
-    const purchaseTimelineField = analysis.data_collection_results.purchaseTimeline || analysis.data_collection_results.purchase_timeline;
-    if (purchaseTimelineField?.value) {
-      insights.purchaseTimeline = purchaseTimelineField.value;
+    
+    // Extract purchase timeline if collected
+    if (analysis.data_collection_results.purchase_timeline?.value) {
+      insights.purchaseTimeline = analysis.data_collection_results.purchase_timeline.value;
     }
-
-    // Extract budget range if collected (camelCase or snake_case)
-    const budgetRangeField = analysis.data_collection_results.budgetRange || analysis.data_collection_results.budget_range;
-    if (budgetRangeField?.value) {
-      insights.budgetRange = budgetRangeField.value;
+    
+    // Extract budget range if collected
+    if (analysis.data_collection_results.budget_range?.value) {
+      insights.budgetRange = analysis.data_collection_results.budget_range.value;
     }
     
     logger.info('Final extracted insights:', {
