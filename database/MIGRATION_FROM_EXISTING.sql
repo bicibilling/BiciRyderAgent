@@ -51,8 +51,6 @@ CREATE TABLE IF NOT EXISTS call_sessions (
   ended_at TIMESTAMPTZ,
   duration_seconds INTEGER,
   call_type VARCHAR(20) DEFAULT 'inbound', -- inbound, outbound
-  is_leaving_message BOOLEAN DEFAULT false,
-  customer_message_text TEXT,
   metadata JSONB DEFAULT '{}'::jsonb
 );
 

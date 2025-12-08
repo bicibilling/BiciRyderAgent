@@ -68,8 +68,6 @@ export interface CallSession {
   ended_at?: Date;
   duration_seconds?: number;
   call_type?: 'inbound' | 'outbound';
-  is_leaving_message?: boolean;
-  customer_message_text?: string | null;
   metadata?: Record<string, any>;
 }
 
