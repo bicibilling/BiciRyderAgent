@@ -1017,27 +1017,6 @@ export async function handlePostCall(req: Request, res: Response) {
     });
     
     const insights = await processTranscript(fullTranscript, analysis);
-
-    // Re-extract voicemail fields from insights to ensure we persist them to call_sessions
-    if (typeof insights.isLeavingMessage === 'boolean') {
-      isLeavingMessage = normalizeBooleanFlag(insights.isLeavingMessage);
-    }
-
-    if (insights.customerMessageText) {
-      customerMessageText = insights.customerMessageText;
-    }
-
-    // Update the session with the latest voicemail metadata
-    if (session?.id) {
-      session =
-        (await callSessionService.updateSession(session.id, {
-          is_leaving_message: isLeavingMessage,
-          customer_message_text: customerMessageText
-        })) || session;
-
-      session.is_leaving_message = isLeavingMessage;
-      session.customer_message_text = customerMessageText;
-    }
     
     // Update lead with extracted data
     const updateData: any = {
