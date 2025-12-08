@@ -33,14 +33,14 @@ export class ConversationService {
         this.conversationCache.set(data.lead_id, cached);
       }
       
-      // Invalidate Redis caches when new conversation is stored
+      // Append to Redis cache instead of clearing (avoids cache thrashing)
       if (data.lead_id) {
         try {
-          // Clear context cache (will be rebuilt with new conversation)
-          await redisService.clearLeadCache(data.lead_id);
-          logger.debug(`Invalidated cache for lead ${data.lead_id} after storing conversation`);
+          // Append to conversation cache - much faster than clearing and rebuilding
+          await redisService.appendToConversationCache(data.lead_id, stored);
+          logger.debug(`Appended conversation to cache for lead ${data.lead_id}`);
         } catch (redisError) {
-          logger.warn('Failed to invalidate cache after storing conversation:', redisError);
+          logger.warn('Failed to append to cache after storing conversation:', redisError);
         }
       }
       

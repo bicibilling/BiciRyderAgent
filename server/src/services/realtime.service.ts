@@ -82,11 +82,21 @@ export function broadcastToClients(data: any, targetClientId?: string) {
     });
   }
   
-  logger.debug('Broadcasted event:', { 
-    type: data.type, 
-    targetClientId,
-    connectionCount: sseConnections.size 
-  });
+  // Enhanced logging for call events
+  if (data.type === 'call_initiated' || data.type === 'call_completed') {
+    logger.info(`📡 SSE BROADCAST: ${data.type}`, {
+      type: data.type,
+      lead_id: data.lead_id,
+      connectionCount: sseConnections.size,
+      targetClientId
+    });
+  } else {
+    logger.debug('Broadcasted event:', {
+      type: data.type,
+      targetClientId,
+      connectionCount: sseConnections.size
+    });
+  }
 }
 
 export function getActiveConnections(): number {

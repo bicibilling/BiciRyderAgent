@@ -108,6 +108,9 @@ export class LeadService {
           await redisService.invalidateLeadCache(cacheKey);
           // Also clear all related cache entries for this lead
           await redisService.clearLeadCache(leadId, data.phone_number_normalized);
+          // IMPORTANT: Also invalidate the dashboard leads cache so UI refreshes with updated data
+          await redisService.invalidateDashboardCache(data.organization_id);
+          logger.debug('Invalidated dashboard cache after lead update');
         } catch (redisError) {
           logger.warn('Failed to invalidate lead cache after update:', redisError);
         }

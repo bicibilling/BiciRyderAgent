@@ -207,7 +207,8 @@ export class EnhancedSMSAutomationService {
           await this.sendSMS(
             lead.phone_number,
             scheduled.message,
-            session.organization_id
+            session.organization_id,
+            lead.id  // Pass lead_id for real-time streaming
           );
           
           // Track sent message
@@ -253,36 +254,38 @@ export class EnhancedSMSAutomationService {
     }
   }
 
-  private async sendSMS(to: string, message: string, organizationId: string): Promise<any> {
+  private async sendSMS(to: string, message: string, organizationId: string, leadId?: string): Promise<any> {
     try {
       const formattedTo = formatPhoneNumber(to);
-      
+
       const result = await twilioClient.messages.create({
         body: message,
         from: process.env.TWILIO_PHONE_NUMBER!,
         to: formattedTo
       });
-      
-      logger.info('SMS sent successfully:', { 
-        to: formattedTo, 
+
+      logger.info('SMS sent successfully:', {
+        to: formattedTo,
         messageSid: result.sid,
+        leadId,
         preview: message.substring(0, 50) + '...'
       });
-      
-      // Store in database
+
+      // Store in database with lead_id for proper real-time streaming
       await conversationService.storeConversation({
         organization_id: organizationId,
+        lead_id: leadId,  // Include lead_id for SSE broadcast to work
         phone_number_normalized: to.replace(/\D/g, ''),
         content: message,
         sent_by: 'agent',
         type: 'sms',
-        metadata: { 
+        metadata: {
           message_sid: result.sid,
           automated: true,
           template_type: this.detectTemplateType(message)
         }
       });
-      
+
       return result;
     } catch (error) {
       logger.error('Error sending SMS:', error);
