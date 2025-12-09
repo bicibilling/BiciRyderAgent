@@ -863,11 +863,11 @@ export async function handlePostCall(req: Request, res: Response) {
         duration
       });
       
-      if (!sessionId || !phone_number) {
-        logger.error('Missing required fields in post-call', { 
-          conversation_id, 
-          call_sid: metadata?.phone_call?.call_sid,
-          phone_number,
+    if (!sessionId || !phone_number) {
+      logger.error('Missing required fields in post-call', {
+        conversation_id,
+        call_sid: metadata?.phone_call?.call_sid,
+        phone_number,
           sessionId 
         });
         return res.status(400).json({ error: 'Missing required fields' });
@@ -875,12 +875,28 @@ export async function handlePostCall(req: Request, res: Response) {
       
       logger.info('Processing post-call for session:', sessionId);
     }
-    
+
     // Process transcript array into readable text
-    const fullTranscript = Array.isArray(transcript) 
+    const fullTranscript = Array.isArray(transcript)
       ? transcript.map(turn => `${turn.role}: ${turn.message}`).join('\n')
       : transcript || '';
-    
+
+    const dataCollection = analysis?.data_collection_results ?? {};
+
+    const rawIsLeavingMessage =
+      dataCollection.is_leaving_message?.value ?? dataCollection.isLeavingMessage?.value;
+
+    const rawCustomerMessageText =
+      dataCollection.customer_message_text?.value ?? dataCollection.customerMessageText?.value;
+
+    const isLeavingMessage =
+      typeof rawIsLeavingMessage === 'boolean' ? rawIsLeavingMessage : undefined;
+
+    const customerMessageText =
+      typeof rawCustomerMessageText === 'string'
+        ? safeSubstring(rawCustomerMessageText, 2000)
+        : undefined;
+
     // Find the most recent call session for this phone number instead of by conversation_id
     // since ElevenLabs sends different IDs in initiation vs post-call
     const sessionUpdateData: Partial<CallSession> = {
@@ -893,7 +909,9 @@ export async function handlePostCall(req: Request, res: Response) {
         raw_transcript: transcript,
         elevenlabs_analysis: analysis,
         conversation_id: sessionId  // Store the conversation_id from post-call
-      }
+      },
+      ...(typeof isLeavingMessage === 'boolean' ? { is_leaving_message: isLeavingMessage } : {}),
+      ...(customerMessageText ? { customer_message_text: customerMessageText } : {})
     };
     
     // Try direct lookup first, then fallback to phone-based
