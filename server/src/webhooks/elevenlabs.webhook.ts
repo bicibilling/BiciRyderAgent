@@ -917,9 +917,10 @@ export async function handlePostCall(req: Request, res: Response) {
     const rawIsBikePurchase =
       dataCollection.is_bike_purchase?.value ?? dataCollection.isBikePurchase?.value;
 
-    const isSpecialOrder = normalizeBoolean(rawIsSpecialOrder);
-    const isCurrentOrderRequest = normalizeBoolean(rawIsCurrentOrderRequest);
-    const isBikePurchase = normalizeBoolean(rawIsBikePurchase);
+    const isSpecialOrder = typeof rawIsSpecialOrder === 'boolean' ? rawIsSpecialOrder : undefined;
+    const isCurrentOrderRequest =
+      typeof rawIsCurrentOrderRequest === 'boolean' ? rawIsCurrentOrderRequest : undefined;
+    const isBikePurchase = typeof rawIsBikePurchase === 'boolean' ? rawIsBikePurchase : undefined;
 
     // Find the most recent call session for this phone number instead of by conversation_id
     // since ElevenLabs sends different IDs in initiation vs post-call
