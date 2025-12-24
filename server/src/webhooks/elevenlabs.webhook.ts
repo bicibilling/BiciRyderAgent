@@ -33,6 +33,20 @@ function safeSubstring(str: string, maxLength: number): string {
   return chars.slice(0, maxLength).join('');
 }
 
+function normalizeBoolean(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', 'yes', 'y', '1'].includes(normalized)) return true;
+    if (['false', 'no', 'n', '0'].includes(normalized)) return false;
+  }
+  return undefined;
+}
+
 // Verify ElevenLabs webhook signature
 function verifyElevenLabsSignature(req: Request): boolean {
   // Check if webhook secret is configured
@@ -889,8 +903,7 @@ export async function handlePostCall(req: Request, res: Response) {
     const rawCustomerMessageText =
       dataCollection.customer_message_text?.value ?? dataCollection.customerMessageText?.value;
 
-    const isLeavingMessage =
-      typeof rawIsLeavingMessage === 'boolean' ? rawIsLeavingMessage : undefined;
+    const isLeavingMessage = normalizeBoolean(rawIsLeavingMessage);
 
     const customerMessageText =
       typeof rawCustomerMessageText === 'string'
