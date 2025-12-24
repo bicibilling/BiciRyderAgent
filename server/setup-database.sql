@@ -69,6 +69,9 @@ CREATE TABLE IF NOT EXISTS call_sessions (
     ended_at TIMESTAMPTZ,
     duration_seconds INTEGER,
     call_type TEXT CHECK (call_type IN ('inbound', 'outbound')),
+    is_special_order BOOLEAN,
+    is_current_order_request BOOLEAN,
+    is_bike_purchase BOOLEAN,
     metadata JSONB DEFAULT '{}'
 );
 
