@@ -897,6 +897,18 @@ export async function handlePostCall(req: Request, res: Response) {
         ? safeSubstring(rawCustomerMessageText, 2000)
         : undefined;
 
+    const rawIsSpecialOrder =
+      dataCollection.is_special_order?.value ?? dataCollection.isSpecialOrder?.value;
+    const rawIsCurrentOrderRequest =
+      dataCollection.is_current_order_request?.value ?? dataCollection.isCurrentOrderRequest?.value;
+    const rawIsBikePurchase =
+      dataCollection.is_bike_purchase?.value ?? dataCollection.isBikePurchase?.value;
+
+    const isSpecialOrder = typeof rawIsSpecialOrder === 'boolean' ? rawIsSpecialOrder : undefined;
+    const isCurrentOrderRequest =
+      typeof rawIsCurrentOrderRequest === 'boolean' ? rawIsCurrentOrderRequest : undefined;
+    const isBikePurchase = typeof rawIsBikePurchase === 'boolean' ? rawIsBikePurchase : undefined;
+
     // Find the most recent call session for this phone number instead of by conversation_id
     // since ElevenLabs sends different IDs in initiation vs post-call
     const sessionUpdateData: Partial<CallSession> = {
@@ -911,6 +923,9 @@ export async function handlePostCall(req: Request, res: Response) {
         conversation_id: sessionId  // Store the conversation_id from post-call
       },
       ...(typeof isLeavingMessage === 'boolean' ? { is_leaving_message: isLeavingMessage } : {}),
+      ...(typeof isSpecialOrder === 'boolean' ? { is_special_order: isSpecialOrder } : {}),
+      ...(typeof isCurrentOrderRequest === 'boolean' ? { is_current_order_request: isCurrentOrderRequest } : {}),
+      ...(typeof isBikePurchase === 'boolean' ? { is_bike_purchase: isBikePurchase } : {}),
       ...(customerMessageText ? { customer_message_text: customerMessageText } : {})
     };
     
