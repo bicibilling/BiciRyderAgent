@@ -89,6 +89,9 @@ CREATE TABLE IF NOT EXISTS call_sessions (
   classification VARCHAR(50),
   escalated_to_human BOOLEAN DEFAULT false,
   escalation_reason VARCHAR(255),
+  is_special_order BOOLEAN,
+  is_current_order_request BOOLEAN,
+  is_bike_purchase BOOLEAN,
   metadata JSONB DEFAULT '{}'::jsonb
 );
 

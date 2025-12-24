@@ -33,6 +33,20 @@ function safeSubstring(str: string, maxLength: number): string {
   return chars.slice(0, maxLength).join('');
 }
 
+function normalizeBoolean(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (value === 1) return true;
+    if (value === 0) return false;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', 'yes', 'y', '1'].includes(normalized)) return true;
+    if (['false', 'no', 'n', '0'].includes(normalized)) return false;
+  }
+  return undefined;
+}
+
 // Verify ElevenLabs webhook signature
 function verifyElevenLabsSignature(req: Request): boolean {
   // Check if webhook secret is configured
@@ -889,13 +903,23 @@ export async function handlePostCall(req: Request, res: Response) {
     const rawCustomerMessageText =
       dataCollection.customer_message_text?.value ?? dataCollection.customerMessageText?.value;
 
-    const isLeavingMessage =
-      typeof rawIsLeavingMessage === 'boolean' ? rawIsLeavingMessage : undefined;
+    const isLeavingMessage = normalizeBoolean(rawIsLeavingMessage);
 
     const customerMessageText =
       typeof rawCustomerMessageText === 'string'
         ? safeSubstring(rawCustomerMessageText, 2000)
         : undefined;
+
+    const rawIsSpecialOrder =
+      dataCollection.is_special_order?.value ?? dataCollection.isSpecialOrder?.value;
+    const rawIsCurrentOrderRequest =
+      dataCollection.is_current_order_request?.value ?? dataCollection.isCurrentOrderRequest?.value;
+    const rawIsBikePurchase =
+      dataCollection.is_bike_purchase?.value ?? dataCollection.isBikePurchase?.value;
+
+    const isSpecialOrder = normalizeBoolean(rawIsSpecialOrder);
+    const isCurrentOrderRequest = normalizeBoolean(rawIsCurrentOrderRequest);
+    const isBikePurchase = normalizeBoolean(rawIsBikePurchase);
 
     // Find the most recent call session for this phone number instead of by conversation_id
     // since ElevenLabs sends different IDs in initiation vs post-call
@@ -911,6 +935,9 @@ export async function handlePostCall(req: Request, res: Response) {
         conversation_id: sessionId  // Store the conversation_id from post-call
       },
       ...(typeof isLeavingMessage === 'boolean' ? { is_leaving_message: isLeavingMessage } : {}),
+      ...(typeof isSpecialOrder === 'boolean' ? { is_special_order: isSpecialOrder } : {}),
+      ...(typeof isCurrentOrderRequest === 'boolean' ? { is_current_order_request: isCurrentOrderRequest } : {}),
+      ...(typeof isBikePurchase === 'boolean' ? { is_bike_purchase: isBikePurchase } : {}),
       ...(customerMessageText ? { customer_message_text: customerMessageText } : {})
     };
     

@@ -68,6 +68,9 @@ export interface CallSession {
   call_type?: 'inbound' | 'outbound';
   customer_message_text?: string;
   is_leaving_message?: boolean;
+  is_special_order?: boolean;
+  is_current_order_request?: boolean;
+  is_bike_purchase?: boolean;
   metadata?: Record<string, any>;
 }
 
