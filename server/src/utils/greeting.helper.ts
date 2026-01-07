@@ -271,12 +271,12 @@ export async function createDynamicGreeting(lead?: any, currentTime?: string, da
   }
 
   // Add time context naturally
-  if (dateTimeInfo.timeString) {
+  //if (dateTimeInfo.timeString) {
     // Add day context or time-specific information
-    if (dayContext) {
-      greeting += ` ${dayContext}`;
-    }
-  }
+    //if (dayContext) {
+     // greeting += ` ${dayContext}`;
+   // }
+ // }
 
   // Add store status with detailed hours information
   if (!storeHours.isOpen) {
