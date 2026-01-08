@@ -182,7 +182,7 @@ export function getDetailedStoreHours(): {
     const closeTimeFormatted = formatTime(closeHour, closeMinute);
     return {
       isOpen: true,
-      currentStatus: `We're open right now until ${closeTimeFormatted} (it's ${timeString} PT)`,
+      currentStatus: `We're open right now until ${closeTimeFormatted} and it's currently ${timeString})`,
       hoursInfo: `Today's hours: ${formatTime(openHour, openMinute)} - ${closeTimeFormatted}`
     };
   } else if (currentTime < openTime) {
@@ -280,7 +280,7 @@ export async function createDynamicGreeting(lead?: any, currentTime?: string, da
 
   // Add store status with detailed hours information
   if (!storeHours.isOpen) {
-    greeting += ` ${storeHours.currentStatus} but I'm happy to help you out.`;
+    greeting += ` ${storeHours.currentStatus}`;
 
     // Add helpful hours information for closed status
     if (storeHours.hoursInfo && !storeHours.hoursInfo.includes("tomorrow")) {
@@ -294,7 +294,7 @@ export async function createDynamicGreeting(lead?: any, currentTime?: string, da
   }
 
   // Natural ending
-  greeting += ` What's up?`;
+  greeting += `How can I help?`;
 
   // Cache the generated greeting
   if (leadId) {
