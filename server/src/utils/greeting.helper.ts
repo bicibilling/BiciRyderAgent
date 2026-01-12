@@ -174,8 +174,9 @@ export function getDetailedStoreHours(): {
   const closeTime = closeHour * 100 + closeMinute;
 
   const formatTime = (hour: number, minute: number) => {
+    const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minute.toString().padStart(2, '0')}`;
+    return `${displayHour}:${minute.toString().padStart(2, '0')} ${ampm}`;
   };
 
   if (currentTime >= openTime && currentTime < closeTime) {
