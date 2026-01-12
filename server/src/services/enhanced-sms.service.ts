@@ -303,7 +303,7 @@ export class EnhancedSMSAutomationService {
       return 'Closed today';
     }
 
-    return `${hours.open} - ${hours.close}`;
+    return `${this.formatTime(hours.open)} - ${this.formatTime(hours.close)}`;
   }
 
   private getClosingTime(): string {
@@ -311,13 +311,33 @@ export class EnhancedSMSAutomationService {
     const pacificTime = toZonedTime(new Date(), 'America/Los_Angeles');
     const today = days[pacificTime.getDay()];
     const hours = businessHours[today as keyof typeof businessHours];
-    return hours.close || 'soon';
+    if (!hours.close || hours.open === 'closed') {
+      return 'soon';
+    }
+
+    return this.formatTime(hours.close);
   }
 
   private getNextOpenTime(): string {
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const pacificTime = toZonedTime(new Date(), 'America/Los_Angeles');
     const today = pacificTime.getDay();
+    const todayName = days[today];
+    const todayHours = businessHours[todayName as keyof typeof businessHours];
+    const currentMinutes = pacificTime.getHours() * 60 + pacificTime.getMinutes();
+
+    if (todayHours.open !== 'closed') {
+      const openMinutes = this.getMinutesFromTime(todayHours.open);
+      const closeMinutes = this.getMinutesFromTime(todayHours.close);
+
+      if (currentMinutes < openMinutes) {
+        return `today at ${this.formatTime(todayHours.open)}`;
+      }
+
+      if (currentMinutes >= openMinutes && currentMinutes < closeMinutes) {
+        return `today at ${this.formatTime(todayHours.open)}`;
+      }
+    }
 
     for (let i = 1; i <= 7; i++) {
       const nextDay = (today + i) % 7;
@@ -325,8 +345,9 @@ export class EnhancedSMSAutomationService {
       const hours = businessHours[dayName as keyof typeof businessHours];
 
       if (hours.open !== 'closed') {
-        if (i === 1) return `tomorrow at ${hours.open}`;
-        return `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} at ${hours.open}`;
+        const formattedTime = this.formatTime(hours.open);
+        if (i === 1) return `tomorrow at ${formattedTime}`;
+        return `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} at ${formattedTime}`;
       }
     }
 
@@ -334,7 +355,51 @@ export class EnhancedSMSAutomationService {
   }
 
   private getWeeklyHours(): string {
-    return `Mon-Fri: 8:00 AM - 6:00 PM\nSat-Sun: 9:00 AM - 4:30 PM`;
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const ranges: string[] = [];
+
+    const formatHours = (day: keyof typeof businessHours): string => {
+      const hours = businessHours[day];
+      if (hours.open === 'closed') {
+        return 'Closed';
+      }
+      return `${this.formatTime(hours.open)} - ${this.formatTime(hours.close)}`;
+    };
+
+    let rangeStart = 0;
+    let currentHours = formatHours(days[0] as keyof typeof businessHours);
+
+    for (let i = 1; i <= days.length; i++) {
+      const nextHours = i < days.length
+        ? formatHours(days[i] as keyof typeof businessHours)
+        : null;
+
+      if (nextHours !== currentHours) {
+        const startLabel = dayLabels[rangeStart];
+        const endLabel = dayLabels[i - 1];
+        const dayRange = rangeStart === i - 1 ? startLabel : `${startLabel}-${endLabel}`;
+        ranges.push(`${dayRange}: ${currentHours}`);
+        rangeStart = i;
+        currentHours = nextHours ?? '';
+      }
+    }
+
+    return ranges.join('\n');
+  }
+
+  private formatTime(time: string): string {
+    const [hourString, minuteString] = time.split(':');
+    const hours = Number(hourString);
+    const minutes = Number(minuteString);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = ((hours + 11) % 12) + 1;
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+  }
+
+  private getMinutesFromTime(time: string): number {
+    const [hourString, minuteString] = time.split(':');
+    return Number(hourString) * 60 + Number(minuteString);
   }
 
   private isStoreOpen(): boolean {
