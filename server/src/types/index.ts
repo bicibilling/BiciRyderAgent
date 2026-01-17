@@ -101,6 +101,10 @@ export interface ElevenLabsDynamicVariables {
   customer_greeting?: string;
   is_outbound?: string;
   call_type?: string;
+  phone_number?: string;
+  order_number?: string;
+  fulfillment_statuses?: string;
+  order_fulfillment?: string;
   [key: string]: any; // Allow additional properties from spread operator
 }
 

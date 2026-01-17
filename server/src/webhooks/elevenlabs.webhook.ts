@@ -7,6 +7,7 @@ import { ConversationService } from '../services/conversation.service';
 import { CallSessionService } from '../services/callSession.service';
 import { EnhancedSMSAutomationService } from '../services/enhanced-sms.service';
 import { broadcastToClients } from '../services/realtime.service';
+import { bigQueryService } from '../services/bigquery.service';
 import { businessHours, storeInfo } from '../config/elevenlabs.config';
 import { ElevenLabsDynamicVariables, ConversationInsights, Lead, CallSession } from '../types';
 import { generateGreetingContext, createDynamicGreeting } from '../utils/greeting.helper';
@@ -570,6 +571,18 @@ export async function handleConversationInitiation(req: Request, res: Response) 
     
     // Generate greeting context for additional variables
     const greetingContext = generateGreetingContext(lead, isOutbound, previousSummary);
+
+    const bigQueryPhoneData = await bigQueryService.getPhoneData(customerPhone);
+    if (bigQueryPhoneData) {
+      logger.info('BigQuery phone data found for caller', {
+        customerPhone,
+        order_number: bigQueryPhoneData.order_number,
+        fulfillment_statuses: bigQueryPhoneData.fulfillment_statuses,
+        order_fulfillment: bigQueryPhoneData.order_fulfillment
+      });
+    } else {
+      logger.info('No BigQuery phone data found for caller', { customerPhone });
+    }
     
     const dynamicVariables: ElevenLabsDynamicVariables = {
       // Customer info (with length limits like SMS)
@@ -594,6 +607,12 @@ export async function handleConversationInitiation(req: Request, res: Response) 
       current_day: dayOfWeek,
       current_datetime: `${dayOfWeek} ${currentTime} Pacific Time`,
       has_customer_name: lead.customer_name ? "true" : "false",
+
+      // BigQuery phone data (view-backed)
+      phone_number: bigQueryPhoneData?.phone_number || '',
+      order_number: bigQueryPhoneData?.order_number || '',
+      fulfillment_statuses: bigQueryPhoneData?.fulfillment_statuses || '',
+      order_fulfillment: bigQueryPhoneData?.order_fulfillment || '',
       
       // Dynamic greeting (complete and processed)
       dynamic_greeting: dynamicGreeting,
